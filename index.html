@@ -11,7 +11,6 @@
   --azul:#1a3a5c; --azul-m:#2563a8; --azul-c:#e8f0fa;
   --verde:#0f7b55; --verde-c:#e6f4ef;
   --coral:#c0392b; --coral-c:#fdecea;
-  --amber:#b45309; --amber-c:#fffbea;
   --gris-o:#1e1e2e; --gris-m:#5a5a7a; --gris-c:#f4f4f8;
   --borde:#dde3ed; --blanco:#fff;
   --sombra:0 2px 16px rgba(26,58,92,0.07); --r:12px;
@@ -25,10 +24,6 @@ header{background:var(--azul);padding:0 32px;display:flex;align-items:center;jus
 .logo-ico{width:34px;height:34px;background:#fff;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
 .logo h1{font-family:'DM Serif Display',serif;color:#fff;font-size:18px;font-weight:400;white-space:nowrap}
 .logo span{color:#7eb3e8;font-size:11px;display:block;margin-top:-3px}
-.sync-pill{display:flex;align-items:center;gap:6px;font-size:12px;color:#7eb3e8;background:rgba(255,255,255,.08);padding:5px 12px;border-radius:20px}
-.dot{width:6px;height:6px;border-radius:50%;background:#f87171;flex-shrink:0}
-.dot.ok{background:#4ade80}.dot.spin{background:#fbbf24;animation:pulso 1s infinite}
-@keyframes pulso{0%,100%{opacity:1}50%{opacity:.3}}
 
 /* LAYOUT */
 main{max-width:1140px;margin:0 auto;padding:28px 24px}
@@ -93,13 +88,6 @@ td{padding:10px 12px;vertical-align:middle}
 .vacio h3{font-size:14px;font-weight:500;margin-bottom:4px}
 .vacio p{font-size:12px}
 
-/* CONFIG SHEETS */
-.cfg{background:var(--amber-c);border:1px solid #fcd34d;border-radius:var(--r);padding:14px 18px;margin-bottom:20px;font-size:13px;color:#92400e;display:flex;gap:10px;align-items:flex-start}
-.cfg-body{flex:1}
-.cfg-body strong{display:block;font-weight:600;margin-bottom:4px}
-.cfg-body input{margin-top:8px;width:100%;padding:8px 12px;border:1px solid #fcd34d;border-radius:7px;font-size:13px;font-family:'DM Sans',sans-serif;background:#fff;outline:none}
-.cfg-body button{margin-top:8px;padding:7px 16px;background:var(--azul);color:#fff;border:none;border-radius:7px;font-size:13px;font-family:'DM Sans',sans-serif;cursor:pointer;font-weight:500}
-
 /* HISTORIAL FLOTANTE */
 .fab{position:fixed;bottom:24px;right:24px;background:var(--azul);color:#fff;border:none;border-radius:14px;padding:12px 18px;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;box-shadow:0 4px 20px rgba(26,58,92,.3);display:flex;align-items:center;gap:7px;z-index:100;transition:all .15s}
 .fab:hover{background:var(--azul-m);transform:translateY(-2px)}
@@ -140,24 +128,10 @@ td{padding:10px 12px;vertical-align:middle}
     <div class="logo-ico">🦷</div>
     <div><h1>Avance Dental</h1><span>Gestor de comunicaciones</span></div>
   </div>
-  <div class="sync-pill">
-    <div class="dot" id="dot"></div>
-    <span id="sync-txt">Sheets no conectado</span>
-  </div>
+
 </header>
 
 <main>
-
-  <!-- CONFIG SHEETS -->
-  <div class="cfg" id="cfg-banner">
-    <div>⚙️</div>
-    <div class="cfg-body">
-      <strong>Conecta Google Sheets para memoria entre ordenadores</strong>
-      Pega aquí la URL de tu Google Apps Script (ver instrucciones-sheets.txt):
-      <input type="text" id="url-script" placeholder="https://script.google.com/macros/s/XXXX/exec">
-      <button onclick="guardarUrl()">Guardar y conectar</button>
-    </div>
-  </div>
 
   <!-- DOS MÓDULOS -->
   <div class="modulos">
@@ -308,39 +282,9 @@ let COL = {}; // se rellena dinámicamente al procesar cada archivo
 const ESTADOS_CITA = ['no confirmada'];          // recordar cita
 const ESTADOS_VAL  = ['confirmada / no llegó', 'en gabinete', 'en sala de espera', 'confirmada']; // pedir valoración
 
-const SCRIPT_URL_FIJA = 'https://script.google.com/macros/s/AKfycby-1NgP3ZdJn3YYwGGJHvgkPgTeQSYtVv1loMJd65SX8Ks76kbPXpF92hlO62PDjjpgaQ/exec';
-let scriptUrl = SCRIPT_URL_FIJA;
-let enviados  = JSON.parse(localStorage.getItem('ad_enviados') || '{}');
+let enviados = JSON.parse(localStorage.getItem('ad_enviados') || '{}');
 // enviados[tel] = { cita: 'YYYY-MM-DD', val: 'YYYY-MM-DD', nombre: '...' }
 
-// ── SHEETS ────────────────────────────────────────────────────────────────────
-function guardarUrl() {
-  const u = document.getElementById('url-script').value.trim();
-  if (!u.startsWith('https://script.google.com')) { alert('URL incorrecta.'); return; }
-  scriptUrl = u;
-  localStorage.setItem('ad_script_url', u);
-  document.getElementById('cfg-banner').style.display = 'none';
-  syncSheets();
-}
-async function syncSheets() {
-  if (!scriptUrl) return;
-  setDot('spin', 'Sincronizando...');
-  try {
-    const r = await fetch(scriptUrl + '?action=get', { cache: 'no-store' });
-    const d = await r.json();
-    Object.assign(enviados, d);
-    localStorage.setItem('ad_enviados', JSON.stringify(enviados));
-    setDot('ok', 'Google Sheets conectado ✓');
-  } catch(e) { setDot('', 'Error de conexión'); }
-}
-async function pushSheets(tel, tipo) {
-  if (!scriptUrl) return;
-  try { await fetch(`${scriptUrl}?action=set&tel=${encodeURIComponent(tel)}&tipo=${tipo}&fecha=${hoy()}&nombre=${encodeURIComponent(enviados[tel]?.nombre||'')}`, { cache:'no-store' }); } catch(e) {}
-}
-function setDot(cls, txt) {
-  document.getElementById('dot').className = 'dot'+(cls?' '+cls:'');
-  document.getElementById('sync-txt').textContent = txt;
-}
 function hoy() { return new Date().toISOString().split('T')[0]; }
 
 // ── UI MÓDULOS ────────────────────────────────────────────────────────────────
@@ -594,7 +538,6 @@ function marcar(tel, mod, nom) {
   enviados[tel][mod]    = hoy();
   enviados[tel].nombre  = nom;
   localStorage.setItem('ad_enviados', JSON.stringify(enviados));
-  pushSheets(tel, mod);
   toast('✓ ' + nom + ' marcado como enviado');
   setTimeout(() => renderTabla(mod), 350);
 }
@@ -674,10 +617,7 @@ function toast(msg) {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
-document.getElementById('cfg-banner').style.display = 'none';
-localStorage.setItem('ad_script_url', SCRIPT_URL_FIJA);
-setDot('spin','Conectando con Google Sheets...');
-syncSheets();
+
 // Abrir ambos módulos por defecto
 toggleMod('cita');
 toggleMod('val');
