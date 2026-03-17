@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>¿Cómo fue tu visita? — Avance Dental</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --azul: #1a3a5c;
+  --azul-m: #2563a8;
+  --azul-c: #e8f0fa;
+  --verde: #0f7b55;
+  --verde-c: #e6f4ef;
+  --coral: #c0392b;
+  --coral-c: #fdecea;
+  --gris-o: #1e1e2e;
+  --gris-m: #5a5a7a;
+  --gris-c: #f4f4f8;
+  --borde: #dde3ed;
+  --blanco: #fff;
+  --oro: #f59e0b;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: #eef2f8;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Fondo decorativo */
+body::before {
+  content: '';
+  position: fixed;
+  top: -120px; right: -120px;
+  width: 480px; height: 480px;
+  background: radial-gradient(circle, rgba(37,99,168,0.12) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+body::after {
+  content: '';
+  position: fixed;
+  bottom: -100px; left: -100px;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(15,123,85,0.10) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.card {
+  background: var(--blanco);
+  border-radius: 24px;
+  box-shadow: 0 8px 48px rgba(26,58,92,0.13);
+  width: 100%;
+  max-width: 480px;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  animation: cardIn .5s cubic-bezier(.22,1,.36,1) both;
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.card-top {
+  background: var(--azul);
+  padding: 32px 32px 28px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-top::before {
+  content: '';
+  position: absolute;
+  top: -40px; left: -40px;
+  width: 200px; height: 200px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 50%;
+}
+.card-top::after {
+  content: '';
+  position: absolute;
+  bottom: -60px; right: -30px;
+  width: 180px; height: 180px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 50%;
+}
+
+.logo-ico {
+  width: 56px; height: 56px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+  margin: 0 auto 16px;
+  position: relative; z-index: 1;
+}
+
+.card-top h1 {
+  font-family: 'DM Serif Display', serif;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 400;
+  margin-bottom: 6px;
+  position: relative; z-index: 1;
+}
+
+.card-top p {
+  color: rgba(255,255,255,0.7);
+  font-size: 14px;
+  line-height: 1.5;
+  position: relative; z-index: 1;
+}
+
+/* ── PANTALLA 1: estrellas ── */
+#screen-stars {
+  padding: 32px;
+  text-align: center;
+}
+
+.pregunta {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--gris-o);
+  margin-bottom: 8px;
+}
+
+.subpregunta {
+  font-size: 13px;
+  color: var(--gris-m);
+  margin-bottom: 28px;
+}
+
+.estrellas {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 32px;
+}
+
+.estrella {
+  font-size: 44px;
+  cursor: pointer;
+  transition: transform .15s, filter .15s;
+  filter: grayscale(1) opacity(.35);
+  user-select: none;
+  line-height: 1;
+}
+
+.estrella:hover,
+.estrella.activa {
+  filter: grayscale(0) opacity(1);
+  transform: scale(1.15);
+}
+
+.estrella.hover-prev {
+  filter: grayscale(0) opacity(.8);
+  transform: scale(1.05);
+}
+
+.btn-valorar {
+  width: 100%;
+  padding: 14px;
+  background: var(--azul);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+  opacity: .4;
+  pointer-events: none;
+}
+
+.btn-valorar.listo {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.btn-valorar.listo:hover {
+  background: var(--azul-m);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(26,58,92,0.25);
+}
+
+/* ── PANTALLA 2: feedback negativo ── */
+#screen-feedback {
+  padding: 32px;
+  display: none;
+}
+
+#screen-feedback h2 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--gris-o);
+  margin-bottom: 6px;
+}
+
+#screen-feedback p {
+  font-size: 13px;
+  color: var(--gris-m);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.stars-mini {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+}
+
+.stars-mini span {
+  font-size: 20px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 110px;
+  border: 1.5px solid var(--borde);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--gris-o);
+  resize: none;
+  outline: none;
+  transition: border .15s;
+  background: #fafafa;
+}
+
+textarea:focus { border-color: var(--azul-m); background: #fff; }
+textarea::placeholder { color: #b0b0c8; }
+
+.btn-enviar {
+  width: 100%;
+  margin-top: 14px;
+  padding: 13px;
+  background: var(--azul);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.btn-enviar:hover {
+  background: var(--azul-m);
+  transform: translateY(-1px);
+}
+
+.btn-volver {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 11px;
+  background: transparent;
+  color: var(--gris-m);
+  border: 1.5px solid var(--borde);
+  border-radius: 12px;
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.btn-volver:hover { border-color: var(--azul-m); color: var(--azul); }
+
+/* ── PANTALLA 3: gracias positivo (redirige a Google) ── */
+#screen-google {
+  padding: 32px;
+  text-align: center;
+  display: none;
+}
+
+.tick-circle {
+  width: 72px; height: 72px;
+  background: var(--verde-c);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 34px;
+  margin: 0 auto 20px;
+  animation: popIn .4s cubic-bezier(.34,1.56,.64,1) both;
+}
+
+@keyframes popIn {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+#screen-google h2 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 22px;
+  color: var(--gris-o);
+  margin-bottom: 10px;
+}
+
+#screen-google p {
+  font-size: 14px;
+  color: var(--gris-m);
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.btn-google {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  background: #fff;
+  border: 2px solid var(--borde);
+  border-radius: 12px;
+  font-size: 15px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 600;
+  color: var(--gris-o);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all .2s;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  width: 100%;
+  justify-content: center;
+}
+
+.btn-google:hover {
+  border-color: var(--azul-m);
+  color: var(--azul);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(26,58,92,0.12);
+}
+
+.google-ico {
+  width: 22px; height: 22px;
+  flex-shrink: 0;
+}
+
+.countdown {
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--gris-m);
+}
+
+.countdown strong { color: var(--azul-m); }
+
+/* ── PANTALLA 4: gracias feedback negativo ── */
+#screen-gracias {
+  padding: 32px;
+  text-align: center;
+  display: none;
+}
+
+#screen-gracias .tick-circle {
+  background: var(--azul-c);
+}
+
+#screen-gracias h2 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 22px;
+  color: var(--gris-o);
+  margin-bottom: 10px;
+}
+
+#screen-gracias p {
+  font-size: 14px;
+  color: var(--gris-m);
+  line-height: 1.6;
+}
+
+/* Footer */
+.footer {
+  margin-top: 20px;
+  font-size: 11px;
+  color: #9ca3af;
+  text-align: center;
+  position: relative; z-index: 1;
+}
+</style>
+</head>
+<body>
+
+<div class="card">
+
+  <div class="card-top">
+    <div class="logo-ico">🦷</div>
+    <h1>Avance Dental</h1>
+    <p>Tu opinión nos ayuda a seguir mejorando<br>y a cuidar mejor a cada paciente</p>
+  </div>
+
+  <!-- PANTALLA 1: Estrellas -->
+  <div id="screen-stars">
+    <div class="pregunta">¿Cómo valorarías tu experiencia?</div>
+    <div class="subpregunta">Pulsa las estrellas para puntuar tu visita</div>
+
+    <div class="estrellas" id="estrellas">
+      <span class="estrella" data-val="1">⭐</span>
+      <span class="estrella" data-val="2">⭐</span>
+      <span class="estrella" data-val="3">⭐</span>
+      <span class="estrella" data-val="4">⭐</span>
+      <span class="estrella" data-val="5">⭐</span>
+    </div>
+
+    <button class="btn-valorar" id="btn-valorar" onclick="siguientePaso()">
+      Continuar →
+    </button>
+  </div>
+
+  <!-- PANTALLA 2: Feedback negativo (1-3 estrellas) -->
+  <div id="screen-feedback">
+    <h2>Queremos mejorar</h2>
+    <p>Sentimos que tu experiencia no haya sido perfecta. Cuéntanos qué pasó para que podamos solucionarlo.</p>
+    <div class="stars-mini" id="stars-mini"></div>
+    <textarea id="comentario" placeholder="Escribe aquí tu comentario... (opcional)"></textarea>
+    <button class="btn-enviar" onclick="enviarFeedback()">Enviar comentario</button>
+    <button class="btn-volver" onclick="volver()">← Volver a puntuar</button>
+  </div>
+
+  <!-- PANTALLA 3: Redirige a Google (4-5 estrellas) -->
+  <div id="screen-google">
+    <div class="tick-circle">🎉</div>
+    <h2>¡Nos alegra mucho!</h2>
+    <p>Gracias por tu confianza. ¿Te importaría compartir tu experiencia en Google? Solo te llevará un momento y ayuda a muchas personas a encontrarnos.</p>
+    <a class="btn-google" id="btn-google" href="https://g.page/r/CRkkiSExZLnnEAE/review" target="_blank" onclick="registrarClick()">
+      <svg class="google-ico" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+      </svg>
+      Dejar mi reseña en Google
+    </a>
+    <div class="countdown" id="countdown"></div>
+  </div>
+
+  <!-- PANTALLA 4: Gracias por feedback negativo -->
+  <div id="screen-gracias">
+    <div class="tick-circle">💙</div>
+    <h2>Gracias por contárnoslo</h2>
+    <p>Hemos recibido tu comentario. Nos pondremos en contacto contigo para resolver cualquier incidencia.<br><br>En Avance Dental trabajamos cada día para mejorar.</p>
+  </div>
+
+</div>
+
+<div class="footer">Avance Dental · Todos los derechos reservados</div>
+
+<script>
+const GOOGLE_URL = 'https://g.page/r/CRkkiSExZLnnEAE/review';
+let valorSeleccionado = 0;
+
+// ── Interacción estrellas ──────────────────────────────────────────────────
+const estrellas = document.querySelectorAll('.estrella');
+
+estrellas.forEach(e => {
+  e.addEventListener('mouseenter', () => {
+    const v = +e.dataset.val;
+    estrellas.forEach(s => {
+      const sv = +s.dataset.val;
+      s.classList.remove('activa', 'hover-prev');
+      if (sv === v) s.classList.add('activa');
+      else if (sv < v) s.classList.add('hover-prev');
+    });
+  });
+
+  e.addEventListener('mouseleave', () => {
+    estrellas.forEach(s => {
+      s.classList.remove('activa', 'hover-prev');
+      if (+s.dataset.val <= valorSeleccionado) s.classList.add('activa');
+    });
+  });
+
+  e.addEventListener('click', () => {
+    valorSeleccionado = +e.dataset.val;
+    estrellas.forEach(s => {
+      s.classList.remove('activa', 'hover-prev');
+      if (+s.dataset.val <= valorSeleccionado) s.classList.add('activa');
+    });
+    document.getElementById('btn-valorar').classList.add('listo');
+  });
+});
+
+// ── Navegación entre pantallas ─────────────────────────────────────────────
+function show(id) {
+  ['screen-stars','screen-feedback','screen-google','screen-gracias']
+    .forEach(s => document.getElementById(s).style.display = 'none');
+  document.getElementById(id).style.display = 'block';
+}
+
+function siguientePaso() {
+  if (!valorSeleccionado) return;
+  if (valorSeleccionado >= 4) {
+    show('screen-google');
+    iniciarCountdown();
+  } else {
+    // Mostrar estrellas seleccionadas en pantalla feedback
+    const mini = document.getElementById('stars-mini');
+    mini.innerHTML = Array.from({length: 5}, (_,i) =>
+      `<span style="filter:${i < valorSeleccionado ? 'none' : 'grayscale(1) opacity(.3)'}">⭐</span>`
+    ).join('');
+    show('screen-feedback');
+  }
+}
+
+function volver() {
+  show('screen-stars');
+}
+
+function enviarFeedback() {
+  const comentario = document.getElementById('comentario').value.trim();
+  // Aquí podrías enviar el comentario a un servicio externo (formspree, etc.)
+  // Por ahora simplemente muestra la pantalla de gracias
+  console.log('Feedback recibido:', valorSeleccionado, 'estrellas —', comentario);
+  show('screen-gracias');
+}
+
+// ── Countdown y redirección automática a Google ────────────────────────────
+function iniciarCountdown() {
+  let seg = 5;
+  const el = document.getElementById('countdown');
+  el.innerHTML = `Redirigiendo a Google en <strong>${seg}</strong> segundos...`;
+
+  const intervalo = setInterval(() => {
+    seg--;
+    if (seg <= 0) {
+      clearInterval(intervalo);
+      el.textContent = 'Abriendo Google Reviews...';
+      window.open(GOOGLE_URL, '_blank');
+    } else {
+      el.innerHTML = `Redirigiendo a Google en <strong>${seg}</strong> segundos...`;
+    }
+  }, 1000);
+}
+
+function registrarClick() {
+  // Si el usuario hace clic manual, limpiamos el countdown
+  document.getElementById('countdown').textContent = '¡Gracias por tu reseña!';
+}
+</script>
+</body>
+</html>
