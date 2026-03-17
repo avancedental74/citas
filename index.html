@@ -71,6 +71,9 @@ main{max-width:1140px;margin:0 auto;padding:28px 24px}
 .img-sub{font-size:11px;color:var(--gris-m)}
 .img-input{display:none}
 .img-preview{max-width:100%;border-radius:8px;margin-top:10px;max-height:200px;object-fit:contain}
+.btn-captura{width:100%;margin-top:8px;padding:9px;background:var(--morado);color:#fff;border:none;border-radius:7px;font-size:13px;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-captura:hover{background:#5b21b6}
+.btn-captura:disabled{background:#c4b5fd;cursor:not-allowed}
 .gemini-key{margin-top:10px;display:flex;gap:6px}
 .gemini-key input{flex:1;padding:7px 10px;border:1px solid var(--borde);border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;background:#fff}
 .gemini-key input:focus{border-color:var(--morado)}
@@ -103,7 +106,7 @@ td{padding:10px 12px;vertical-align:middle}
 .td-estado{font-size:11px;padding:2px 7px;border-radius:4px;white-space:nowrap}
 .td-estado.noconf{background:var(--coral-c);color:var(--coral)}
 .td-estado.vino{background:var(--verde-c);color:var(--verde)}
-.bwa{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;border:none;transition:all .15s;text-decoration:none;white-space:nowrap}
+.bwa{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:7px;font-size:12px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;border:none;transition:all .15s;text-decoration:none;white-space:nowrap;background:none}
 .bwa.activo{background:#25d366;color:#fff}
 .bwa.activo:hover{background:#1ebe5d;transform:scale(1.04)}
 .bwa.enviado{background:var(--gris-c);color:#9ca3af;pointer-events:none}
@@ -194,6 +197,7 @@ td{padding:10px 12px;vertical-align:middle}
             <input type="file" class="img-input" id="imgfile-cita" accept="image/*">
             <img id="imgpreview-cita" class="img-preview" style="display:none">
           </div>
+          <button class="btn-captura" onclick="capturarPantalla('cita')">📸 Capturar pantalla</button>
           <div class="gemini-key" id="gemini-key-cita">
             <input type="password" id="apikey-cita" placeholder="API Key de Gemini (se guarda en este navegador)" value="">
             <button onclick="analizarImagen('cita')">Analizar imagen</button>
@@ -268,6 +272,7 @@ td{padding:10px 12px;vertical-align:middle}
             <input type="file" class="img-input" id="imgfile-val" accept="image/*">
             <img id="imgpreview-val" class="img-preview" style="display:none">
           </div>
+          <button class="btn-captura" onclick="capturarPantalla('val')">📸 Capturar pantalla</button>
           <div class="gemini-key" id="gemini-key-val">
             <input type="password" id="apikey-val" placeholder="API Key de Gemini (se guarda en este navegador)" value="">
             <button onclick="analizarImagen('val')">Analizar imagen</button>
@@ -279,8 +284,6 @@ td{padding:10px 12px;vertical-align:middle}
           <div class="form-manual">
             <div class="form-field"><label>Nombre</label><input type="text" id="m-val-nombre" placeholder="Ej: María García"></div>
             <div class="form-field"><label>Teléfono</label><input type="tel" id="m-val-tel" placeholder="612345678"></div>
-            <div class="form-field"><label>Fecha visita</label><input type="date" id="m-val-fecha"></div>
-            <div class="form-field"><label>Hora</label><input type="time" id="m-val-hora"></div>
             <div class="form-field form-full"><label>Tratamiento (opcional)</label><input type="text" id="m-val-trat" placeholder="Ej: Limpieza dental"></div>
             <div class="form-full"><button class="btn-add" onclick="addManual('val')">+ Añadir a la lista</button></div>
           </div>
@@ -461,7 +464,7 @@ async function analizarImagen(mod) {
   const statusEl = document.getElementById('gemini-status-'+mod);
   const area     = document.getElementById('imgarea-'+mod);
   area.classList.add('procesando');
-  statusEl.innerHTML = '<span class="spinner"></span> Gemini 1.5 Pro analizando la agenda KliniKare... (10-20 segundos)';
+  statusEl.innerHTML = '<span class="spinner"></span> Gemini 2.0 Flash analizando la agenda KliniKare... (10-20 segundos)';
 
   const base64 = imageDataMap[mod].split(',')[1];
   const mimeType = imageDataMap[mod].split(';')[0].split(':')[1];
@@ -516,7 +519,7 @@ NO incluyas celdas con rayas diagonales (canceladas/no asistidas).`;
 
   try {
     const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -609,21 +612,19 @@ function parseFechaStr(s) {
 function addManual(mod) {
   const nombre = document.getElementById(`m-${mod}-nombre`).value.trim();
   const tel    = limTel(document.getElementById(`m-${mod}-tel`).value.trim());
-  const fecha  = document.getElementById(`m-${mod}-fecha`).value;
-  const hora   = document.getElementById(`m-${mod}-hora`).value;
+  const fecha  = mod === 'val' ? null : (document.getElementById(`m-${mod}-fecha`)?.value || null);
+  const hora   = mod === 'val' ? ''   : (document.getElementById(`m-${mod}-hora`)?.value  || '');
   const trat   = document.getElementById(`m-${mod}-trat`).value.trim();
 
   if (!nombre) { alert('El nombre es obligatorio.'); return; }
   if (!tel || !/^\d{9}$/.test(tel)) { alert('Introduce un teléfono válido de 9 dígitos.'); return; }
-  if (mod === 'val' && fecha && !esFechaAnteriorAHoy(new Date(fecha))) {
-    alert('Para pedir valoración la fecha de visita debe ser anterior a hoy.'); return;
-  }
 
   const p = {
     nombre: cap(nombre), tel,
     estado: mod === 'cita' ? 'no confirmada' : 'en gabinete',
     hora, trat: trat.replace(/\.+$/,'').trim(), prof: null,
-    fecha: fecha ? new Date(fecha) : null, fuente: 'manual'
+    fecha: fecha ? new Date(fecha) : (mod === 'val' ? new Date(Date.now() - 86400000) : null),
+    fuente: 'manual'
   };
 
   window['datos_'+mod] = [...(window['datos_'+mod]||[]), p];
@@ -632,8 +633,13 @@ function addManual(mod) {
   toast(`✓ ${p.nombre} añadido`);
 
   // Limpiar formulario
-  ['nombre','tel','hora','trat'].forEach(f => document.getElementById(`m-${mod}-${f}`).value = '');
-  document.getElementById(`m-${mod}-fecha`).value = '';
+  document.getElementById(`m-${mod}-nombre`).value = '';
+  document.getElementById(`m-${mod}-tel`).value = '';
+  document.getElementById(`m-${mod}-trat`).value = '';
+  if (mod === 'cita') {
+    document.getElementById('m-cita-fecha').value = '';
+    document.getElementById('m-cita-hora').value  = '';
+  }
 }
 
 // ── PROCESAR FILAS EXCEL/PASTE ────────────────────────────────────────────────
@@ -735,18 +741,17 @@ function renderTabla(mod) {
 
   pendientes.forEach(p => {
     const msg = mod === 'cita' ? msgCita(p) : msgVal(p);
-    const url = `https://wa.me/34${p.tel}?text=${waEncode(msg)}`;
     const nom = p.nombre.replace(/'/g,"\\'");
     const tr  = document.createElement('tr');
     const fechaHora = [fmtFecha(p.fecha), p.hora].filter(Boolean).join(' · ');
+    // Guardar mensaje en mapa para recuperarlo en abrirWA sin problemas de escaping
+    waMsgMap[p.tel] = msg;
     tr.innerHTML = `
       <td><div class="td-nombre">${x(p.nombre)}</div></td>
       <td><div class="td-hora">${x(fechaHora)||'—'}</div></td>
       <td>${p.trat?`<span class="td-trat" title="${x(p.trat)}">${x(p.trat)}</span>`:'—'}</td>
       <td>
-        <a href="${url}" target="whatsapp_avancedental" class="bwa activo" onclick="marcar('${p.tel}','${mod}','${nom}')">
-          ${WA_SVG} Enviar
-        </a>
+        <button class="bwa activo" onclick="marcar('${p.tel}','${mod}','${nom}');abrirWA('${p.tel}')">${WA_SVG} Enviar</button>
       </td>`;
     tb.appendChild(tr);
   });
@@ -799,14 +804,13 @@ function waEncode(msg) {
 function msgCita(p) {
   const nombre   = p.nombre.split(' ')[0];
   const hora     = p.hora ? ` a las ${p.hora}` : '';
-  const trat     = p.trat ? ` para ${p.trat.toLowerCase()}` : '';
-  const fechaTxt = p.fecha ? ` el ${fmtFechaCorta(p.fecha)}` : '';
+  const trat     = p.trat ? ` de ${p.trat.toLowerCase()}` : '';
+  const fechaTxt = p.fecha ? ` el ${fmtFecha(p.fecha)}` : '';
 
   const lineas = [
-    `Hola ${nombre}, te escribimos desde ${CLINICA} para recordarte que tienes cita${fechaTxt}${hora}${trat}.`,
-    `Sabemos que el tiempo es valioso, por eso te avisamos con antelación para que puedas organizarte sin prisas.`,
-    `Si necesitas cambiarla o tienes cualquier duda, cuanto antes nos lo digas mejor para encontrarte el hueco perfecto.`,
-    `¿Asistirá a su cita?`
+    `Hola ${nombre} 👋 Te recordamos tu cita${trat} en ${CLINICA}${fechaTxt}${hora}.`,
+    `Si no puedes venir, avísanos con tiempo para buscar otro hueco.`,
+    `¿Confirmas asistencia? ✅`
   ];
   return lineas.join('\n');
 }
@@ -866,6 +870,40 @@ function abrirHistorial() {
 }
 function cierraModal()  { document.getElementById('mfondo').classList.remove('on'); }
 function cierraFondo(e) { if (e.target===document.getElementById('mfondo')) cierraModal(); }
+
+// ── WHATSAPP: app primero, web como fallback ───────────────────────────────────
+const waMsgMap = {};   // tel → mensaje (evita problemas de escaping en onclick)
+
+function abrirWA(tel) {
+  const msg      = waMsgMap[tel] || '';
+  const encoded  = waEncode(msg);
+  const appUrl   = `whatsapp://send?phone=34${tel}&text=${encoded}`;
+  const webUrl   = `https://wa.me/34${tel}?text=${encoded}`;
+
+  // Intentamos abrir la app nativa mediante un iframe oculto
+  // Si la app no está instalada el navegador no lanza error visible,
+  // así que usamos un timer: si la página pierde el foco (la app se abrió)
+  // cancelamos el fallback; si no, abrimos wa.me.
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  document.body.appendChild(iframe);
+
+  let appAbierta = false;
+  const onBlur = () => { appAbierta = true; };
+  window.addEventListener('blur', onBlur, { once: true });
+
+  // Lanzar protocolo
+  iframe.src = appUrl;
+
+  // Fallback tras 1.8 s si la ventana no perdió el foco
+  setTimeout(() => {
+    window.removeEventListener('blur', onBlur);
+    document.body.removeChild(iframe);
+    if (!appAbierta) {
+      window.open(webUrl, '_blank');
+    }
+  }, 1800);
+}
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function str(v)  { return String(v||'').trim(); }
@@ -952,6 +990,72 @@ function parseFecha(v) {
     return new Date(y,+b-1,+a);
   }
   const d=new Date(s); return isNaN(d)?null:d;
+}
+
+// ── CAPTURA DE PANTALLA ───────────────────────────────────────────────────────
+async function capturarPantalla(mod) {
+  const btn      = document.querySelector(`#ep-${mod}-imagen .btn-captura`);
+  const statusEl = document.getElementById('gemini-status-' + mod);
+  const area     = document.getElementById('imgarea-' + mod);
+  const prev     = document.getElementById('imgpreview-' + mod);
+
+  if (!navigator.mediaDevices?.getDisplayMedia) {
+    alert('Tu navegador no soporta captura de pantalla. Usa Chrome o Edge actualizados.');
+    return;
+  }
+
+  try {
+    btn.disabled = true;
+    btn.textContent = '⏳ Selecciona la ventana...';
+    statusEl.textContent = '';
+
+    // Pedir permiso para compartir pantalla
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { cursor: 'never' },
+      audio: false
+    });
+
+    btn.textContent = '📸 Capturando...';
+
+    // Esperar un frame para que la ventana elegida sea visible
+    await new Promise(r => setTimeout(r, 300));
+
+    // Capturar frame del stream
+    const track  = stream.getVideoTracks()[0];
+    const cap    = new ImageCapture(track);
+    const bitmap = await cap.grabFrame();
+
+    // Dibujar en canvas y exportar a base64
+    const canvas  = document.createElement('canvas');
+    canvas.width  = bitmap.width;
+    canvas.height = bitmap.height;
+    canvas.getContext('2d').drawImage(bitmap, 0, 0);
+    const dataUrl = canvas.toDataURL('image/png');
+
+    // Detener el stream
+    stream.getTracks().forEach(t => t.stop());
+
+    // Guardar y mostrar preview
+    imageDataMap[mod] = dataUrl;
+    prev.src          = dataUrl;
+    prev.style.display = 'block';
+    area.querySelector('.img-txt').textContent = '✓ Captura lista — pulsa "Analizar imagen"';
+    statusEl.textContent = '✓ Pantalla capturada correctamente. Ahora pulsa "Analizar imagen".';
+    statusEl.style.color = 'var(--verde)';
+
+  } catch (err) {
+    // El usuario canceló o hubo error
+    if (err.name !== 'NotAllowedError') {
+      statusEl.textContent = 'Error al capturar: ' + err.message;
+      statusEl.style.color = 'var(--coral)';
+    } else {
+      statusEl.textContent = 'Captura cancelada.';
+      statusEl.style.color = 'var(--gris-m)';
+    }
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '📸 Capturar pantalla';
+  }
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
