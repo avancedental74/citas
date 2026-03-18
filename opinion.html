@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>¿Cómo fue tu visita? — Avance Dental</title>
 
 <!-- ── OPEN GRAPH: controla la vista previa en WhatsApp ── -->
@@ -49,14 +49,14 @@ html { font-size: 16px; }
 body {
   font-family: 'Plus Jakarta Sans', sans-serif;
   min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 100svh; /* small viewport: asume barra siempre visible — más conservador para iOS */
   position: relative;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 0 0 48px;
+  padding: 0 0 env(safe-area-inset-bottom, 16px);
   background: linear-gradient(160deg, #dce8ea 0%, #eaf2f3 30%, #f5f8f8 60%, #ffffff 100%);
 }
 
@@ -544,7 +544,7 @@ textarea::placeholder { color: #b0bec5; }
   width: 100%; max-width: 480px;
   display: flex; align-items: center; justify-content: center;
   gap: 8px;
-  padding: 16px 24px;
+  padding: 12px 24px env(safe-area-inset-bottom, 12px);
   position: relative; z-index: 1;
 }
 .footer-strip span {
