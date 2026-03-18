@@ -420,6 +420,22 @@ textarea::placeholder { color: #b0bec5; }
 }
 .countdown strong { color: var(--turq-d); }
 
+.countdown-bar-wrap {
+  display: none;
+  margin-top: 8px;
+  height: 4px;
+  background: var(--borde);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.countdown-bar {
+  height: 100%;
+  width: 100%;
+  background: var(--turq);
+  border-radius: 2px;
+  transition: width 1s linear;
+}
+
 /* Pantalla Google — alta conversión */
 .google-social-proof {
   display: inline-flex; align-items: center; gap: 7px;
@@ -599,19 +615,19 @@ textarea::placeholder { color: #b0bec5; }
     <div class="subpregunta">Toca las estrellas para valorar tu visita</div>
 
     <div class="estrellas" id="estrellas">
-      <div class="estrella-wrap" data-val="1" role="button" aria-label="1 estrella">
+      <div class="estrella-wrap" data-val="1" role="button" tabindex="0" aria-label="1 estrella de 5" aria-pressed="false">
         <svg viewBox="0 0 51 48"><path class="estrella-path" d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z"/></svg>
       </div>
-      <div class="estrella-wrap" data-val="2" role="button" aria-label="2 estrellas">
+      <div class="estrella-wrap" data-val="2" role="button" tabindex="0" aria-label="2 estrellas de 5" aria-pressed="false">
         <svg viewBox="0 0 51 48"><path class="estrella-path" d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z"/></svg>
       </div>
-      <div class="estrella-wrap" data-val="3" role="button" aria-label="3 estrellas">
+      <div class="estrella-wrap" data-val="3" role="button" tabindex="0" aria-label="3 estrellas de 5" aria-pressed="false">
         <svg viewBox="0 0 51 48"><path class="estrella-path" d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z"/></svg>
       </div>
-      <div class="estrella-wrap" data-val="4" role="button" aria-label="4 estrellas">
+      <div class="estrella-wrap" data-val="4" role="button" tabindex="0" aria-label="4 estrellas de 5" aria-pressed="false">
         <svg viewBox="0 0 51 48"><path class="estrella-path" d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z"/></svg>
       </div>
-      <div class="estrella-wrap" data-val="5" role="button" aria-label="5 estrellas">
+      <div class="estrella-wrap" data-val="5" role="button" tabindex="0" aria-label="5 estrellas de 5" aria-pressed="false">
         <svg viewBox="0 0 51 48"><path class="estrella-path" d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z"/></svg>
       </div>
     </div>
@@ -625,6 +641,7 @@ textarea::placeholder { color: #b0bec5; }
     <h2 id="feedback-titulo">Tu opinión nos importa</h2>
     <p id="feedback-desc">Cuéntanos qué podríamos haber hecho mejor. Leemos cada mensaje personalmente.</p>
     <div class="stars-mini" id="stars-mini"></div>
+    <label for="comentario" style="display:block;font-size:13px;font-weight:600;color:var(--gris-m);margin-bottom:6px;">Tu comentario (opcional)</label>
     <textarea id="comentario" placeholder="¿Qué podríamos haber hecho mejor?"></textarea>
     <div id="feedback-sending" style="display:none;text-align:center;padding:12px;font-size:14px;color:var(--turq-d)">Enviando...</div>
     <div id="feedback-error" style="display:none;text-align:center;padding:10px;font-size:13px;color:#e53e3e;background:#fff5f5;border-radius:8px;margin-bottom:8px"></div>
@@ -665,7 +682,7 @@ textarea::placeholder { color: #b0bec5; }
     </div>
 
     <!-- CTA principal — máximo contraste y tamaño -->
-    <a class="btn-google btn-google-cta" id="btn-google" href="https://g.page/r/CRkkiSExZLnnEAE/review" target="_blank" rel="noopener" onclick="clicGoogle()">
+    <a class="btn-google btn-google-cta" id="btn-google" href="intent://maps.google.com/maps?cid=17497547067898584865#Intent;scheme=https;package=com.google.android.apps.maps;S.browser_fallback_url=https%3A%2F%2Fg.page%2Fr%2FCRkkiSExZLnnEAE%2Freview;end" target="_blank" rel="noopener" onclick="clicGoogle()">
       <svg class="google-ico" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
         <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -677,6 +694,7 @@ textarea::placeholder { color: #b0bec5; }
 
     <!-- Countdown con urgencia suave -->
     <div class="countdown" id="countdown"></div>
+    <div class="countdown-bar-wrap" id="countdown-bar-wrap"><div class="countdown-bar" id="countdown-bar"></div></div>
 
     <!-- Subtext de refuerzo bajo el botón -->
     <p class="google-subtext">Se abrirá Google en esta misma pantalla — pulsa las 5 estrellas y listo</p>
@@ -744,6 +762,11 @@ estrellaWraps.forEach(w => {
   w.addEventListener('click', () => {
     const v = +w.dataset.val;
     valorSeleccionado = v;
+    // Actualizar aria-pressed
+    estrellaWraps.forEach(s => {
+      s.setAttribute('aria-pressed', +s.dataset.val <= v ? 'true' : 'false');
+      s.setAttribute('aria-label', `${s.dataset.val} estrella${+s.dataset.val !== 1 ? 's' : ''} de 5`);
+    });
     // Haptic feedback
     if (navigator.vibrate) {
       navigator.vibrate(10);
@@ -823,8 +846,8 @@ function siguientePaso() {
   btnValorar.disabled = true;
   if (valorSeleccionado === 5) {
     trackEvent('rating_positive', { value: valorSeleccionado });
-    show('screen-google');
     lanzarConfettiGrande();
+    setTimeout(() => show('screen-google'), 300);
     iniciarCountdown();
   } else {
     trackEvent('rating_negative', { value: valorSeleccionado });
@@ -910,12 +933,19 @@ async function enviarFeedback() {
 function iniciarCountdown() {
   let seg = 5; clicManual = false;
   const el = document.getElementById('countdown');
+  const barWrap = document.getElementById('countdown-bar-wrap');
+  const bar = document.getElementById('countdown-bar');
   el.innerHTML = `Abriendo Google en <strong>${seg}</strong> seg...`;
+  // Mostrar y animar barra de progreso
+  barWrap.style.display = 'block';
+  bar.style.width = '100%';
+  setTimeout(() => { bar.style.width = '0%'; }, 50);
   countdownTimer = setInterval(() => {
-    if (clicManual) { clearInterval(countdownTimer); el.textContent = ''; return; }
+    if (clicManual) { clearInterval(countdownTimer); el.textContent = ''; barWrap.style.display = 'none'; return; }
     seg--;
     if (seg <= 0) {
       clearInterval(countdownTimer);
+      barWrap.style.display = 'none';
       // Mostrar enlace visible en lugar de window.open automático (bloqueado en iOS Safari)
       el.innerHTML = `<a href="${GOOGLE_URL}" target="_blank" rel="noopener" style="color:var(--turq-d);font-weight:600;text-decoration:underline;" onclick="clicGoogle()">👉 Pulsa aquí para abrir Google Reviews</a>`;
       trackEvent('google_redirect_auto');
@@ -929,6 +959,8 @@ function clicGoogle() {
   clicManual = true;
   clearInterval(countdownTimer);
   document.getElementById('countdown').textContent = '';
+  const barWrap = document.getElementById('countdown-bar-wrap');
+  if (barWrap) barWrap.style.display = 'none';
   trackEvent('google_click_manual');
 }
 </script>
