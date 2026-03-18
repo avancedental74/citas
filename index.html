@@ -81,7 +81,41 @@ main{max-width:1140px;margin:0 auto;padding:28px 24px}
 .spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(109,40,217,.3);border-top-color:var(--morado);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* MANUAL */
+/* FOTO ADJUNTA VALORACIÓN */
+.foto-panel{margin:0 20px 16px;padding:14px 16px;background:linear-gradient(135deg,#ede9fe,#f5f3ff);border:1px solid #c4b5fd;border-radius:10px;display:flex;align-items:center;gap:14px}
+.foto-panel-preview{width:54px;height:54px;border-radius:8px;object-fit:cover;border:2px solid #a78bfa;flex-shrink:0;cursor:pointer}
+.foto-panel-preview.vacio{background:#ddd8fe;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;border-style:dashed}
+.foto-panel-info{flex:1;min-width:0}
+.foto-panel-titulo{font-size:13px;font-weight:600;color:var(--morado);margin-bottom:3px}
+.foto-panel-desc{font-size:11px;color:#6d28d9;line-height:1.5}
+.foto-panel-btns{display:flex;gap:6px;flex-shrink:0}
+.btn-foto-cargar{padding:7px 12px;background:#7c3aed;color:#fff;border:none;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer;white-space:nowrap}
+.btn-foto-cargar:hover{background:#5b21b6}
+.btn-foto-copiar{padding:7px 12px;background:var(--verde);color:#fff;border:none;border-radius:7px;font-size:12px;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .15s}
+.btn-foto-copiar:hover{background:#0a6644}
+.btn-foto-copiar:disabled{opacity:.5;cursor:not-allowed}
+
+
+.bwa-todos{display:flex;align-items:center;justify-content:center;gap:8px;width:calc(100% - 40px);margin:0 20px 16px;padding:12px;background:linear-gradient(135deg,#25d366,#128c7e);color:#fff;border:none;border-radius:10px;font-size:14px;font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer;transition:opacity .15s;box-shadow:0 2px 12px rgba(18,140,126,.3)}
+.bwa-todos:hover{opacity:.9}
+.bwa-todos:disabled{opacity:.5;cursor:not-allowed}
+.bwa-todos svg{width:18px;height:18px;flex-shrink:0}
+
+/* PESTAÑA PRUEBAS */
+.pruebas-wrap{background:var(--blanco);border-radius:var(--r);box-shadow:var(--sombra);overflow:hidden;border:2px solid var(--morado-c);margin-bottom:28px}
+.pruebas-header{padding:16px 20px;display:flex;align-items:center;gap:14px;background:var(--morado-c)}
+.pruebas-titulo{font-size:15px;font-weight:600;color:var(--morado)}
+.pruebas-desc{font-size:12px;color:#7c3aed;margin-top:2px}
+.pruebas-body{padding:20px}
+.pruebas-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pruebas-aviso{background:#ede9fe;border:1px solid #c4b5fd;border-radius:8px;padding:10px 14px;font-size:12px;color:#5b21b6;margin-bottom:14px;line-height:1.5}
+.pruebas-log{margin-top:14px;border:1px solid var(--borde);border-radius:8px;max-height:180px;overflow-y:auto;font-size:12px;font-family:monospace}
+.pruebas-log-item{padding:8px 12px;border-bottom:1px solid var(--borde);color:var(--gris-m)}
+.pruebas-log-item:last-child{border-bottom:none}
+.pruebas-log-item.ok{color:var(--verde)}
+.pruebas-log-item.err{color:var(--coral)}
+.pruebas-log-vacío{padding:16px;text-align:center;color:#b0b0c8}
+
 .form-manual{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .form-field{display:flex;flex-direction:column;gap:4px}
 .form-field label{font-size:11px;font-weight:500;color:var(--gris-m);text-transform:uppercase;letter-spacing:.4px}
@@ -102,6 +136,12 @@ td{padding:10px 12px;vertical-align:middle}
 .td-nombre{font-weight:500;color:var(--azul)}
 .td-hora{font-size:12px;color:var(--gris-m);white-space:nowrap}
 .td-trat{font-size:11px;background:var(--azul-c);color:var(--azul-m);padding:2px 7px;border-radius:4px;display:inline-block;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.td-estado{font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;display:inline-block;margin-top:3px;text-transform:uppercase;letter-spacing:.3px}
+.td-estado.sala{background:#fef3c7;color:#92400e}
+.td-estado.confirmada{background:#d1fae5;color:#065f46}
+.td-estado.no-confirm{background:#fee2e2;color:#991b1b}
+.td-estado.gabinete{background:#dbeafe;color:#1e40af}
+.td-estado.otro{background:var(--gris-c);color:var(--gris-m)}
 .td-fecha{font-size:11px;color:var(--gris-m)}
 .td-estado{font-size:11px;padding:2px 7px;border-radius:4px;white-space:nowrap}
 .td-estado.noconf{background:var(--coral-c);color:var(--coral)}
@@ -115,7 +155,30 @@ td{padding:10px 12px;vertical-align:middle}
 .vacio-ico{font-size:36px;margin-bottom:8px}
 .vacio h3{font-size:14px;font-weight:500;margin-bottom:4px}
 .vacio p{font-size:12px}
-.fab{position:fixed;bottom:24px;right:24px;background:var(--azul);color:#fff;border:none;border-radius:14px;padding:12px 18px;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;box-shadow:0 4px 20px rgba(26,58,92,.3);display:flex;align-items:center;gap:7px;z-index:100;transition:all .15s}
+.fab-wrap{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;align-items:flex-end;gap:10px;z-index:100}
+.fab{background:var(--azul);color:#fff;border:none;border-radius:14px;padding:12px 18px;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;box-shadow:0 4px 20px rgba(26,58,92,.3);display:flex;align-items:center;gap:7px;transition:all .15s}
+.fab:hover{background:var(--azul-m);transform:translateY(-2px)}
+.fab.rojo{background:var(--coral)}
+.fab.rojo:hover{background:#a93226}
+.lb-badge{background:var(--coral);color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:2px 6px;margin-left:2px}
+/* Lista negra dentro del módulo */
+.lb-panel{margin:0 20px 16px;border:1px solid var(--coral-c);border-radius:10px;overflow:hidden}
+.lb-header{background:var(--coral-c);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.lb-header-left{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--coral)}
+.lb-body{padding:14px;display:none}
+.lb-body.open{display:block}
+.lb-input-row{display:flex;gap:8px;margin-bottom:10px}
+.lb-input{flex:1;padding:8px 10px;border:1px solid var(--borde);border-radius:7px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none}
+.lb-input:focus{border-color:var(--coral)}
+.lb-add{padding:8px 14px;background:var(--coral);color:#fff;border:none;border-radius:7px;font-size:13px;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer;white-space:nowrap}
+.lb-add:hover{background:#a93226}
+.lb-lista{display:flex;flex-wrap:wrap;gap:6px}
+.lb-chip{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid #f5c6c0;border-radius:20px;padding:4px 10px 4px 12px;font-size:12px;font-weight:500;color:var(--coral)}
+.lb-chip button{background:none;border:none;cursor:pointer;color:#e88;font-size:14px;line-height:1;padding:0;display:flex;align-items:center}
+.lb-chip button:hover{color:var(--coral)}
+.lb-vacio{font-size:12px;color:var(--gris-m);font-style:italic}
+.fab{position:static;}
+background:var(--azul);color:#fff;border:none;border-radius:14px;padding:12px 18px;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;box-shadow:0 4px 20px rgba(26,58,92,.3);display:flex;align-items:center;gap:7px;z-index:100;transition:all .15s}
 .fab:hover{background:var(--azul-m);transform:translateY(-2px)}
 .mfondo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
 .mfondo.on{display:flex}
@@ -217,6 +280,7 @@ td{padding:10px 12px;vertical-align:middle}
         </div>
 
         <div class="tabla-wrap" id="twrap-cita" style="display:none">
+          <button class="bwa-todos" id="btn-todos-cita" onclick="enviarTodos('cita')">${WA_SVG_BTN} Enviar WhatsApp a todos</button>
           <table>
             <thead><tr><th>Paciente</th><th>Fecha y hora</th><th>Tratamiento</th><th>WhatsApp</th></tr></thead>
             <tbody id="tb-cita"></tbody>
@@ -290,6 +354,20 @@ td{padding:10px 12px;vertical-align:middle}
         </div>
 
         <div class="tabla-wrap" id="twrap-val" style="display:none">
+          <!-- Panel foto adjunta -->
+          <div class="foto-panel" id="foto-panel-val">
+            <div class="foto-panel-preview vacio" id="foto-preview-val" onclick="document.getElementById('foto-file-val').click()" title="Cargar foto">📷</div>
+            <input type="file" id="foto-file-val" accept="image/*" style="display:none">
+            <div class="foto-panel-info">
+              <div class="foto-panel-titulo">📎 Foto adjunta (opcional)</div>
+              <div class="foto-panel-desc">Carga una foto de la clínica o del Dr. Sánchez. Al enviar cada WhatsApp, copia la foto al portapapeles y pégala en la conversación.</div>
+            </div>
+            <div class="foto-panel-btns">
+              <button class="btn-foto-cargar" onclick="document.getElementById('foto-file-val').click()">Cargar foto</button>
+              <button class="btn-foto-copiar" id="btn-foto-copiar-val" onclick="copiarFoto('val')" disabled>📋 Copiar foto</button>
+            </div>
+          </div>
+          <button class="bwa-todos" id="btn-todos-val" onclick="enviarTodos('val')">${WA_SVG_BTN} Enviar WhatsApp a todos</button>
           <table>
             <thead><tr><th>Paciente</th><th>Fecha y hora</th><th>Tratamiento</th><th>WhatsApp</th></tr></thead>
             <tbody id="tb-val"></tbody>
@@ -303,9 +381,59 @@ td{padding:10px 12px;vertical-align:middle}
     </div>
 
   </div>
+  <!-- ── SECCIÓN PRUEBAS ── -->
+  <div class="pruebas-wrap">
+    <div class="pruebas-header">
+      <div style="font-size:24px">🧪</div>
+      <div>
+        <div class="pruebas-titulo">Pestaña de pruebas</div>
+        <div class="pruebas-desc">Envía mensajes de prueba sin marcarlos como enviados</div>
+      </div>
+    </div>
+    <div class="pruebas-body">
+      <div class="pruebas-aviso">⚠️ Los mensajes enviados desde aquí <strong>no se marcan como enviados</strong> y no afectan al historial. Úsalo para probar que los mensajes llegan correctamente a tu propio número.</div>
+      <div class="pruebas-form">
+        <div class="form-field">
+          <label>Teléfono de prueba</label>
+          <input type="tel" id="prueba-tel" placeholder="612345678">
+        </div>
+        <div class="form-field">
+          <label>Tipo de mensaje</label>
+          <select id="prueba-tipo">
+            <option value="cita">Recordatorio de cita</option>
+            <option value="val">Pedir valoración</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Nombre paciente</label>
+          <input type="text" id="prueba-nombre" placeholder="Ej: María" value="María">
+        </div>
+        <div class="form-field">
+          <label>Fecha (para el mensaje)</label>
+          <input type="date" id="prueba-fecha">
+        </div>
+        <div class="form-field">
+          <label>Hora (opcional)</label>
+          <input type="time" id="prueba-hora">
+        </div>
+        <div class="form-field">
+          <label>Tratamiento (opcional)</label>
+          <input type="text" id="prueba-trat" placeholder="Ej: Limpieza dental">
+        </div>
+        <div class="form-full" style="margin-top:4px">
+          <button class="bwa-todos" onclick="enviarPrueba()" style="margin:0;width:100%">${WA_SVG_BTN} Enviar mensaje de prueba (sin marcar)</button>
+        </div>
+      </div>
+      <div id="prueba-log" class="pruebas-log" style="display:none"></div>
+    </div>
+  </div>
+
 </main>
 
-<button class="fab" onclick="abrirHistorial()">📋 Historial enviados</button>
+<div class="fab-wrap">
+  <button class="fab rojo" onclick="abrirListaNegra()">🚫 Lista negra <span class="lb-badge" id="lb-badge-global">0</span></button>
+  <button class="fab" onclick="abrirHistorial()">📋 Historial enviados</button>
+</div>
 
 <div class="mfondo" id="mfondo" onclick="cierraFondo(event)">
   <div class="modal">
@@ -314,6 +442,26 @@ td{padding:10px 12px;vertical-align:middle}
       <button class="modal-x" onclick="cierraModal()">×</button>
     </div>
     <div class="modal-b" id="modal-b"></div>
+  </div>
+</div>
+
+<!-- Modal lista negra global -->
+<div class="mfondo" id="mfondo-lb" onclick="if(event.target===this)cerrarListaNegra()">
+  <div class="modal">
+    <div class="modal-h">
+      <h3>🚫 Teléfonos bloqueados</h3>
+      <button class="modal-x" onclick="cerrarListaNegra()">×</button>
+    </div>
+    <div class="modal-b">
+      <p style="font-size:13px;color:var(--gris-m);margin-bottom:16px;line-height:1.6">
+        Los teléfonos en esta lista nunca recibirán mensajes de ningún módulo. Se guardan permanentemente en este navegador.
+      </p>
+      <div class="lb-input-row">
+        <input class="lb-input" id="lb-global-input" type="tel" placeholder="612345678" onkeydown="if(event.key==='Enter')addListaNegra()">
+        <button class="lb-add" onclick="addListaNegra()">+ Bloquear</button>
+      </div>
+      <div class="lb-lista" id="lb-global-lista"></div>
+    </div>
   </div>
 </div>
 
@@ -332,18 +480,71 @@ const savedKey = localStorage.getItem(GEMINI_KEY_STORE) || '';
   if (el && savedKey) el.value = savedKey;
 });
 
-let enviados = JSON.parse(localStorage.getItem('ad_enviados') || '{}');
+let enviados    = JSON.parse(localStorage.getItem('ad_enviados') || '{}');
+let listaNegra  = new Set(JSON.parse(localStorage.getItem('ad_listanegra') || '[]'));
+
+function guardarListaNegra() {
+  localStorage.setItem('ad_listanegra', JSON.stringify([...listaNegra]));
+}
+
+function renderListaNegraGlobal() {
+  const el = document.getElementById('lb-global-lista');
+  if (!el) return;
+  const arr = [...listaNegra];
+  if (!arr.length) {
+    el.innerHTML = '<span class="lb-vacio">Ningún teléfono bloqueado aún.</span>';
+  } else {
+    el.innerHTML = arr.map(t =>
+      `<div class="lb-chip">${t}<button onclick="quitarListaNegra('${t}')" title="Desbloquear">×</button></div>`
+    ).join('');
+  }
+  const badge = document.getElementById('lb-badge-global');
+  if (badge) badge.textContent = arr.length;
+}
+
+function addListaNegra() {
+  const inp = document.getElementById('lb-global-input');
+  const tel = limTel(inp.value.trim());
+  if (!tel || !/^\d{9}$/.test(tel)) { alert('Introduce un teléfono válido de 9 dígitos.'); return; }
+  if (listaNegra.has(tel)) { toast('⚠️ Ese teléfono ya está bloqueado'); inp.value=''; return; }
+  listaNegra.add(tel);
+  guardarListaNegra();
+  renderListaNegraGlobal();
+  renderTabla('cita');
+  renderTabla('val');
+  inp.value = '';
+  toast('🚫 ' + tel + ' bloqueado');
+}
+
+function quitarListaNegra(tel) {
+  listaNegra.delete(tel);
+  guardarListaNegra();
+  renderListaNegraGlobal();
+  renderTabla('cita');
+  renderTabla('val');
+  toast('✓ ' + tel + ' desbloqueado');
+}
+
+function abrirListaNegra() {
+  renderListaNegraGlobal();
+  document.getElementById('mfondo-lb').classList.add('on');
+  setTimeout(() => document.getElementById('lb-global-input').focus(), 100);
+}
+
+function cerrarListaNegra() {
+  document.getElementById('mfondo-lb').classList.remove('on');
+}
 
 // ── COLUMNAS ──────────────────────────────────────────────────────────────────
 const ALIASES = {
-  fecha:     ['cita.fch.cita','fecha cita','fecha_cita','fecha','fch.cita','date'],
-  hora:      ['cita.hora inicio','^ cita.hora inicio','hora inicio','hora','time'],
+  fecha:     ['cita.fch.cita','pac.fch.ultima cita','pac.fch.última cita','fecha cita','fecha_cita','fecha','fch.cita','date'],
+  hora:      ['^ cita.hora inicio','cita.hora inicio','hora inicio','hora','time'],
   obs:       ['cita.observaciones','observaciones','obs','tratamiento','motivo','notas'],
   prof:      ['cita.prof. asignado','prof. asignado','profesional','doctor','medico','dentista'],
   apellidos: ['pac.apellidos','apellidos','surname','apellido'],
   nombre:    ['pac.nombre','nombre','name','nombre paciente'],
-  movil:     ['pac.movil','pac.movil','movil','mobile','celular'],
-  tel:       ['pac.telefonos(principal)','pac.telefonos(principal)','telefono','phone','tel principal'],
+  movil:     ['pac.movil','movil','mobile','celular'],
+  tel:       ['pac.telefonos(principal)','pac.telefonos (principal)','pac.telefono','telefono','phone','tel principal','tel'],
   estado:    ['cita.estado','estado','status','estado cita'],
 };
 
@@ -368,7 +569,9 @@ function detectarColumnas(cab) {
 let COL = {};
 
 // ── ESTADOS ───────────────────────────────────────────────────────────────────
-const ESTADOS_CITA = ['no confirmada'];
+// Para citas: mostrar TODOS (el recordatorio va a todos independientemente del estado)
+// Para val:   sin estado en el export, se incluyen todos
+const ESTADOS_CITA = ['no confirmada','confirmada','en sala de espera','en gabinete','confirmada / no llego','confirmada / no llegó','no confirmada / no llego','no confirmada / no llegó'];
 const ESTADOS_VAL  = ['confirmada / no llego','confirmada / no llegó','en gabinete','en sala de espera','confirmada'];
 
 // ── TABS DE ENTRADA ───────────────────────────────────────────────────────────
@@ -653,31 +856,44 @@ function procesarFilas(filas, mod) {
   COL = detectarColumnas(cab);
   const inicio = esCab ? 1 : 0;
 
+  // Columnas mínimas requeridas según módulo:
+  // - cita: nombre + teléfono (estado opcional)
+  // - val:  nombre + teléfono (estado NO requerido; solo con nombre+tel+fecha basta)
   const telPresente = COL.movil !== undefined || COL.tel !== undefined;
-  const faltantes   = ['estado','nombre','apellidos'].filter(c => COL[c] === undefined);
-  if (faltantes.length || !telPresente) {
+  const nombrePresente = COL.nombre !== undefined;
+
+  if (!telPresente || !nombrePresente) {
     const msg = [];
-    if (faltantes.length) msg.push('Columnas no encontradas: ' + faltantes.join(', '));
-    if (!telPresente) msg.push('No se encontró columna de teléfono');
+    if (!nombrePresente) msg.push('No se encontró columna de nombre');
+    if (!telPresente)    msg.push('No se encontró columna de teléfono');
     msg.push('\nColumnas detectadas: ' + cab.filter(Boolean).join(' | '));
-    alert('⚠️ Atención\n\n' + msg.join('\n'));
+    alert('⚠️ No se puede importar\n\n' + msg.join('\n'));
+    return;
   }
 
   const datos = filas.slice(inicio).filter(r => r.some(c => c !== '' && c !== null && c !== undefined));
   const pacientes = datos.map(r => {
-    const nombre = (cap(str(r[COL.nombre])) + ' ' + cap(str(r[COL.apellidos]))).trim();
+    const nombre = (cap(str(r[COL.nombre])) + (COL.apellidos !== undefined ? ' ' + cap(str(r[COL.apellidos])) : '')).trim();
     const movil  = COL.movil !== undefined ? limTel(str(r[COL.movil])) : '';
     const telP   = COL.tel   !== undefined ? limTel(str(r[COL.tel]))   : '';
     const tel    = movil || telP;
-    const estado = COL.estado !== undefined ? str(r[COL.estado]).toLowerCase() : '';
+    // Para 'val': si no hay columna estado, asignamos 'en gabinete' a todos
+    const estado = COL.estado !== undefined ? str(r[COL.estado]).toLowerCase() : (mod === 'val' ? 'en gabinete' : 'no confirmada');
     const hora   = COL.hora   !== undefined ? str(r[COL.hora])  : '';
     const trat   = (COL.obs   !== undefined ? str(r[COL.obs])   : '').replace(/\.+$/,'').trim();
     const prof   = formatDoctor(COL.prof !== undefined ? str(r[COL.prof]) : '');
-    const fecha  = COL.fecha  !== undefined ? r[COL.fecha] : null;
+    const fecha  = COL.fecha  !== undefined ? parseFecha(r[COL.fecha]) : null;
     return { nombre, tel, estado, hora, trat, prof, fecha };
   }).filter(p => p.nombre.length > 1 && p.tel);
 
-  window['datos_'+mod] = pacientes;
+  // Merge: conservar datos previos (ej. de imagen) y añadir los nuevos, deduplicando por tel
+  const previos = window['datos_'+mod] || [];
+  const nuevos  = pacientes.filter(p => !previos.some(e => e.tel === p.tel));
+  const total   = [...previos, ...nuevos];
+  window['datos_'+mod] = total;
+  if (previos.length && nuevos.length) {
+    toast(`✓ ${nuevos.length} nuevos añadidos (${previos.length} ya existentes conservados)`);
+  }
   mostrarTabla(mod);
   renderTabla(mod);
 }
@@ -706,10 +922,16 @@ function renderTabla(mod) {
   let descFuturos = 0;
 
   const filtrados = todos.filter(p => {
-    const e = p.estado;
-    if (mod === 'cita') return ESTADOS_CITA.some(s => norm(e).includes(norm(s)));
+    const eNorm = norm(p.estado || '');
+    if (mod === 'cita') {
+      // Solo enviar recordatorio a citas NO confirmadas
+      return eNorm.includes('no confirmada') || eNorm === '';
+    }
     if (mod === 'val') {
-      if (!ESTADOS_VAL.some(s => norm(e).includes(norm(s)))) return false;
+      // Si no hay estado (export val de KliniKare no lo incluye) → incluir siempre
+      const tieneEstado = p.estado && p.estado.trim() !== '';
+      const estadoOk = !tieneEstado || ESTADOS_VAL.some(s => eNorm.includes(norm(s)));
+      if (!estadoOk) return false;
       if (!esFechaAnteriorAHoy(p.fecha)) { descFuturos++; return false; }
       return true;
     }
@@ -729,7 +951,7 @@ function renderTabla(mod) {
     aviso.textContent = `⚠️  ${descFuturos} registro${descFuturos>1?'s':''} descartado${descFuturos>1?'s':''} — fecha hoy o futura.`;
   } else if (mod === 'val') { aviso.style.display = 'none'; }
 
-  const pendientes = filtrados.filter(p => !enviados[p.tel]?.[mod]);
+  const pendientes = filtrados.filter(p => !enviados[p.tel]?.[mod] && !listaNegra.has(p.tel));
 
   document.getElementById('badge-'+mod).textContent = pendientes.length + ' pendientes';
   const tb = document.getElementById('tb-'+mod);
@@ -746,18 +968,30 @@ function renderTabla(mod) {
     const fechaHora = [fmtFecha(p.fecha), p.hora].filter(Boolean).join(' · ');
     // Guardar mensaje en mapa para recuperarlo en abrirWA sin problemas de escaping
     waMsgMap[p.tel] = msg;
+
+    // Botón de envío: para val, si hay foto cargada mostrar también botón copiar foto
+    const btnEnvio = mod === 'val'
+      ? `<div style="display:flex;gap:6px;flex-wrap:wrap">
+           <button class="bwa activo" onclick="marcar('${p.tel}','${mod}','${nom}');abrirWA('${p.tel}')">${WA_SVG} Enviar</button>
+           <button class="btn-foto-fila" onclick="copiarFoto('val')" title="Copiar foto al portapapeles para pegarla en WhatsApp" style="padding:6px 10px;background:var(--morado-c);color:var(--morado);border:1px solid #c4b5fd;border-radius:7px;font-size:11px;font-family:'DM Sans',sans-serif;font-weight:600;cursor:pointer;white-space:nowrap" id="btn-fila-foto-${p.tel}">📋 Foto</button>
+         </div>`
+      : `<button class="bwa activo" onclick="marcar('${p.tel}','${mod}','${nom}');abrirWA('${p.tel}')">${WA_SVG} Enviar</button>`;
+
     tr.innerHTML = `
-      <td><div class="td-nombre">${x(p.nombre)}</div></td>
+      <td>
+        <div class="td-nombre">${x(p.nombre)}</div>
+        ${mod==='cita' ? estadoBadge(p.estado) : ''}
+      </td>
       <td><div class="td-hora">${x(fechaHora)||'—'}</div></td>
       <td>${p.trat?`<span class="td-trat" title="${x(p.trat)}">${x(p.trat)}</span>`:'—'}</td>
-      <td>
-        <button class="bwa activo" onclick="marcar('${p.tel}','${mod}','${nom}');abrirWA('${p.tel}')">${WA_SVG} Enviar</button>
-      </td>`;
+      <td>${btnEnvio}</td>`;
     tb.appendChild(tr);
   });
 }
 
 const WA_SVG = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
+
+const WA_SVG_BTN = `<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
 
 // ── MENSAJES ──────────────────────────────────────────────────────────────────
 const TRAT_DIFICIL = ['endodoncia','extraccion','extracción','implante','cirugia','cirugía',
@@ -803,36 +1037,69 @@ function waEncode(msg) {
 
 function msgCita(p) {
   const nombre   = p.nombre.split(' ')[0];
-  const hora     = p.hora ? ` a las ${p.hora}` : '';
+  const hora     = p.hora ? ` a las *${p.hora}*` : '';
   const trat     = p.trat ? ` de ${p.trat.toLowerCase()}` : '';
-  const fechaTxt = p.fecha ? ` el ${fmtFecha(p.fecha)}` : '';
+  const fechaTxt = p.fecha ? `*${fmtFecha(p.fecha)}*` : 'próximamente';
 
   const lineas = [
-    `Hola ${nombre} 👋 Te recordamos tu cita${trat} en ${CLINICA}${fechaTxt}${hora}.`,
-    `Si no puedes venir, avísanos con tiempo para buscar otro hueco.`,
-    `¿Confirmas asistencia? ✅`
+    `Hola ${nombre} 👋`,
+    ``,
+    `Te escribimos desde *${CLINICA}* para recordarte tu cita${trat} el ${fechaTxt}${hora}.`,
+    ``,
+    `Si necesitas cambiarla o cancelarla, avísanos con tiempo — así podemos ofrecerle el hueco a otro paciente 🙏`,
+    ``,
+    `¿Nos confirmas que todo sigue bien? ✅`
   ];
   return lineas.join('\n');
 }
 
-function msgVal(p) {
-  const nombre  = p.nombre.split(' ')[0];
-  const ventana = ventanaTemporal(p.fecha);
-  const visita  = ventana ? `tu visita ${ventana}` : 'tu última visita';
-  const trat    = p.trat ? ` de ${p.trat.toLowerCase()}` : '';
-  const dificil = esTratDificil(p.trat);
+// Variantes de apertura para valoración — rota para evitar que suenen siempre igual
+const APERTURAS_NORMAL = [
+  (nombre, visita, trat) => `Hola ${nombre} 😊\n\nEsperamos que ${visita}${trat} haya ido genial. En *${CLINICA}* cada paciente importa, y nos encantaría saber cómo fue tu experiencia.`,
+  (nombre, visita, trat) => `Hola ${nombre} 👋\n\nYa han pasado unos días desde ${visita}${trat} y queríamos saber qué tal te fue. Esperamos que todo haya ido a pedir de boca 🦷`,
+  (nombre, visita, trat) => `Hola ${nombre} 😄\n\nFue un placer tenerte en *${CLINICA}* ${visita}${trat}. ¿Cómo te has sentido después?`,
+];
 
-  const apertura = dificil
-    ? `Sabemos que ${visita}${trat} no era la más sencilla. Esperamos que te hayas recuperado bien y que el resultado esté siendo justo lo que esperabas.`
-    : `Esperamos que ${visita}${trat} haya sido una buena experiencia. En ${CLINICA} nos importa cada detalle de tu paso por la clinica.`;
+const APERTURAS_DIFICIL = [
+  (nombre, visita, trat) => `Hola ${nombre} 🙏\n\nSabemos que ${visita}${trat} no es de las más sencillas. Esperamos que te hayas recuperado bien y que el resultado esté siendo justo lo que esperabas.`,
+  (nombre, visita, trat) => `Hola ${nombre} 💙\n\nQueríamos saber cómo estás después de ${visita}${trat}. Esperamos que la recuperación haya ido bien y que estés contento/a con el resultado.`,
+];
+
+function msgVal(p) {
+  const nombre   = p.nombre.split(' ')[0];
+  const fechaTxt = p.fecha ? fmtFecha(p.fecha) : null;
+  const ventana  = ventanaTemporal(p.fecha);
+  const visita   = fechaTxt ? `tu visita del *${fechaTxt}*` : (ventana ? `tu visita ${ventana}` : 'tu última visita');
+  const trat     = p.trat ? ` de *${p.trat.toLowerCase()}*` : '';
+  const dificil  = esTratDificil(p.trat);
+
+  // Rotar variante según el teléfono para que no se repitan seguidas
+  const pool    = dificil ? APERTURAS_DIFICIL : APERTURAS_NORMAL;
+  const idx     = parseInt(p.tel.slice(-1)) % pool.length;
+  const apertura = pool[idx](nombre, visita, trat);
 
   const lineas = [
-    `Hola ${nombre}, ${apertura}`,
-    `¿Nos cuentas como fue? Tu opinion nos ayuda a cuidar mejor a cada paciente.`,
+    apertura,
+    ``,
+    `⭐ ¿Nos dejas una reseña? Solo toma 1 minuto y ayuda a muchas otras personas a encontrar una buena clínica dental:`,
     `${LANDING}`,
-    `Gracias por confiar en nosotros.`
+    ``,
+    `¡Gracias por confiar en nosotros! 🙌`
   ];
   return lineas.join('\n');
+}
+
+// ── ESTADO → BADGE ────────────────────────────────────────────────────────────
+function estadoBadge(estado) {
+  if (!estado) return '';
+  const e = norm(estado);
+  let cls = 'otro', txt = estado;
+  if (e.includes('sala de espera'))      { cls='sala';       txt='En sala'; }
+  else if (e.includes('gabinete'))       { cls='gabinete';   txt='En gabinete'; }
+  else if (e.startsWith('confirmada') && !e.includes('no llego')) { cls='confirmada'; txt='Confirmada'; }
+  else if (e.includes('no llego') || e.includes('no llegó')) { cls='no-confirm'; txt='No llegó'; }
+  else if (e.includes('no confirmada'))  { cls='no-confirm'; txt='Sin confirmar'; }
+  return `<span class="td-estado ${cls}">${txt}</span>`;
 }
 
 // ── MARCAR ENVIADO ────────────────────────────────────────────────────────────
@@ -921,35 +1188,29 @@ function cap(s) {
 }
 
 function limTel(t) {
+  // Extrae el primer móvil español válido (6xx/7xx, 9 dígitos) de un string caótico.
+  // Maneja: espacios internos, prefijos +34/0034/34, anotaciones de texto (madre/padre/esposo),
+  // múltiples números separados por / o comas, números extranjeros (se ignoran).
   if (!t) return '';
-  const s = String(t);
+  let s = String(t).trim();
 
-  // Formato KliniKare: "APELLIDO · 612345678 · Particular"
-  // El teléfono está entre los separadores · (U+00B7) o · (U+2022) o simple punto
-  const klinikare = s.match(/[·•\u00b7\u2022]\s*(\d[\d\s]{7,10}\d)\s*[·•\u00b7\u2022]/);
-  if (klinikare) {
-    const tel = klinikare[1].replace(/\s/g,'');
-    if (/^\d{9}$/.test(tel)) return tel;
+  // Quitar prefijo internacional al inicio del string completo
+  s = s.replace(/^\+34|^0034/, '');
+
+  // Extraer todos los bloques numéricos (dígitos con espacios internos tolerados)
+  const tokens = s.match(/\d[\d\s]{6,11}\d/g) || [];
+
+  const moviles = [], fijos = [];
+  for (const tok of tokens) {
+    let limpio = tok.replace(/\s/g, '');
+    limpio = limpio.replace(/^34(?=\d{9}$)/, ''); // quitar 34 residual
+    if (/^[67]\d{8}$/.test(limpio)) moviles.push(limpio);
+    else if (/^9\d{8}$/.test(limpio)) fijos.push(limpio);
   }
 
-  // Buscar directamente cualquier número de 9 dígitos en el string
-  const todos = s.match(/\d[\d\s\-]{7,10}\d/g) || [];
-  for (const t of todos) {
-    const limpio = t.replace(/[\s\-]/g,'');
-    if (/^[67]\d{8}$/.test(limpio)) return limpio; // móvil primero
-  }
-  for (const t of todos) {
-    const limpio = t.replace(/[\s\-]/g,'');
-    if (/^\d{9}$/.test(limpio)) return limpio; // cualquier 9 dígitos
-  }
-
-  // Fallback: limpiar y devolver
-  const clean = s.replace(/[\s\+\.\(\)]/g,'').replace(/^0034/,'').replace(/^34(?=\d{9}$)/,'');
-  const partes = clean.split(/[-\/,;·•]/);
-  const movil  = partes.find(p => /^[67]\d{8}$/.test(p.trim()));
-  if (movil) return movil.trim();
-  const cualq  = partes.find(p => /^\d{9}$/.test(p.trim()));
-  return cualq ? cualq.trim() : clean.replace(/[^\d]/g,'').slice(-9);
+  if (moviles.length) return moviles[0]; // preferir móvil
+  if (fijos.length)   return fijos[0];   // fijo como fallback
+  return ''; // número extranjero u otros → descartar
 }
 
 function formatDoctor(profRaw) {
@@ -1058,9 +1319,157 @@ async function capturarPantalla(mod) {
   }
 }
 
+// ── FOTO ADJUNTA (VALORACIÓN) ──────────────────────────────────────────────────
+const fotoDataMap = {};  // mod → blob de imagen
+
+// Inicializar input de foto
+['val'].forEach(mod => {
+  const inp = document.getElementById('foto-file-'+mod);
+  if (!inp) return;
+  inp.addEventListener('change', e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      fotoDataMap[mod] = ev.target.result; // data URL
+      const prev = document.getElementById('foto-preview-'+mod);
+      prev.innerHTML = '';
+      prev.className = 'foto-panel-preview';
+      const img = new Image();
+      img.src = ev.target.result;
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:6px';
+      prev.appendChild(img);
+      document.getElementById('btn-foto-copiar-'+mod).disabled = false;
+      toast('✅ Foto cargada — pulsa "📋 Copiar foto" antes de enviar cada WhatsApp');
+    };
+    reader.readAsDataURL(file);
+  });
+});
+
+async function copiarFoto(mod) {
+  const dataUrl = fotoDataMap[mod];
+  if (!dataUrl) { toast('⚠️ Primero carga una foto'); return; }
+
+  try {
+    // Convertir data URL a blob
+    const resp    = await fetch(dataUrl);
+    const blob    = await resp.blob();
+    const pngBlob = blob.type === 'image/png' ? blob : await convertirAPng(blob);
+
+    await navigator.clipboard.write([
+      new ClipboardItem({ 'image/png': pngBlob })
+    ]);
+    toast('📋 Foto copiada — pégala en WhatsApp con Ctrl+V (o mantén pulsado en móvil)');
+  } catch (err) {
+    // Fallback: abrir imagen en nueva pestaña para que el usuario la descargue/copie
+    const ventana = window.open();
+    ventana.document.write(`<img src="${dataUrl}" style="max-width:100%"><p style="font-family:sans-serif;color:#555">Descarga esta imagen y adjúntala en WhatsApp</p>`);
+    toast('⚠️ No se pudo copiar al portapapeles — abierta en nueva pestaña');
+  }
+}
+
+async function convertirAPng(blob) {
+  return new Promise((res, rej) => {
+    const img    = new Image();
+    const url    = URL.createObjectURL(blob);
+    img.onload   = () => {
+      const c  = document.createElement('canvas');
+      c.width  = img.naturalWidth; c.height = img.naturalHeight;
+      c.getContext('2d').drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      c.toBlob(b => b ? res(b) : rej(new Error('canvas error')), 'image/png');
+    };
+    img.onerror = rej;
+    img.src = url;
+  });
+}
+
+// ── ENVIAR A TODOS ─────────────────────────────────────────────────────────────
+// Abre WhatsApp para cada paciente con un delay de 2.5s entre cada uno.
+// El usuario debe pulsar Enviar en cada conversación manualmente.
+async function enviarTodos(mod) {
+  const todos = window['datos_'+mod] || [];
+  const filtrados = todos.filter(p => {
+    const eNorm = norm(p.estado || '');
+    if (mod === 'cita') {
+      return eNorm.includes('no confirmada') || eNorm === '';
+    }
+    if (mod === 'val') {
+      const tieneEstado = p.estado && p.estado.trim() !== '';
+      const estadoOk = !tieneEstado || ESTADOS_VAL.some(s => eNorm.includes(norm(s)));
+      if (!estadoOk) return false;
+      if (!esFechaAnteriorAHoy(p.fecha)) return false;
+      return true;
+    }
+    return false;
+  });
+  const pendientes = filtrados.filter(p => !enviados[p.tel]?.[mod] && !listaNegra.has(p.tel));
+
+  if (!pendientes.length) { toast('✅ No hay pendientes'); return; }
+
+  const ok = confirm(`¿Enviar WhatsApp a ${pendientes.length} paciente${pendientes.length>1?'s':''}?\n\nSe abrirá WhatsApp para cada uno. Entre cada apertura habrá 3 segundos para que no se solapen.\n\nPulsa Enviar manualmente en cada conversación.`);
+  if (!ok) return;
+
+  const btn = document.getElementById('btn-todos-'+mod);
+  btn.disabled = true;
+
+  for (let i = 0; i < pendientes.length; i++) {
+    const p = pendientes[i];
+    btn.innerHTML = `${WA_SVG_BTN} Enviando ${i+1}/${pendientes.length}: ${p.nombre.split(' ')[0]}...`;
+    waMsgMap[p.tel] = mod === 'cita' ? msgCita(p) : msgVal(p);
+    abrirWA(p.tel);
+    // Marcamos DESPUÉS de abrir WA (pequeño delay para que WA procese primero)
+    setTimeout(() => marcar(p.tel, mod, p.nombre), 400);
+    if (i < pendientes.length - 1) {
+      await new Promise(r => setTimeout(r, 3000));
+    }
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = `${WA_SVG_BTN} ✅ Todos enviados`;
+  toast(`✅ ${pendientes.length} mensajes abiertos en WhatsApp`);
+  setTimeout(() => { btn.innerHTML = `${WA_SVG_BTN} Enviar WhatsApp a todos`; }, 4000);
+}
+
+// ── ENVIAR PRUEBA ──────────────────────────────────────────────────────────────
+function enviarPrueba() {
+  const tel   = limTel(document.getElementById('prueba-tel').value.trim());
+  const tipo  = document.getElementById('prueba-tipo').value;
+  const nombre= document.getElementById('prueba-nombre').value.trim() || 'Prueba';
+  const fecha = document.getElementById('prueba-fecha').value;
+  const hora  = document.getElementById('prueba-hora').value;
+  const trat  = document.getElementById('prueba-trat').value.trim();
+
+  if (!tel || !/^\d{9}$/.test(tel)) {
+    alert('Introduce un teléfono válido de 9 dígitos.'); return;
+  }
+
+  const p = {
+    nombre: cap(nombre), tel,
+    estado: tipo === 'cita' ? 'no confirmada' : 'en gabinete',
+    hora, trat: trat.replace(/\.+$/,'').trim(), prof: null,
+    fecha: fecha ? new Date(fecha) : (tipo === 'val' ? new Date(Date.now()-86400000) : new Date()),
+    fuente: 'prueba'
+  };
+
+  const msg = tipo === 'cita' ? msgCita(p) : msgVal(p);
+  waMsgMap[tel] = msg;
+
+  // Log visual
+  const log = document.getElementById('prueba-log');
+  log.style.display = 'block';
+  const item = document.createElement('div');
+  item.className = 'pruebas-log-item ok';
+  item.textContent = `[${new Date().toLocaleTimeString('es-ES')}] ${tipo === 'cita' ? '📅 Recordatorio' : '⭐ Valoración'} → ${tel} (${cap(nombre)}) — sin marcar como enviado`;
+  log.prepend(item);
+
+  abrirWA(tel);
+  toast(`🧪 Mensaje de prueba abierto → ${tel}`);
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 toggleMod('cita');
 toggleMod('val');
+renderListaNegraGlobal();
 </script>
 </body>
 </html>
