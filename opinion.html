@@ -404,10 +404,114 @@ textarea::placeholder { color: #b0bec5; }
 .google-ico { width: 22px; height: 22px; flex-shrink: 0; }
 
 .countdown {
-  margin-top: 14px; font-size: 12px;
+  margin-top: 10px; font-size: 12px;
   color: var(--gris-m); min-height: 18px;
+  text-align: center;
 }
 .countdown strong { color: var(--turq-d); }
+
+/* Pantalla Google — alta conversión */
+.google-social-proof {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  border: 1px solid #fde68a;
+  border-radius: 20px; padding: 6px 14px;
+  font-size: 12px; font-weight: 600; color: #92400e;
+  margin-bottom: 18px;
+}
+.google-sp-ico { font-size: 15px; }
+.google-titulo {
+  font-family: 'Outfit', sans-serif;
+  font-size: 28px; font-weight: 800;
+  color: var(--negro); line-height: 1.2;
+  margin-bottom: 16px;
+}
+.google-titulo em {
+  font-style: normal;
+  color: var(--turq-d);
+  position: relative;
+}
+.google-beneficio {
+  font-size: 14px; color: #444;
+  line-height: 1.7; margin-bottom: 16px;
+}
+.google-beneficio strong { color: var(--negro); }
+.google-friccion {
+  display: flex; flex-direction: column; gap: 6px;
+  background: #f8ffff; border: 1px solid #c8f5f2;
+  border-radius: 12px; padding: 14px 16px;
+  margin-bottom: 24px; text-align: left;
+  font-size: 13px; color: var(--turq-d); font-weight: 600;
+}
+.btn-google-cta {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
+  font-size: 17px !important;
+  padding: 20px 24px !important;
+  min-height: 66px !important;
+  border-radius: 18px !important;
+  box-shadow: 0 8px 32px rgba(0,168,158,0.25), 0 2px 0 rgba(0,212,200,0.3) !important;
+  transition: transform .15s, box-shadow .15s !important;
+  animation: pulseCTA 2.5s ease-in-out 1.2s infinite;
+}
+.btn-google-cta:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 12px 40px rgba(0,168,158,0.35), 0 2px 0 rgba(0,212,200,0.4) !important;
+}
+@keyframes pulseCTA {
+  0%, 100% { box-shadow: 0 8px 32px rgba(0,168,158,0.25), 0 2px 0 rgba(0,212,200,0.3); }
+  50%       { box-shadow: 0 8px 40px rgba(0,168,158,0.45), 0 2px 0 rgba(0,212,200,0.5); }
+}
+.google-subtext {
+  font-size: 11px; color: #999;
+  margin-top: 10px; line-height: 1.5;
+  text-align: center;
+}
+
+.stars-recordatorio {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.stars-recordatorio svg {
+  filter: drop-shadow(0 2px 4px rgba(0,212,200,0.35));
+  animation: starPop .4s cubic-bezier(.34,1.56,.64,1) both;
+}
+.stars-recordatorio svg:nth-child(1) { animation-delay: .05s }
+.stars-recordatorio svg:nth-child(2) { animation-delay: .12s }
+.stars-recordatorio svg:nth-child(3) { animation-delay: .19s }
+.stars-recordatorio svg:nth-child(4) { animation-delay: .26s }
+.stars-recordatorio svg:nth-child(5) { animation-delay: .33s }
+
+.instruccion-google {
+  background: linear-gradient(135deg, #f0fffe, #e6faf9);
+  border: 1.5px solid var(--turq);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+.instruccion-google .paso {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--negro);
+  line-height: 1.5;
+}
+.instruccion-google .paso + .paso { margin-top: 10px; }
+.instruccion-google .paso-num {
+  width: 22px; height: 22px;
+  background: var(--turq);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.instruccion-google strong { color: var(--turq-d); }
 
 /* ── PANTALLA 4: Gracias ── */
 #screen-gracias { text-align: center; }
@@ -515,24 +619,58 @@ textarea::placeholder { color: #b0bec5; }
     <div id="feedback-sending" style="display:none;text-align:center;padding:12px;font-size:14px;color:var(--turq-d)">Enviando...</div>
     <div id="feedback-error" style="display:none;text-align:center;padding:10px;font-size:13px;color:#e53e3e;background:#fff5f5;border-radius:8px;margin-bottom:8px"></div>
     <button class="btn-enviar" id="btn-enviar-feedback" onclick="enviarFeedback()">Enviar comentario</button>
-    <button class="btn-volver" onclick="volver()">← Cambiar puntuación</button>
   </div>
 
-  <!-- PANTALLA 3: Google -->
+  <!-- PANTALLA 3: Google — alta conversión -->
   <div id="screen-google" class="screen hidden">
-    <span class="celebration">🎉</span>
-    <h2>¡Muchísimas gracias!</h2>
-    <p>¡Tu valoración de 5 estrellas significa muchísimo para nosotros! ¿Te importaría compartirlo en Google? Ayuda a otras personas a encontrar una buena clínica dental y solo te lleva un momento.</p>
-    <a class="btn-google" id="btn-google" href="https://g.page/r/CRkkiSExZLnnEAE/review" target="_blank" rel="noopener" onclick="clicGoogle()">
+
+    <!-- Prueba social + urgencia emocional -->
+    <div class="google-social-proof">
+      <span class="google-sp-ico">🏆</span>
+      <span>Solo los mejores pacientes llegan hasta aquí</span>
+    </div>
+
+    <h2 class="google-titulo">Tu reseña importa<br><em>de verdad</em></h2>
+
+    <!-- Estrellas grandes animadas — ancla visual -->
+    <div class="stars-recordatorio">
+      <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#00d4c8" stroke="#00a89e" stroke-width="1.5"/></svg>
+      <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#00d4c8" stroke="#00a89e" stroke-width="1.5"/></svg>
+      <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#00d4c8" stroke="#00a89e" stroke-width="1.5"/></svg>
+      <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#00d4c8" stroke="#00a89e" stroke-width="1.5"/></svg>
+      <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#00d4c8" stroke="#00a89e" stroke-width="1.5"/></svg>
+    </div>
+
+    <!-- Beneficio concreto — por qué hacerlo -->
+    <p class="google-beneficio">
+      Cada reseña ayuda a una familia a elegir una clínica dental de confianza.<br>
+      <strong>Solo 45 segundos. Sin registro. Sin complicaciones.</strong>
+    </p>
+
+    <!-- Microcopy de fricción cero -->
+    <div class="google-friccion">
+      <span>✓ No hace falta escribir nada</span>
+      <span>✓ Solo pulsar 5 estrellas</span>
+      <span>✓ Se publica al instante</span>
+    </div>
+
+    <!-- CTA principal — máximo contraste y tamaño -->
+    <a class="btn-google btn-google-cta" id="btn-google" href="https://g.page/r/CRkkiSExZLnnEAE/review" target="_blank" rel="noopener" onclick="clicGoogle()">
       <svg class="google-ico" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
         <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
         <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
         <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
       </svg>
-      Dejar mi reseña en Google
+      Dejar mi reseña ahora ★★★★★
     </a>
+
+    <!-- Countdown con urgencia suave -->
     <div class="countdown" id="countdown"></div>
+
+    <!-- Subtext de refuerzo bajo el botón -->
+    <p class="google-subtext">Se abrirá Google en esta misma pantalla — pulsa las 5 estrellas y listo</p>
+
   </div>
 
   <!-- PANTALLA 4: Gracias -->
@@ -646,6 +784,12 @@ function show(id) {
 
 function siguientePaso() {
   if (!valorSeleccionado) return;
+  // Bloquear estrellas — ya no se puede cambiar la puntuación
+  estrellaWraps.forEach(w => {
+    w.style.pointerEvents = 'none';
+    w.style.cursor = 'default';
+  });
+  btnValorar.disabled = true;
   if (valorSeleccionado === 5) {
     trackEvent('rating_positive', { value: valorSeleccionado });
     show('screen-google');
