@@ -910,11 +910,13 @@ function mostrarTabla(mod) {
 }
 
 // ── RENDER TABLA ──────────────────────────────────────────────────────────────
-function esFechaAnteriorAHoy(fecha) {
-  if (!fecha) return false;
+function esFechaHoyOAnterior(fecha) {
+  // Devuelve true si la fecha es HOY o anterior (ya vino a la cita)
+  // Devuelve false si es futura (aún no ha venido)
+  if (!fecha) return true; // sin fecha → incluir siempre
   const hoy = new Date(); hoy.setHours(0,0,0,0);
   const f   = new Date(fecha); f.setHours(0,0,0,0);
-  return f < hoy;
+  return f <= hoy;
 }
 
 function renderTabla(mod) {
@@ -932,7 +934,7 @@ function renderTabla(mod) {
       const tieneEstado = p.estado && p.estado.trim() !== '';
       const estadoOk = !tieneEstado || ESTADOS_VAL.some(s => eNorm.includes(norm(s)));
       if (!estadoOk) return false;
-      if (!esFechaAnteriorAHoy(p.fecha)) { descFuturos++; return false; }
+      if (!esFechaHoyOAnterior(p.fecha)) { descFuturos++; return false; }
       return true;
     }
     return false;
@@ -948,7 +950,7 @@ function renderTabla(mod) {
   }
   if (mod === 'val' && descFuturos > 0) {
     aviso.style.display = 'flex';
-    aviso.textContent = `⚠️  ${descFuturos} registro${descFuturos>1?'s':''} descartado${descFuturos>1?'s':''} — fecha hoy o futura.`;
+    aviso.textContent = `⚠️  ${descFuturos} registro${descFuturos>1?'s':''} descartado${descFuturos>1?'s':''} — fecha futura (aún no han venido).`;
   } else if (mod === 'val') { aviso.style.display = 'none'; }
 
   const pendientes = filtrados.filter(p => !enviados[p.tel]?.[mod] && !listaNegra.has(p.tel));
@@ -1397,7 +1399,7 @@ async function enviarTodos(mod) {
       const tieneEstado = p.estado && p.estado.trim() !== '';
       const estadoOk = !tieneEstado || ESTADOS_VAL.some(s => eNorm.includes(norm(s)));
       if (!estadoOk) return false;
-      if (!esFechaAnteriorAHoy(p.fecha)) return false;
+      if (!esFechaHoyOAnterior(p.fecha)) return false;
       return true;
     }
     return false;
