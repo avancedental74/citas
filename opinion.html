@@ -193,6 +193,13 @@ body::after {
 /* ── PANTALLAS ── */
 .screen { padding: 28px 26px 32px; }
 .screen.hidden { display: none; }
+.screen.fade-in {
+  animation: fadeInUp .28s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 /* ── PANTALLA 1: Estrellas ── */
 .pregunta {
@@ -342,6 +349,9 @@ textarea::placeholder { color: #b0bec5; }
   font-family: 'Outfit', sans-serif; font-weight: 600;
   cursor: pointer; transition: all .2s;
   min-height: 52px; touch-action: manipulation;
+  position: sticky;
+  bottom: 0;
+  padding-bottom: max(15px, env(keyboard-inset-height, 15px));
 }
 .btn-enviar:active { transform: scale(0.98); background: #1a1a2e; }
 
@@ -734,6 +744,23 @@ estrellaWraps.forEach(w => {
   w.addEventListener('click', () => {
     const v = +w.dataset.val;
     valorSeleccionado = v;
+    // Haptic feedback
+    if (navigator.vibrate) {
+      navigator.vibrate(10);
+    } else if (window.AudioContext || window.webkitAudioContext) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = 800;
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.05);
+      } catch(e) {}
+    }
     // Animación pop en cascada
     estrellaWraps.forEach((s, i) => {
       if (+s.dataset.val <= v) {
@@ -778,7 +805,11 @@ function lanzarConfettiGrande()  { lanzarConfetti(80); }
 // ── Navegación ─────────────────────────────────────────────────────────────
 function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
-  document.getElementById(id).classList.remove('hidden');
+  const target = document.getElementById(id);
+  target.classList.remove('hidden');
+  target.classList.remove('fade-in');
+  void target.offsetWidth; // reflow para reiniciar animación
+  target.classList.add('fade-in');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -816,7 +847,15 @@ function siguientePaso() {
   }
 }
 
-function volver() { show('screen-stars'); }
+function volver() {
+  // Reactivar estrellas al volver
+  estrellaWraps.forEach(w => {
+    w.style.pointerEvents = 'auto';
+    w.style.cursor = 'pointer';
+  });
+  btnValorar.disabled = false;
+  show('screen-stars');
+}
 
 async function enviarFeedback() {
   const txt     = document.getElementById('comentario').value.trim();
@@ -877,9 +916,9 @@ function iniciarCountdown() {
     seg--;
     if (seg <= 0) {
       clearInterval(countdownTimer);
-      el.textContent = 'Abriendo Google Reviews...';
+      // Mostrar enlace visible en lugar de window.open automático (bloqueado en iOS Safari)
+      el.innerHTML = `<a href="${GOOGLE_URL}" target="_blank" rel="noopener" style="color:var(--turq-d);font-weight:600;text-decoration:underline;" onclick="clicGoogle()">👉 Pulsa aquí para abrir Google Reviews</a>`;
       trackEvent('google_redirect_auto');
-      window.open(GOOGLE_URL, '_blank');
     } else {
       el.innerHTML = `Abriendo Google en <strong>${seg}</strong> seg...`;
     }
