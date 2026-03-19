@@ -1545,8 +1545,11 @@ function bloquearDesdeLeads(tel, nombre) {
 }
 
 // ═══════════════════════════════════════════════════
-// QR
+// QR — con polling automático mientras Baileys arranca
 // ═══════════════════════════════════════════════════
+let _qrPollTimer = null;
+function _stopQrPoll() { if (_qrPollTimer) { clearInterval(_qrPollTimer); _qrPollTimer = null; } }
+
 async function abrirQR() {
   if (!MODO_BAILEYS) { toast('⚠️ Servidor offline — ejecuta: node server.js','err'); return; }
   document.getElementById('mfondo-qr').classList.add('on');
@@ -1555,33 +1558,62 @@ async function abrirQR() {
 
 async function cargarQR() {
   const wrap = document.getElementById('qr-display');
-  const body = document.getElementById('modal-qr-body');
+  const modalWrap = document.getElementById('qr-canvas-wrap');
+  const offlineMsg = '<p style="color:var(--coral);font-size:13px">Servidor offline. Ejecuta <code>node server.js</code></p>';
+
   if (!MODO_BAILEYS) {
-    if(wrap)wrap.innerHTML='<p style="color:var(--coral);font-size:13px">Servidor offline. Ejecuta <code>node server.js</code></p>';
+    if(wrap) wrap.innerHTML = offlineMsg;
+    if(modalWrap) modalWrap.innerHTML = offlineMsg;
+    _stopQrPoll();
     return;
   }
+
   try {
     const r = await fetch(API_BASE+'/api/status');
     const d = await r.json();
-    const target = wrap || document.getElementById('qr-canvas-wrap');
+    const target = wrap || modalWrap;
+
     if (d.estado === 'conectado') {
-      const html='<div style="text-align:center;padding:20px"><div style="font-size:48px">✅</div><p style="font-size:15px;font-weight:600;color:var(--verde);margin-top:10px">WhatsApp conectado</p><p style="font-size:13px;color:var(--gris-m);margin-top:6px">Los envíos automáticos están activos</p></div>';
-      if(wrap)wrap.innerHTML=html;
-      if(body&&!wrap)body.innerHTML=html;
+      _stopQrPoll();
+      const html = '<div style="text-align:center;padding:20px"><div style="font-size:48px">✅</div><p style="font-size:15px;font-weight:600;color:var(--verde);margin-top:10px">WhatsApp conectado</p><p style="font-size:13px;color:var(--gris-m);margin-top:6px">Los envíos automáticos están activos</p></div>';
+      if(wrap) wrap.innerHTML = html;
+      if(modalWrap) modalWrap.innerHTML = html;
+
     } else if (d.estado === 'qr' && d.qr) {
-      target.innerHTML='';
-      new QRCode(target, { text: d.qr, width:220, height:220, colorDark:'#1a3a5c', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M });
-      const txt=document.createElement('p');
-      txt.className='qr-txt';txt.textContent='Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo y escanea este código';
-      target.appendChild(txt);
+      _stopQrPoll();
+      if(target) {
+        target.innerHTML = '';
+        new QRCode(target, { text: d.qr, width:220, height:220, colorDark:'#1a3a5c', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M });
+        const txt = document.createElement('p');
+        txt.className = 'qr-txt';
+        txt.textContent = 'Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo y escanea este código';
+        target.appendChild(txt);
+      }
+
     } else {
-      if(target)target.innerHTML='<p style="color:var(--gris-m);font-size:13px;padding:10px">Estado: '+d.estado+'. El servidor está iniciando, espera unos segundos...</p>';
+      // Baileys todavía arrancando — contar segundos y hacer polling automático cada 3s
+      const prev = parseInt(target?.dataset?.qrSeg || '0');
+      const seg = prev + 3;
+      if(target) target.dataset.qrSeg = seg;
+      if(target && !target.querySelector('canvas')) {
+        target.innerHTML = '<p style="color:var(--gris-m);font-size:13px;padding:10px">'
+          + '⏳ Baileys iniciando... (' + seg + 's)<br>'
+          + '<span style="font-size:11px;opacity:.7">El QR aparecerá aquí automáticamente</span></p>';
+      }
+      if (!_qrPollTimer) {
+        _qrPollTimer = setInterval(cargarQR, 3000);
+      }
     }
+
   } catch(err) {
-    const t=wrap||document.getElementById('qr-canvas-wrap');
-    if(t)t.innerHTML='<p style="color:var(--coral);font-size:13px">Error al conectar con el servidor: '+err.message+'</p>';
+    const t = wrap || modalWrap;
+    if(t) t.innerHTML = '<p style="color:var(--coral);font-size:13px">Error al conectar: ' + err.message + '</p>';
+    _stopQrPoll();
   }
 }
+
+// Parar polling al cerrar el modal
+document.getElementById('mfondo-qr').addEventListener('click', function(e){ if(e.target===this) _stopQrPoll(); });
 
 // ═══════════════════════════════════════════════════
 // CONFIG SERVIDOR
