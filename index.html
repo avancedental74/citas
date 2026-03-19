@@ -620,36 +620,13 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
               <div style="font-size:11px;color:var(--gris-m);margin-top:1px">Los mensajes quedan en cola hasta el lunes</div>
             </div>
           </div>
-          <div class="toggle-wrap">
-            <label class="toggle">
-              <input type="checkbox" id="cfg-flujo-sino" checked>
-              <span class="toggle-slider"></span>
-            </label>
-            <div>
-              <div style="font-size:13px;font-weight:500;color:var(--gris-o)">⚡ Flujo SÍ/NO (mayor conversión)</div>
-              <div style="font-size:11px;color:var(--gris-m);margin-top:1px">Primero pregunta SÍ o NO — si responde SÍ, Baileys manda el enlace automáticamente</div>
-            </div>
-          </div>
-          <div class="toggle-wrap">
-            <label class="toggle">
-              <input type="checkbox" id="cfg-ab-tracking" checked>
-              <span class="toggle-slider"></span>
-            </label>
-            <div>
-              <div style="font-size:13px;font-weight:500;color:var(--gris-o)">📊 Test A/B (tracking de variantes)</div>
-              <div style="font-size:11px;color:var(--gris-m);margin-top:1px">Registra qué variante de mensaje convierte más</div>
-            </div>
-          </div>
+
+
         </div>
       </div>
       <button class="btn-sched" style="margin-top:16px" onclick="guardarConfig()">💾 Guardar todos los cambios</button>
 
-      <!-- Stats A/B -->
-      <div id="ab-stats-wrap" style="margin-top:16px;display:none">
-        <div style="font-size:11px;font-weight:600;color:var(--gris-m);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📊 Resultados A/B test</div>
-        <div id="ab-stats-tabla" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px"></div>
-      </div>
-      <button class="btn-sm ghost" style="margin-top:10px" onclick="cargarAbStats()">📊 Ver stats A/B</button>
+
       <div style="margin-top:14px;padding:11px 14px;background:var(--amber-c);border:1px solid #fcd34d;border-radius:9px;font-size:12px;color:var(--amber);line-height:1.6">
         ⚠️ <strong>Anti-baneo:</strong> Delay aleatorio, verificación de número y simulación de "escribiendo..." en cada mensaje. No superes 150/día en cuentas con más de 1 mes, ni 30/día en cuentas nuevas.
       </div>
@@ -1630,8 +1607,7 @@ function rellenarConfig(cfg) {
   if(g('cfg-delay-max')) g('cfg-delay-max').value  = cfg.delayMaxSeg    || 20;
   if(g('cfg-bloquear-finde'))  g('cfg-bloquear-finde').checked  = cfg.bloquearFinde !== false;
   if(g('cfg-num-resenias')) g('cfg-num-resenias').value = cfg.numResenias || 127;
-  if(g('cfg-flujo-sino'))  g('cfg-flujo-sino').checked  = cfg.flujoSiNo  !== false;
-  if(g('cfg-ab-tracking')) g('cfg-ab-tracking').checked = cfg.abTracking !== false;
+
 }
 
 async function guardarConfig() {
@@ -1647,8 +1623,7 @@ async function guardarConfig() {
     delayMaxSeg:    parseInt(g('cfg-delay-max')?.value || 20),
     bloquearFinde:  g('cfg-bloquear-finde')?.checked !== false,
     numResenias:    parseInt(g('cfg-num-resenias')?.value || 127),
-    flujoSiNo:      g('cfg-flujo-sino')?.checked !== false,
-    abTracking:     g('cfg-ab-tracking')?.checked !== false,
+
   };
   if (!MODO_BAILEYS) { toast('⚠️ Servidor offline — ejecuta iniciar.bat primero','err'); localStorage.setItem('ad_config',JSON.stringify(cfg)); return; }
   try {
@@ -1657,23 +1632,6 @@ async function guardarConfig() {
   } catch(err) { toast('❌ Error al guardar: '+err.message,'err'); }
 }
 
-async function cargarAbStats() {
-  if (!MODO_BAILEYS) { toast('⚠️ Servidor offline','err'); return; }
-  try {
-    const r = await fetch(API_BASE+'/api/ab-stats');
-    const d = await r.json();
-    const wrap = document.getElementById('ab-stats-wrap');
-    const tabla = document.getElementById('ab-stats-tabla');
-    if (!d.stats?.length) { toast('Sin datos A/B todavía'); return; }
-    wrap.style.display = 'block';
-    tabla.innerHTML = d.stats.map(s => `
-      <div style="background:var(--blanco);border:1.5px solid var(--borde);border-radius:10px;padding:12px;text-align:center">
-        <div style="font-size:11px;font-weight:600;color:var(--gris-m);text-transform:uppercase;margin-bottom:6px">Variante ${s.variante}</div>
-        <div style="font-size:22px;font-weight:500;color:var(--azul)">${s.ctr}</div>
-        <div style="font-size:11px;color:var(--gris-m);margin-top:3px">${s.clics} clics / ${s.enviados} enviados</div>
-      </div>`).join('');
-  } catch(err) { toast('❌ '+err.message,'err'); }
-}
 
 // ═══════════════════════════════════════════════════
 // PRUEBAS
@@ -1769,26 +1727,16 @@ function cuandoTemporal(fecha, hora) {
 }
 
 // 4 GANCHOS A/B — "¿Cómo fue tu experiencia?" es V0 (elegido por ti)
-// A/B: 4 variantes de cuerpo, misma estructura D1
-
 function msgVal(p) {
   const nombre  = p.nombre.split(' ')[0];
   const fechaTxt = p.fecha ? fmtFecha(p.fecha) : null;
   const cuandoF = fechaTxt ? 'el *' + fechaTxt + '*' : 'el otro día';
-  const n       = 127;
-  const idx     = parseInt(p.tel.slice(-1)) % 4;
 
-  // 4 cuerpos A/B — estructura D1, varía el ángulo emocional
-  const cuerpos = [
-    'Gracias por visitarnos ' + cuandoF + ' en *' + CLINICA + '*. Tu opinión nos ayuda a seguir mejorando 🙏',
-    'Gracias por confiar en *' + CLINICA + '* ' + cuandoF + '. Tu opinión nos ayuda a ser mejores cada día 🙏',
-    'Fue un placer tenerte con nosotros ' + cuandoF + '. Tu valoración nos importa de verdad 🙏',
-    'Gracias por elegirnos ' + cuandoF + ' en *' + CLINICA + '*. Ya somos *' + n + ' familias* — y tu opinión nos ayuda a seguir creciendo 🙏',
-  ];
+  const cuerpo = 'Gracias por visitarnos ' + cuandoF + ' en *' + CLINICA + '*.\n\nTu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a que otras familias encuentren un dentista de confianza 🙏';
 
-  const url = urlConUtm(idx);
+  const url = urlConUtm(0);
   const cta = '👇 Si tienes un momento, aquí puedes dejarnos tu opinión:\n' + url;
-  return 'Hola ' + nombre + ' 🦷\n\n' + cuerpos[idx] + '\n\n' + cta;
+  return 'Hola ' + nombre + ' 🦷\n\n' + cuerpo + '\n\n' + cta;
 }
 
 // ═══════════════════════════════════════════════════

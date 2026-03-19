@@ -38,8 +38,8 @@ const CONFIG_DEFAULT = {
   bloquearFinde:  true,
 
   numResenias:    127,   // se muestra en el mensaje ("ya somos X familias")
-  flujoSiNo:      true,  // true = pide SÍ/NO y manda enlace automático
-  abTracking:     true,  // registra variante enviada + clics por UTM
+  flujoSiNo:      false,  // true = pide SÍ/NO y manda enlace automático
+  abTracking:     false,  // registra variante enviada + clics por UTM
 };
 
 // ── CONSTANTES ────────────────────────────────────────────────────────────────
