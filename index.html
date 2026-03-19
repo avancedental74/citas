@@ -1384,7 +1384,7 @@ async function añadirTodosACola(mod) {
   }
 
   try {
-    const r = await fetch(API_BASE+'/api/cola/añadir', {
+    const r = await fetch(API_BASE+'/api/cola/anadir', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ pacientes: pendientes.map(p=>({...p, fecha:p.fecha?.toISOString()||null, mod})) })
     });
@@ -1402,7 +1402,7 @@ async function añadirUnoACola(tel, mod) {
   if (!p) return;
   if (!MODO_BAILEYS) { toast('⚠️ Servidor no disponible','err'); return; }
   try {
-    const r = await fetch(API_BASE+'/api/cola/añadir', {
+    const r = await fetch(API_BASE+'/api/cola/anadir', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ pacientes:[{...p, fecha:p.fecha?.toISOString()||null, mod}] })
     });

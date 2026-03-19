@@ -454,7 +454,7 @@ app.get('/api/cola',(req,res)=>{
   res.json({total:cola.length,pendientes:pend.length,pendientesVal:pend.filter(p=>p.mod==='val').length,pendientesCita:pend.filter(p=>p.mod==='cita').length});
 });
 
-app.post('/api/cola/añadir',(req,res)=>{
+app.post('/api/cola/anadir',(req,res)=>{
   const pacientes=req.body.pacientes;
   if(!Array.isArray(pacientes)||!pacientes.length) return res.status(400).json({error:'Array requerido'});
   const cola=cargarCola(); const d=cargarDatos(); let nuevos=0;
