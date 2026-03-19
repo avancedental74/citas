@@ -884,6 +884,15 @@ function show(id) {
   target.classList.remove('fade-in');
   void target.offsetWidth; // reflow para reiniciar animación
   target.classList.add('fade-in');
+
+  // Ocultar el hero en la pantalla de Google para que el botón quede visible sin scroll
+  const hero = document.querySelector('.hero');
+  if (id === 'screen-google') {
+    hero.style.display = 'none';
+  } else {
+    hero.style.display = '';
+  }
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
