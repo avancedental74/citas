@@ -413,29 +413,6 @@ textarea::placeholder { color: #b0bec5; }
 .btn-google:active { transform: scale(0.98); }
 .google-ico { width: 22px; height: 22px; flex-shrink: 0; }
 
-.countdown {
-  margin-top: 10px; font-size: 12px;
-  color: var(--gris-m); min-height: 18px;
-  text-align: center;
-}
-.countdown strong { color: var(--turq-d); }
-
-.countdown-bar-wrap {
-  display: none;
-  margin-top: 8px;
-  height: 4px;
-  background: var(--borde);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.countdown-bar {
-  height: 100%;
-  width: 100%;
-  background: var(--turq);
-  border-radius: 2px;
-  transition: width 1s linear;
-}
-
 /* Pantalla Google — alta conversión */
 .google-social-proof {
   display: inline-flex; align-items: center; gap: 7px;
@@ -482,6 +459,20 @@ textarea::placeholder { color: #b0bec5; }
 .btn-google-cta:hover {
   transform: translateY(-2px) !important;
   box-shadow: 0 12px 40px rgba(0,168,158,0.35), 0 2px 0 rgba(0,212,200,0.4) !important;
+}
+/* Variante B — botón naranja */
+.ab-btn-b {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%) !important;
+  box-shadow: 0 8px 32px rgba(234,88,12,0.35), 0 2px 0 rgba(251,146,60,0.3) !important;
+  animation: pulseCTA-b 2.5s ease-in-out 1.2s infinite !important;
+}
+.ab-btn-b:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 12px 40px rgba(234,88,12,0.45), 0 2px 0 rgba(251,146,60,0.4) !important;
+}
+@keyframes pulseCTA-b {
+  0%, 100% { box-shadow: 0 8px 32px rgba(234,88,12,0.35), 0 2px 0 rgba(251,146,60,0.3); }
+  50%       { box-shadow: 0 8px 40px rgba(234,88,12,0.55), 0 2px 0 rgba(251,146,60,0.5); }
 }
 @keyframes pulseCTA {
   0%, 100% { box-shadow: 0 8px 32px rgba(0,168,158,0.25), 0 2px 0 rgba(0,212,200,0.3); }
@@ -649,55 +640,90 @@ textarea::placeholder { color: #b0bec5; }
   </div>
 
   <!-- PANTALLA 3: Google — alta conversión -->
+  <!-- PANTALLA 3: Google — A/B TEST -->
   <div id="screen-google" class="screen hidden">
 
-    <!-- Prueba social + urgencia emocional -->
-    <div class="google-social-proof">
-      <span class="google-sp-ico">🏆</span>
-      <span>Solo los mejores pacientes llegan hasta aquí</span>
+    <!-- ══ VARIANTE A (control) ══ -->
+    <div id="ab-variante-a">
+      <div class="google-social-proof">
+        <span class="google-sp-ico">🏆</span>
+        <span>Solo los mejores pacientes llegan hasta aquí</span>
+      </div>
+
+      <h2 class="google-titulo">Tu reseña importa<br><em>de verdad</em></h2>
+
+      <div class="stars-recordatorio">
+        <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#00d4c8" stroke="#00a89e" stroke-width="1.5"/></svg>
+        <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#00d4c8" stroke="#00a89e" stroke-width="1.5"/></svg>
+        <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#00d4c8" stroke="#00a89e" stroke-width="1.5"/></svg>
+        <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#00d4c8" stroke="#00a89e" stroke-width="1.5"/></svg>
+        <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#00d4c8" stroke="#00a89e" stroke-width="1.5"/></svg>
+      </div>
+
+      <p class="google-beneficio">
+        Cada reseña ayuda a una familia a elegir una clínica dental de confianza.<br>
+        <strong>Solo 45 segundos. Sin registro. Sin complicaciones.</strong>
+      </p>
+
+      <div class="google-friccion">
+        <span>✓ No hace falta escribir nada</span>
+        <span>✓ Solo pulsar 5 estrellas</span>
+        <span>✓ Se publica al instante</span>
+      </div>
+
+      <a class="btn-google btn-google-cta" href="https://g.page/r/CRkkiSExZLnnEAE/review" target="_blank" rel="noopener" onclick="clicGoogle('a')">
+        <svg class="google-ico" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        Puntuar 5 estrellas en Google ⭐⭐⭐⭐⭐
+      </a>
+
+      <p class="google-subtext">Se abrirá Google en esta misma pantalla — pulsa las 5 estrellas y listo</p>
     </div>
 
-    <h2 class="google-titulo">Tu reseña importa<br><em>de verdad</em></h2>
+    <!-- ══ VARIANTE B ══ -->
+    <div id="ab-variante-b" style="display:none">
+      <div class="google-social-proof" style="background:linear-gradient(135deg,#fff7ed,#ffedd5);border-color:#fed7aa;">
+        <span class="google-sp-ico">⭐</span>
+        <span style="color:#9a3412;">Tu opinión puede marcar la diferencia</span>
+      </div>
 
-    <!-- Estrellas grandes animadas — ancla visual -->
-    <div class="stars-recordatorio">
-      <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#00d4c8" stroke="#00a89e" stroke-width="1.5"/></svg>
-      <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#00d4c8" stroke="#00a89e" stroke-width="1.5"/></svg>
-      <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#00d4c8" stroke="#00a89e" stroke-width="1.5"/></svg>
-      <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#00d4c8" stroke="#00a89e" stroke-width="1.5"/></svg>
-      <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#00d4c8" stroke="#00a89e" stroke-width="1.5"/></svg>
+      <h2 class="google-titulo" style="font-size:26px;">Un paciente satisfecho<br><em style="color:#f97316;">ayuda a otros a encontrarnos</em></h2>
+
+      <div class="stars-recordatorio">
+        <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#f97316" stroke="#ea580c" stroke-width="1.5"/></svg>
+        <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#f97316" stroke="#ea580c" stroke-width="1.5"/></svg>
+        <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#f97316" stroke="#ea580c" stroke-width="1.5"/></svg>
+        <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#f97316" stroke="#ea580c" stroke-width="1.5"/></svg>
+        <svg width="44" height="44" viewBox="0 0 51 48"><path d="M25.5 3l5.9 12 13.2 1.9-9.5 9.3 2.2 13.1L25.5 33l-11.8 6.3 2.2-13.1L6.4 17 19.6 15z" fill="#f97316" stroke="#ea580c" stroke-width="1.5"/></svg>
+      </div>
+
+      <p class="google-beneficio">
+        Con un clic dejas constancia de tu experiencia.<br>
+        <strong>Literalmente 30 segundos. Sin cuenta nueva. Sin texto obligatorio.</strong>
+      </p>
+
+      <div class="google-friccion" style="background:#fff7ed;border-color:#fed7aa;color:#9a3412;">
+        <span>✓ Abre Google directamente</span>
+        <span>✓ Solo toca las 5 estrellas</span>
+        <span>✓ Listo en 30 segundos</span>
+      </div>
+
+      <a class="btn-google btn-google-cta ab-btn-b" href="https://g.page/r/CRkkiSExZLnnEAE/review" target="_blank" rel="noopener" onclick="clicGoogle('b')">
+        <svg class="google-ico" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        Dejar mi reseña en Google ahora ⭐⭐⭐⭐⭐
+      </a>
+
+      <p class="google-subtext">Pulsa las 5 estrellas cuando se abra Google — eso es todo</p>
     </div>
-
-    <!-- Beneficio concreto — por qué hacerlo -->
-    <p class="google-beneficio">
-      Cada reseña ayuda a una familia a elegir una clínica dental de confianza.<br>
-      <strong>Solo 45 segundos. Sin registro. Sin complicaciones.</strong>
-    </p>
-
-    <!-- Microcopy de fricción cero -->
-    <div class="google-friccion">
-      <span>✓ No hace falta escribir nada</span>
-      <span>✓ Solo pulsar 5 estrellas</span>
-      <span>✓ Se publica al instante</span>
-    </div>
-
-    <!-- CTA principal — máximo contraste y tamaño -->
-    <a class="btn-google btn-google-cta" id="btn-google" href="https://g.page/r/CRkkiSExZLnnEAE/review" target="_blank" rel="noopener" onclick="clicGoogle()">
-      <svg class="google-ico" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-      </svg>
-      Puntuar 5 estrellas en Google ⭐⭐⭐⭐⭐
-    </a>
-
-    <!-- Countdown con urgencia suave -->
-    <div class="countdown" id="countdown"></div>
-    <div class="countdown-bar-wrap" id="countdown-bar-wrap"><div class="countdown-bar" id="countdown-bar"></div></div>
-
-    <!-- Subtext de refuerzo bajo el botón -->
-    <p class="google-subtext">Se abrirá Google en esta misma pantalla — pulsa las 5 estrellas y listo</p>
 
   </div>
 
@@ -706,6 +732,15 @@ textarea::placeholder { color: #b0bec5; }
     <span class="heart">💙</span>
     <h2>Gracias por contárnoslo</h2>
     <p>Hemos recibido tu comentario. Nos pondremos en contacto contigo para resolver cualquier incidencia.<br><br>En Avance Dental trabajamos cada día para mejorar.</p>
+
+    <!-- Recuperación activa: CTA de contacto directo -->
+    <div style="margin-top:24px; background:#f0f9ff; border:1.5px solid #bae6fd; border-radius:14px; padding:18px 16px; text-align:left;">
+      <p style="font-size:14px; font-weight:700; color:#0c4a6e; margin-bottom:4px;">¿Quieres que te llamemos hoy?</p>
+      <p style="font-size:13px; color:#64748b; margin-bottom:14px; line-height:1.5;">El Dr. Sánchez revisa personalmente estos mensajes y quiere asegurarse de que tu experiencia mejore.</p>
+      <a href="tel:+34916627232" class="btn-enviar" style="display:block; text-align:center; text-decoration:none; font-size:16px;">
+        📞 Llamar a la clínica
+      </a>
+    </div>
   </div>
 
 </div>
@@ -864,8 +899,7 @@ function siguientePaso() {
     trackEvent('rating_positive', { value: valorSeleccionado });
     localStorage.setItem('ad_opinion_done', '1');
     lanzarConfettiGrande();
-    setTimeout(() => show('screen-google'), 300);
-    iniciarCountdown();
+    setTimeout(() => { show('screen-google'); mostrarVarianteAB(); }, 300);
   } else {
     trackEvent('rating_negative', { value: valorSeleccionado });
     document.getElementById('stars-mini').innerHTML =
@@ -948,39 +982,24 @@ async function enviarFeedback() {
   }
 }
 
-// ── Countdown ──────────────────────────────────────────────────────────────
-function iniciarCountdown() {
-  let seg = 5; clicManual = false;
-  const el = document.getElementById('countdown');
-  const barWrap = document.getElementById('countdown-bar-wrap');
-  const bar = document.getElementById('countdown-bar');
-  el.innerHTML = `Abriendo Google en <strong>${seg}</strong> seg...`;
-  // Mostrar y animar barra de progreso
-  barWrap.style.display = 'block';
-  bar.style.width = '100%';
-  setTimeout(() => { bar.style.width = '0%'; }, 50);
-  countdownTimer = setInterval(() => {
-    if (clicManual) { clearInterval(countdownTimer); el.textContent = ''; barWrap.style.display = 'none'; return; }
-    seg--;
-    if (seg <= 0) {
-      clearInterval(countdownTimer);
-      barWrap.style.display = 'none';
-      // Mostrar enlace visible en lugar de window.open automático (bloqueado en iOS Safari)
-      el.innerHTML = `<a href="${GOOGLE_URL}" target="_blank" rel="noopener" style="color:var(--turq-d);font-weight:600;text-decoration:underline;" onclick="clicGoogle()">👉 Pulsa aquí para abrir Google Reviews</a>`;
-      trackEvent('google_redirect_auto');
-    } else {
-      el.innerHTML = `Abriendo Google en <strong>${seg}</strong> seg...`;
-    }
-  }, 1000);
+// ── A/B Test ────────────────────────────────────────────────────────────────
+let abVariante = sessionStorage.getItem('ad_ab_variante');
+if (!abVariante) {
+  abVariante = Math.random() < 0.5 ? 'a' : 'b';
+  sessionStorage.setItem('ad_ab_variante', abVariante);
 }
 
-function clicGoogle() {
-  clicManual = true;
-  clearInterval(countdownTimer);
-  document.getElementById('countdown').textContent = '';
-  const barWrap = document.getElementById('countdown-bar-wrap');
-  if (barWrap) barWrap.style.display = 'none';
-  trackEvent('google_click_manual');
+function mostrarVarianteAB() {
+  if (abVariante === 'b') {
+    document.getElementById('ab-variante-a').style.display = 'none';
+    document.getElementById('ab-variante-b').style.display = '';
+  }
+  trackEvent('google_screen_variante_' + abVariante);
+}
+
+function clicGoogle(v) {
+  const variante = v || abVariante;
+  trackEvent('google_click_variante_' + variante);
 }
 </script>
 </body>
