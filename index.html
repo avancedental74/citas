@@ -950,7 +950,7 @@ const ALIASES = {
   tel:       ['pac.telefonos(principal)','pac.telefonos (principal)','pac.telefono','telefono','phone','tel principal','tel'],
   estado:    ['cita.estado','estado','status','estado cita'],
 };
-function norm(h){return String(h||'').toLowerCase().trim().replace(/[\u02c6\u02dc\u02c7^~`]/g,'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');}
+function norm(h){return String(h||'').toLowerCase().trim().replace(/[\u02c6\u02dc\u02c7^~\u0060]/g,'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');}
 function detectarColumnas(cab){const idx={};cab.forEach((h,i)=>{const hn=norm(h);for(const [campo,aliases] of Object.entries(ALIASES)){if(idx[campo]!==undefined)continue;if(aliases.some(a=>hn===norm(a)||hn.includes(norm(a))))idx[campo]=i;}});return idx;}
 let COL={};
 
@@ -1696,23 +1696,20 @@ function ventanaTemporal(fecha){
 function fmtFecha(fecha){if(!fecha)return'';const f=new Date(fecha);if(isNaN(f))return'';return f.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});}
 
 function msgCita(p){
-  const nombre=p.nombre.split(' ')[0];
-  const hora=p.hora?` a las *${p.hora}*`:'';
-  const trat=p.trat?` de ${p.trat.toLowerCase()}`:'';
-  const fechaTxt=p.fecha?`*${fmtFecha(p.fecha)}*`:'próximamente';
-  // #2: primera línea como gancho de la push notification
+  const nombre  = p.nombre.split(' ')[0];
+  const hora    = p.hora ? ' a las *' + p.hora + '*' : '';
+  const trat    = p.trat ? ' de ' + p.trat.toLowerCase() : '';
+  const fechaTxt= p.fecha ? '*' + fmtFecha(p.fecha) + '*' : 'próximamente';
   return [
-    `Tu cita${trat} es ${fechaTxt}${hora} — ¿lo confirmas, ${nombre}? ✅`,
-    ``,
-    `Te lo recordamos desde *${CLINICA}* 😊`,
-    ``,
-    `Si necesitas cambiarla o cancelarla, avísanos con tiempo — así podemos ofrecerle el hueco a otro paciente 🙏`,
-    ``,
-    `Responde *SÍ* para confirmar o escríbenos si necesitas cambiarla.`,
+    'Tu cita' + trat + ' es ' + fechaTxt + hora + ' — ¿lo confirmas, ' + nombre + '? ✅',
+    '',
+    'Te lo recordamos desde *' + CLINICA + '* 😊',
+    '',
+    'Si necesitas cambiarla o cancelarla, avísanos con tiempo — así podemos ofrecerle el hueco a otro paciente 🙏',
+    '',
+    'Responde *SÍ* para confirmar o escríbenos si necesitas cambiarla.',
   ].join('\n');
 }
-
-const GOOGLE_REVIEW_URL = 'https://g.page/r/CRkkiSExZLnnEAE/review';
 
 const GOOGLE_REVIEW_URL = 'https://g.page/r/CRkkiSExZLnnEAE/review';
 const LANDING_BASE = 'https://avancedental74.github.io/citas/opinion.html';
@@ -1740,34 +1737,43 @@ function cuandoTemporal(fecha, hora) {
 }
 
 // 4 GANCHOS A/B — "¿Cómo fue tu experiencia?" es V0 (elegido por ti)
-function ganchos4(nombre, cuando) {
-  return [
-    `¿Cómo fue tu experiencia en *${CLINICA}* ${cuando}, ${nombre}? 😊`,  // V0
-    `¿Qué tal saliste de *${CLINICA}* ${cuando}, ${nombre}? ✨`,            // V1
-    `¿Quedaste contento/a con tu visita ${cuando}, ${nombre}? 👋`,          // V2
-    `¿Cómo te ha ido desde tu cita ${cuando}, ${nombre}? 🦷`,              // V3
-  ];
-}
+// A/B: 4 variantes de cuerpo, misma estructura D1
 
 function msgVal(p) {
-  const nombre   = p.nombre.split(' ')[0];
-  const cuando   = cuandoTemporal(p.fecha, p.hora);
+  const nombre  = p.nombre.split(' ')[0];
   const fechaTxt = p.fecha ? fmtFecha(p.fecha) : null;
-  const cuandoF  = fechaTxt ? `el *${fechaTxt}*` : cuando;
-  const n        = 127; // actualizar con el nº real de Google Reviews
-  const idx      = parseInt(p.tel.slice(-1)) % 4;
+  const cuandoF = fechaTxt ? 'el *' + fechaTxt + '*' : 'el otro día';
+  const n       = 127;
+  const idx     = parseInt(p.tel.slice(-1)) % 4;
 
-  const gs = ganchos4(nombre, cuando);
-
+  // 4 cuerpos A/B — estructura D1 elegida, varía el ángulo emocional del cuerpo
   const cuerpos = [
-    [`Te atendimos ${cuandoF} en *${CLINICA}*. Esperamos que todo haya ido de maravilla.`,``,`Ya somos *${n} familias* que confían en nosotros — si tu experiencia fue buena, ¿nos cuentas cómo fue? 🙏`],
-    [`Queríamos saber cómo saliste de tu visita ${cuandoF} en *${CLINICA}*.`,``,`Si quedaste contento/a, tu opinión orientaría a las *${n} familias* que cada mes buscan un buen dentista 🦷`],
-    [`Fue un placer atenderte ${cuandoF} en *${CLINICA}*.`,``,`*${n} familias* ya confían en nosotros. ¿Compartes tu experiencia para ayudar a otras? 🌟`],
-    [`Desde *${CLINICA}* queríamos saber cómo estás después de tu visita ${cuandoF}.`,``,`Si todo fue bien, tu opinión ayuda a las *${n} familias* que cada mes buscan un dentista de confianza 🙏`],
+    // V0 — Importancia + comunidad
+    'Gracias por visitarnos ' + cuandoF + ' en *' + CLINICA + '*.
+
+Tu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a que otras familias encuentren un dentista de confianza 🙏',
+    // V1 — Gratitud + mejora continua
+    'Gracias por confiar en *' + CLINICA + '* ' + cuandoF + '.
+
+Nos tomamos muy en serio cada visita — y tu opinión nos ayuda a ser mejores cada día 🙏',
+    // V2 — Cercanía + impacto real
+    'Fue un placer tenerte con nosotros ' + cuandoF + ' en *' + CLINICA + '*.
+
+Tu valoración nos importa de verdad — es lo que nos ayuda a seguir dando el mejor servicio a cada paciente 🙏',
+    // V3 — Confianza + pertenencia
+    'Gracias por elegirnos ' + cuandoF + ' en *' + CLINICA + '*.
+
+Somos *' + n + ' familias* que confían en nosotros — y la opinión de cada una hace que sigamos mejorando 🙏',
   ];
 
-  // Flujo SÍ/NO: sin enlace — Baileys lo manda automáticamente al recibir SÍ
-  return [gs[idx], ``, ...cuerpos[idx], ``, `Responde solo *SÍ* o *NO* 👇`].join('\n');
+  // CTA fijo neutro — instrucción clara, sin presuponer nada negativo
+  const cta = '👇 ¿Nos cuentas? Responde *SÍ* o *NO* y en un momento te escribimos';
+
+  return 'Hola ' + nombre + ' 🦷
+
+' + cuerpos[idx] + '
+
+' + cta;
 }
 
 // ═══════════════════════════════════════════════════
