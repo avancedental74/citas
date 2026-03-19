@@ -369,7 +369,7 @@ function programarCrons() {
 
 // ── BAILEYS ───────────────────────────────────────────────────────────────────
 async function conectar() {
-  const { state, saveCreds } = await useMultiFileAuthState('./auth_avancedental');
+  const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname, 'auth_avancedental'));
   const sock = makeWASocket({
     auth:state, printQRInTerminal:true,
     logger:P({level:'silent'}),
