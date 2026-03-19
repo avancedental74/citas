@@ -6,7 +6,8 @@
 const {
   default: makeWASocket,
   DisconnectReason,
-  useMultiFileAuthState
+  useMultiFileAuthState,
+  Browsers
 } = require('@whiskeysockets/baileys');
 const { Boom }   = require('@hapi/boom');
 const P          = require('pino');
@@ -373,9 +374,9 @@ async function conectar() {
   const sock = makeWASocket({
     auth:state,
     logger:P({level:'silent'}),
-    browser:['Chrome (Linux)','Chrome','122.0.6261.94'],
+    browser: Browsers.macOS('Desktop'),
     generateHighQualityLinkPreview:false,
-    defaultQueryTimeoutMs:30000,
+    defaultQueryTimeoutMs:60000,
   });
 
   sock.ev.on('connection.update', async ({connection,lastDisconnect,qr})=>{
