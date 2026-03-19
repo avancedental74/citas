@@ -1,8 +1,6 @@
 /**
- * ╔══════════════════════════════════════════════════════════╗
- * ║  AVANCE DENTAL — Servidor WhatsApp con Baileys           ║
- * ║  Envíos programados, cola con delay, API REST            ║
- * ╚══════════════════════════════════════════════════════════╝
+ * AVANCE DENTAL — Servidor WhatsApp Baileys v4
+ * Motor de conversión con A/B tracking via GA4 UTM
  */
 
 const {
@@ -18,27 +16,40 @@ const cron       = require('node-cron');
 const fs         = require('fs');
 const path       = require('path');
 
-// ── CONFIGURACIÓN ─────────────────────────────────────────────────────────────
-const PORT = 3001;
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const PORT      = 3001;
 const DATA_FILE = path.join(__dirname, 'data.json');
 const COLA_FILE = path.join(__dirname, 'cola.json');
 
 const CONFIG_DEFAULT = {
-  // ── Pedir valoración ──
-  val_horaEnvio:  '10:00',  // hora de envío automático diario
-  val_maxPorDia:  30,       // máximo mensajes de valoración por día
-  val_activo:     true,     // activar/desactivar cron valoración
+  val_activo:     true,
+  val_maxPorDia:  30,
+  // #7: hora por día L=1..V=5
+  horariosVal: { 1:'10:30', 2:'11:00', 3:'10:30', 4:'11:00', 5:'10:00' },
 
-  // ── Recordar cita ──
-  cita_horaEnvio: '09:00',  // hora de envío automático diario
-  cita_maxPorDia: 50,       // máximo mensajes de recordatorio por día
-  cita_activo:    true,     // activar/desactivar cron recordatorios
+  cita_activo:    true,
+  cita_maxPorDia: 50,
+  cita_horaEnvio: '09:00',
 
-  // ── Compartidos ──
-  delayMinSeg:    8,        // segundos mínimos entre mensaje y mensaje
-  delayMaxSeg:    20,       // segundos máximos entre mensaje y mensaje
-  bloquearFinde:  true,     // NO enviar sábado ni domingo
+  delayMinSeg:    8,
+  delayMaxSeg:    20,
+  bloquearFinde:  true,
+
+  numResenias:    127,   // se muestra en el mensaje ("ya somos X familias")
+  flujoSiNo:      true,  // true = pide SÍ/NO y manda enlace automático
+  abTracking:     true,  // registra variante enviada + clics por UTM
 };
+
+// ── CONSTANTES ────────────────────────────────────────────────────────────────
+const CLINICA         = 'Avance Dental';
+const LANDING_BASE    = 'https://avancedental74.github.io/citas/opinion.html';
+const GOOGLE_REVIEW   = 'https://g.page/r/CRkkiSExZLnnEAE/review';
+
+// UTM base — GA4 los recoge automáticamente sin tocar nada en opinion.html
+// utm_content = v0/v1/v2/v3 → identifica la variante del A/B en Analytics
+function urlConUtm(variante, tipo = 'val') {
+  return `${LANDING_BASE}?utm_source=whatsapp&utm_medium=directo&utm_campaign=${tipo}&utm_content=v${variante}`;
+}
 
 // ── ESTADO ────────────────────────────────────────────────────────────────────
 let sockGlobal    = null;
@@ -51,208 +62,206 @@ let enviosHoyVal  = 0;
 let enviosHoyCita = 0;
 let fechaConteo   = hoy();
 
+// Pendientes SÍ/NO: tel → { nombre, variante, ts }
+const esperandoRespuesta = new Map();
+
 // ── PERSISTENCIA ──────────────────────────────────────────────────────────────
 function cargarDatos() {
-  if (!fs.existsSync(DATA_FILE)) return { enviados: {}, listaNegra: [] };
-  try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); }
-  catch { return { enviados: {}, listaNegra: [] }; }
+  if (!fs.existsSync(DATA_FILE)) return { enviados:{}, listaNegra:[], abStats:{} };
+  try { const d=JSON.parse(fs.readFileSync(DATA_FILE,'utf8')); if(!d.abStats)d.abStats={}; return d; }
+  catch { return { enviados:{}, listaNegra:[], abStats:{} }; }
 }
-function guardarDatos(datos) { fs.writeFileSync(DATA_FILE, JSON.stringify(datos, null, 2)); }
+function guardarDatos(d) { fs.writeFileSync(DATA_FILE, JSON.stringify(d,null,2)); }
 function cargarCola() {
   if (!fs.existsSync(COLA_FILE)) return [];
-  try { return JSON.parse(fs.readFileSync(COLA_FILE, 'utf8')); }
-  catch { return []; }
+  try { return JSON.parse(fs.readFileSync(COLA_FILE,'utf8')); } catch { return []; }
 }
-function guardarCola(cola) { fs.writeFileSync(COLA_FILE, JSON.stringify(cola, null, 2)); }
+function guardarCola(c) { fs.writeFileSync(COLA_FILE, JSON.stringify(c,null,2)); }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function hoy() { return new Date().toISOString().split('T')[0]; }
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
 function jid(tel) { return `${tel}@s.whatsapp.net`; }
-function telLimpio(t) { return String(t).replace(/\D/g, '').replace(/^34/, '').slice(-9); }
+function telLimpio(t) { return String(t).replace(/\D/g,'').replace(/^34/,'').slice(-9); }
 
 function esFinde() {
-  const dia = new Date().toLocaleString('es-ES', { weekday: 'long', timeZone: 'Europe/Madrid' }).toLowerCase();
-  return dia === 'sábado' || dia === 'domingo';
+  const d = new Date().toLocaleString('es-ES',{weekday:'long',timeZone:'Europe/Madrid'}).toLowerCase();
+  return d==='sábado'||d==='domingo';
+}
+
+function horaSegunDia() {
+  const s = new Date().toLocaleString('en-US',{weekday:'short',timeZone:'Europe/Madrid'});
+  const m = {Mon:1,Tue:2,Wed:3,Thu:4,Fri:5};
+  return (config.horariosVal?.[m[s]]) || '10:30';
 }
 
 function resetarContadoresSiNuevoDia() {
-  if (fechaConteo !== hoy()) {
-    enviosHoyVal  = 0;
-    enviosHoyCita = 0;
-    fechaConteo   = hoy();
-  }
+  if (fechaConteo!==hoy()) { enviosHoyVal=0; enviosHoyCita=0; fechaConteo=hoy(); }
 }
 
 // ── MENSAJES ──────────────────────────────────────────────────────────────────
-const CLINICA     = 'Avance Dental';
-const LANDING_URL        = 'https://avancedental74.github.io/citas/opinion.html';
-const GOOGLE_REVIEW_URL  = 'https://g.page/r/CRkkiSExZLnnEAE/review'; // URL corta Google
-const TRAT_DIFICIL = ['endodoncia','extraccion','extracción','implante','cirugia',
-  'cirugía','periodoncia','curetaje','injerto','ortodoncia','aparato','brackets'];
-
-function esDificil(trat) {
-  if (!trat) return false;
-  const t = trat.toLowerCase();
-  return TRAT_DIFICIL.some(k => t.includes(k));
+function fmtFecha(f) {
+  if (!f) return '';
+  const d=new Date(f); if(isNaN(d))return'';
+  return d.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
 }
 
-function fmtFecha(fecha) {
-  if (!fecha) return '';
-  const f = new Date(fecha);
-  if (isNaN(f)) return '';
-  return f.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-}
-
-function ventanaTemporal(fecha) {
-  if (!fecha) return null;
+// Referencia temporal relativa — la dimensión de personalización sin datos clínicos
+function cuandoTemporal(fecha, hora) {
   const hoyD = new Date(); hoyD.setHours(0,0,0,0);
   const ayer  = new Date(hoyD); ayer.setDate(ayer.getDate()-1);
-  const f     = new Date(fecha); f.setHours(0,0,0,0);
-  if (f.getTime() === hoyD.getTime()) return 'de hoy';
-  if (f.getTime() === ayer.getTime()) return 'de ayer';
-  return `del ${f.toLocaleDateString('es-ES',{day:'numeric',month:'long'})}`;
-}
+  const dias  = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 
-function construirMsgVal(p) {
-  const nombre  = p.nombre.split(' ')[0];
-  const fechaTxt = p.fecha ? fmtFecha(p.fecha) : null;
-  const ventana  = ventanaTemporal(p.fecha);
-  const dificil  = esDificil(p.trat);
-  const trat     = p.trat ? ` de *${p.trat.toLowerCase()}*` : '';
-  const cuando   = fechaTxt ? `el *${fechaTxt}*` : (ventana ? ventana : 'recientemente');
-
-  // ── TRATAMIENTO DIFÍCIL — más empático, reseña como cierre natural ──────────
-  if (dificil) {
-    const variantes = [
-      [
-        `Hola ${nombre} 🙏`,
-        ``,
-        `Sabemos que${trat ? ` una${trat}` : ' tu última visita'} no es de las más sencillas. Esperamos que te hayas recuperado bien y que el resultado esté siendo el que esperabas.`,
-        ``,
-        `Si quedaste contento/a con la atención, una reseña tuya vale muchísimo para otras familias que buscan un dentista de confianza 💙`,
-        ``,
-        `👉 Déjanos tu opinión aquí:`,
-        GOOGLE_REVIEW_URL,
-        ``,
-        `¡Muchas gracias, ${nombre}! 🌟`,
-      ],
-      [
-        `Hola ${nombre} 💙`,
-        ``,
-        `¿Cómo estás tras${trat ? ` la${trat}` : ' tu visita'}? Esperamos que la recuperación esté yendo bien 🙏`,
-        ``,
-        `Si tu experiencia en *${CLINICA}* fue buena, ¿nos regalas un momento? Tu reseña orienta a muchas familias que buscan un dentista de confianza.`,
-        ``,
-        `👉 Pulsa aquí para dejar tu opinión:`,
-        GOOGLE_REVIEW_URL,
-        ``,
-        `¡Gracias de corazón, ${nombre}! ⭐`,
-      ],
-    ];
-    return variantes[parseInt(p.tel.slice(-1)) % variantes.length].join('\n');
+  // Con hora → franja horaria: ultra específico
+  let franja = null;
+  if (hora) {
+    const h = parseInt(hora.split(':')[0]);
+    if      (h < 12) franja = 'esta mañana';
+    else if (h < 15) franja = 'a mediodía';
+    else             franja = 'esta tarde';
   }
 
-  // ── MENSAJES NORMALES — 4 variantes rotativas ────────────────────────────────
-  // Principios de CTR aplicados en cada variante:
-  // ✅ Nombre al inicio Y al cierre (personalización doble +15% CTR)
-  // ✅ CTA en línea propia con 👉 (el ojo lo encuentra solo)
-  // ✅ URL corta de Google directa (no dominio desconocido)
-  // ✅ Pregunta condicional antes del CTA (activa el "sí" interno)
-  // ✅ "otras familias" en vez de "otras personas" (más emocional)
-  // ✅ CTA específico: "2 clics" / "30 segundos" (más creíble que "1 minuto")
+  if (!fecha) return franja || 'recientemente';
+  const f = new Date(fecha); f.setHours(0,0,0,0);
+  const diff = Math.round((hoyD - f) / 86400000);
 
-  const variantes = [
-    // V0 — Directa + cálida + condicional
-    [
-      `Hola ${nombre} 😊`,
-      ``,
-      `Te atendimos ${cuando} en *${CLINICA}*${trat}. Esperamos que todo haya ido de maravilla.`,
-      ``,
-      `Si quedaste contento/a con la atención, ¿nos regalas un momento? Tu opinión ayuda a otras familias a encontrar un dentista de confianza 🙏`,
-      ``,
-      `👉 Déjanos tu reseña aquí:`,
-      GOOGLE_REVIEW_URL,
-      ``,
-      `¡Gracias de corazón, ${nombre}! 🌟`,
-    ],
-    // V1 — Pregunta abierta + "2 clics" (concreto y creíble)
-    [
-      `Hola ${nombre} 👋`,
-      ``,
-      `¿Cómo estás tras tu visita ${cuando} en *${CLINICA}*${trat}?`,
-      ``,
-      `Si todo fue bien, una reseña tuya es el mejor regalo que puedes hacernos — y ayuda a otras familias a elegir bien 🦷`,
-      ``,
-      `👉 Aquí, son solo 2 clics:`,
-      GOOGLE_REVIEW_URL,
-      ``,
-      `¡Muchas gracias, ${nombre}! 😊`,
-    ],
-    // V2 — Social proof + CTA con tiempo concreto
-    [
-      `Hola ${nombre} 😄`,
-      ``,
-      `Fue un placer atenderte ${cuando} en *${CLINICA}*${trat}. Esperamos que estés encantado/a con el resultado.`,
-      ``,
-      `Muchos pacientes nos encuentran gracias a las reseñas de personas como tú. ¿Nos ayudas con la tuya? 🌟`,
-      ``,
-      `👉 Tu opinión en Google (30 segundos):`,
-      GOOGLE_REVIEW_URL,
-      ``,
-      `¡Te lo agradecemos un montón, ${nombre}! 🙌`,
-    ],
-    // V3 — Conversacional + reciprocidad + CTA directo
-    [
-      `Hola ${nombre} 👋`,
-      ``,
-      `Desde *${CLINICA}* queríamos saber cómo estás después de tu visita ${cuando}${trat}.`,
-      ``,
-      `Si tu experiencia fue buena, ¿nos dejas una reseña en Google? Con eso nos ayudas muchísimo y orientas a otras familias que buscan un buen dentista 🙏`,
-      ``,
-      `👉 Pulsa aquí para dejar tu opinión:`,
-      GOOGLE_REVIEW_URL,
-      ``,
-      `¡Gracias de verdad, ${nombre}! ⭐`,
-    ],
-  ];
-
-  const idx = parseInt(p.tel.slice(-1)) % variantes.length;
-  return variantes[idx].join('\n');
+  if (diff === 0) return franja || 'hoy';
+  if (diff === 1) return franja || 'ayer';
+  return 'el ' + dias[f.getDay()]; // "el martes"
 }
 
+// ── ESTRUCTURA MENSAJE (elegida por el usuario) ───────────────────────────────
+// Hola Nombre + saludo + fecha + cuerpo D1 + CTA 4 neutro
+// Las 4 variantes A/B cambian el CUERPO (social proof, ángulo emocional)
+// manteniendo la misma estructura y el mismo CTA para comparar con precisión
+
+// ── CONSTRUIR MENSAJE VALORACIÓN ──────────────────────────────────────────────
+// Estructura fija (elegida): Hola Nombre + fecha + cuerpo + CTA neutro
+// Las 4 variantes A/B testean distintos cuerpos — misma estructura, distinto ángulo
+// CTA fijo: "👇 ¿Nos cuentas? Responde *SÍ* o *NO* y en un momento te escribimos"
+function construirMsgVal(p, variante) {
+  const nombre  = p.nombre.split(' ')[0];
+  const cuandoF = p.fecha ? `el *${fmtFecha(p.fecha)}*` : 'el otro día';
+  const n       = config.numResenias || 127;
+
+  // 4 cuerpos A/B — varían en ángulo emocional, nunca en estructura ni CTA
+  const cuerpos = [
+    // V0 — Importancia + comunidad (la elegida, base D1)
+    `Gracias por visitarnos ${cuandoF} en *${CLINICA}*.
+
+Tu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a que otras familias encuentren un dentista de confianza 🙏`,
+    // V1 — Gratitud + mejora continua
+    `Gracias por confiar en *${CLINICA}* ${cuandoF}.
+
+Nos tomamos muy en serio cada visita — y tu opinión nos ayuda a ser mejores cada día 🙏`,
+    // V2 — Cercanía + impacto real
+    `Fue un placer tenerte con nosotros ${cuandoF} en *${CLINICA}*.
+
+Tu valoración nos importa de verdad — es lo que nos ayuda a seguir dando el mejor servicio a cada paciente 🙏`,
+    // V3 — Confianza + pertenencia
+    `Gracias por elegirnos ${cuandoF} en *${CLINICA}*.
+
+Somos *${n} familias* que confían en nosotros — y la opinión de cada una hace que sigamos mejorando 🙏`,
+  ];
+
+  // CTA fijo — neutro, sin presuponer experiencia negativa, instrucción clarísima
+  const cta = `👇 ¿Nos cuentas? Responde *SÍ* o *NO* y en un momento te escribimos`;
+
+  if (config.flujoSiNo) {
+    return [`Hola ${nombre} 🦷`, ``, cuerpos[variante % cuerpos.length], ``, cta].join('\n');
+  } else {
+    const url = urlConUtm(variante, 'val');
+    return [`Hola ${nombre} 🦷`, ``, cuerpos[variante % cuerpos.length], ``, `👉 Cuéntanos aquí:`, url, ``, `¡Gracias, ${nombre}! 🌟`].join('\n');
+  }
+}
+
+// Respuesta automática al SÍ — incluye UTM de la variante para tracking GA4
+function construirMsgEnlace(nombre, variante) {
+  const url = urlConUtm(variante, 'val');
+  return [`¡Genial, ${nombre}! Nos alegra mucho 🌟`, ``, `Aquí tienes el enlace — tarda menos de un minuto:`, url, ``, `¡Gracias de corazón! 🙏`].join('\n');
+}
+
+function construirMsgRespuestaNo(nombre) {
+  return [`Gracias por contestar, ${nombre} 🙏`, ``, `Si en algún momento quieres comentarnos algo, estamos aquí. ¡Hasta pronto!`].join('\n');
+}
+
+// Recordatorio de cita — gancho en primera línea para la push notification
 function construirMsgCita(p) {
   const nombre   = p.nombre.split(' ')[0];
   const hora     = p.hora ? ` a las *${p.hora}*` : '';
-  const trat     = p.trat ? ` de ${p.trat.toLowerCase()}` : '';
   const fechaTxt = p.fecha ? `*${fmtFecha(p.fecha)}*` : 'próximamente';
-  return [`Hola ${nombre} 👋`, ``, `Te escribimos desde *${CLINICA}* para recordarte tu cita${trat} el ${fechaTxt}${hora}.`, ``, `Si necesitas cambiarla o cancelarla, avísanos con tiempo — así podemos ofrecerle el hueco a otro paciente 🙏`, ``, `¿Nos confirmas que todo sigue bien? ✅`].join('\n');
+  return [
+    `Tu cita es ${fechaTxt}${hora} — ¿lo confirmas, ${nombre}? ✅`,
+    ``,
+    `Te lo recordamos desde *${CLINICA}* 😊`,
+    ``,
+    `Si necesitas cambiarla o cancelarla, avísanos con tiempo — así podemos ofrecerle el hueco a otro paciente 🙏`,
+    ``,
+    `Responde *SÍ* para confirmar o escríbenos si necesitas cambiarla.`,
+  ].join('\n');
 }
 
-// ── ENVÍO INDIVIDUAL ──────────────────────────────────────────────────────────
+// ── A/B TRACKING ──────────────────────────────────────────────────────────────
+// GA4 trackea los clics vía UTM automáticamente.
+// Aquí registramos los envíos en data.json para el dashboard interno.
+function registrarAbEnvio(variante) {
+  if (!config.abTracking) return;
+  const d = cargarDatos();
+  const k = `v${variante}`;
+  if (!d.abStats[k]) d.abStats[k] = { enviados:0, clics:0 };
+  d.abStats[k].enviados++;
+  guardarDatos(d);
+}
+
+// Selecciona la variante menos usada (distribución balanceada del A/B)
+function seleccionarVariante() {
+  const d = cargarDatos();
+  const counts = [0,1,2,3].map(v => d.abStats[`v${v}`]?.enviados || 0);
+  return counts.indexOf(Math.min(...counts)); // la menos enviada
+}
+
+// ── ENVÍO ─────────────────────────────────────────────────────────────────────
 async function enviarMensaje(telefono, texto) {
-  if (!sockGlobal || estadoWA !== 'conectado') throw new Error('WhatsApp no conectado');
-  const j = jid(telefono.startsWith('34') ? telefono : '34' + telefono);
-  const [info] = await sockGlobal.onWhatsApp(j).catch(() => [null]);
-  if (!info?.exists) throw new Error('Número sin WhatsApp: ' + telefono);
-  await sockGlobal.sendPresenceUpdate('composing', j);
-  await sleep(1000 + Math.random() * 2000);
-  await sockGlobal.sendPresenceUpdate('paused', j);
-  await sockGlobal.sendMessage(j, { text: texto });
+  if (!sockGlobal||estadoWA!=='conectado') throw new Error('WhatsApp no conectado');
+  const j = jid(telefono.startsWith('34')?telefono:'34'+telefono);
+  const [info] = await sockGlobal.onWhatsApp(j).catch(()=>[null]);
+  if (!info?.exists) throw new Error('Sin WhatsApp: '+telefono);
+  await sockGlobal.sendPresenceUpdate('composing',j);
+  await sleep(1200+Math.random()*2000);
+  await sockGlobal.sendPresenceUpdate('paused',j);
+  await sockGlobal.sendMessage(j,{text:texto});
   return true;
+}
+
+// ── PROCESAR RESPUESTAS SÍ/NO ─────────────────────────────────────────────────
+function procesarRespuesta(remitente, texto) {
+  const tel = remitente.replace('@s.whatsapp.net','').replace(/^34/,'');
+  if (!esperandoRespuesta.has(tel)) return;
+
+  const t = texto.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const { nombre, variante } = esperandoRespuesta.get(tel);
+
+  const esSi = ['si','yes','s','1','ok','dale','bueno','claro','por supuesto','adelante'].some(w=>t===w||t.startsWith(w+' '));
+  const esNo = ['no','nope','n','0'].some(w=>t===w||t.startsWith(w+' '));
+
+  if (esSi) {
+    enviarMensaje(tel, construirMsgEnlace(nombre, variante)).catch(console.error);
+    esperandoRespuesta.delete(tel);
+    console.log(`✅ SÍ de ${nombre} (${tel}) — enlace V${variante} enviado`);
+  } else if (esNo) {
+    enviarMensaje(tel, construirMsgRespuestaNo(nombre)).catch(console.error);
+    esperandoRespuesta.delete(tel);
+    console.log(`🚫 NO de ${nombre} (${tel})`);
+  }
 }
 
 // ── PROCESAR COLA ─────────────────────────────────────────────────────────────
 let colaActiva = false;
 
 async function procesarCola(modFiltro = null) {
-  if (colaActiva) { console.log('⚠️  Cola ya en proceso, saltando'); return; }
-
-  // Bloquear finde si está activado
+  if (colaActiva) return;
   if (config.bloquearFinde && esFinde()) {
-    const dia = new Date().toLocaleString('es-ES', { weekday: 'long', timeZone: 'Europe/Madrid' });
-    console.log(`🚫 Hoy es ${dia} — envíos bloqueados en fin de semana`);
-    return;
+    console.log(`🚫 Fin de semana — envíos bloqueados`); return;
   }
 
   colaActiva = true;
@@ -260,292 +269,267 @@ async function procesarCola(modFiltro = null) {
 
   const cola  = cargarCola();
   const datos = cargarDatos();
-  const lb    = new Set((datos.listaNegra || []).map(e => e.tel || e));
+  const lb    = new Set((datos.listaNegra||[]).map(e=>e.tel||e));
 
-  let pendientes = cola.filter(p => !p.enviado && !lb.has(p.tel) && !datos.enviados[p.tel]?.[p.mod]);
-  if (modFiltro) pendientes = pendientes.filter(p => p.mod === modFiltro);
+  let pendientes = cola.filter(p=>!p.enviado&&!lb.has(p.tel)&&!datos.enviados[p.tel]?.[p.mod]);
+  if (modFiltro) pendientes = pendientes.filter(p=>p.mod===modFiltro);
+  if (!pendientes.length) { console.log(`✅ Cola vacía`); colaActiva=false; return; }
 
-  if (!pendientes.length) {
-    console.log(`✅ Cola${modFiltro?' ('+modFiltro+')':''} vacía, nada que enviar`);
-    colaActiva = false; return;
-  }
-
-  // Calcular cuántos podemos enviar según límites por módulo
-  const disponiblesVal  = config.val_maxPorDia  - enviosHoyVal;
-  const disponiblesCita = config.cita_maxPorDia - enviosHoyCita;
-
-  const pendientesConLimite = pendientes.filter(p => {
-    if (p.mod === 'val')  return disponiblesVal  > 0;
-    if (p.mod === 'cita') return disponiblesCita > 0;
-    return true;
-  });
-
-  if (!pendientesConLimite.length) {
-    console.log(`⛔ Límite diario alcanzado (val:${enviosHoyVal}/${config.val_maxPorDia}, cita:${enviosHoyCita}/${config.cita_maxPorDia})`);
-    colaActiva = false; return;
-  }
-
-  // Respeta límite por módulo
-  let countVal = 0, countCita = 0;
-  const aEnviar = pendientesConLimite.filter(p => {
-    if (p.mod === 'val'  && countVal  < disponiblesVal)  { countVal++;  return true; }
-    if (p.mod === 'cita' && countCita < disponiblesCita) { countCita++; return true; }
+  let cV=0, cC=0;
+  const aEnviar = pendientes.filter(p=>{
+    if (p.mod==='val'  && cV<(config.val_maxPorDia -enviosHoyVal )) { cV++;  return true; }
+    if (p.mod==='cita' && cC<(config.cita_maxPorDia-enviosHoyCita)) { cC++;  return true; }
     return false;
   });
+  if (!aEnviar.length) { console.log(`⛔ Límite diario alcanzado`); colaActiva=false; return; }
 
-  console.log(`📤 Procesando ${aEnviar.length} mensajes (${countVal} valoraciones, ${countCita} recordatorios)...`);
+  console.log(`📤 Enviando ${aEnviar.length} mensajes...`);
 
-  for (let i = 0; i < aEnviar.length; i++) {
-    const p   = aEnviar[i];
-    const msg = p.mod === 'val' ? construirMsgVal(p) : construirMsgCita(p);
+  for (let i=0; i<aEnviar.length; i++) {
+    const p = aEnviar[i];
+    let msgTexto, varianteIdx = 0;
+
+    if (p.mod==='val') {
+      varianteIdx = seleccionarVariante();
+      msgTexto    = construirMsgVal(p, varianteIdx);
+    } else {
+      msgTexto = construirMsgCita(p);
+    }
 
     try {
-      await enviarMensaje(p.tel, msg);
-      if (!datos.enviados[p.tel]) datos.enviados[p.tel] = {};
+      await enviarMensaje(p.tel, msgTexto);
+
+      // Guardar en historial
+      if (!datos.enviados[p.tel]) datos.enviados[p.tel]={};
       datos.enviados[p.tel][p.mod] = hoy();
       datos.enviados[p.tel].nombre = p.nombre;
-      datos.enviados[p.tel].trat   = p.trat || '';
+      datos.enviados[p.tel].trat   = p.trat||'';
+      if (p.mod==='val') datos.enviados[p.tel].variante = varianteIdx;
       guardarDatos(datos);
-      p.enviado    = true;
-      p.fechaEnvio = new Date().toISOString();
-      guardarCola(cola);
-      if (p.mod === 'val')  enviosHoyVal++;
-      if (p.mod === 'cita') enviosHoyCita++;
-      console.log(`✅ [${i+1}/${aEnviar.length}] ${p.mod.toUpperCase()} → ${p.nombre} (${p.tel})`);
-      if (i < aEnviar.length - 1) {
-        const delay = (config.delayMinSeg + Math.random() * (config.delayMaxSeg - config.delayMinSeg)) * 1000;
-        console.log(`⏳ Esperando ${(delay/1000).toFixed(1)}s...`);
-        await sleep(delay);
+
+      // A/B tracking envío
+      if (p.mod==='val') registrarAbEnvio(varianteIdx);
+
+      // SÍ/NO: guardar para respuesta automática (con variante para el UTM)
+      if (p.mod==='val' && config.flujoSiNo) {
+        esperandoRespuesta.set(p.tel, { nombre:p.nombre, variante:varianteIdx, ts:Date.now() });
       }
-    } catch (err) {
-      console.error(`❌ Error → ${p.nombre} (${p.tel}):`, err.message);
-      p.error = err.message;
+
+      p.enviado=true; p.fechaEnvio=new Date().toISOString(); p.variante=varianteIdx;
       guardarCola(cola);
+
+      if (p.mod==='val')  enviosHoyVal++;
+      if (p.mod==='cita') enviosHoyCita++;
+      console.log(`✅ [${i+1}/${aEnviar.length}] ${p.mod.toUpperCase()} V${varianteIdx} → ${p.nombre}`);
+
+      if (i<aEnviar.length-1) {
+        const d=(config.delayMinSeg+Math.random()*(config.delayMaxSeg-config.delayMinSeg))*1000;
+        await sleep(d);
+      }
+    } catch(err) {
+      console.error(`❌ ${p.nombre}:`,err.message);
+      p.error=err.message; guardarCola(cola);
     }
   }
 
-  colaActiva = false;
-  console.log(`🏁 Listo. Enviados hoy — val:${enviosHoyVal}/${config.val_maxPorDia} | cita:${enviosHoyCita}/${config.cita_maxPorDia}`);
+  // Limpiar esperandoRespuesta > 48h
+  const lim = Date.now()-48*3600000;
+  for (const [tel,d] of esperandoRespuesta.entries()) if(d.ts<lim) esperandoRespuesta.delete(tel);
+
+  colaActiva=false;
+  console.log(`🏁 val:${enviosHoyVal}/${config.val_maxPorDia} | cita:${enviosHoyCita}/${config.cita_maxPorDia}`);
 }
 
 // ── CRON ──────────────────────────────────────────────────────────────────────
 function programarCrons() {
-  // Destruir anteriores
-  if (cronJobVal)  { cronJobVal.destroy();  cronJobVal  = null; }
-  if (cronJobCita) { cronJobCita.destroy(); cronJobCita = null; }
+  if (cronJobVal)  { cronJobVal.destroy();  cronJobVal=null; }
+  if (cronJobCita) { cronJobCita.destroy(); cronJobCita=null; }
+  const opts = { timezone:'Europe/Madrid' };
 
-  const opts = { timezone: 'Europe/Madrid' };
-
-  // Cron valoraciones (L-V)
   if (config.val_activo) {
-    const [hV, mV] = config.val_horaEnvio.split(':').map(Number);
-    // node-cron: 1-5 = lunes a viernes
-    cronJobVal = cron.schedule(`${mV} ${hV} * * 1-5`, async () => {
-      console.log(`\n🕐 CRON VALORACIÓN — ${new Date().toLocaleTimeString('es-ES')}`);
-      if (estadoWA === 'conectado') await procesarCola('val');
-      else console.log('⚠️  WhatsApp desconectado, cron saltado');
+    // Cada 5 min en horario de oficina — comprueba si es la hora exacta del día
+    cronJobVal = cron.schedule('*/5 8-13 * * 1-5', async () => {
+      const ahora  = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Europe/Madrid'});
+      if (ahora !== horaSegunDia()) return;
+      console.log(`\n🕐 CRON VALORACIÓN (${ahora})`);
+      if (estadoWA==='conectado') await procesarCola('val');
     }, opts);
-    console.log(`⏰ Cron VALORACIÓN: L-V a las ${config.val_horaEnvio}`);
+    console.log(`⏰ Valoraciones: L/X:10:30 M/J:11:00 V:10:00`);
   }
 
-  // Cron recordatorios (L-V)
   if (config.cita_activo) {
-    const [hC, mC] = config.cita_horaEnvio.split(':').map(Number);
-    cronJobCita = cron.schedule(`${mC} ${hC} * * 1-5`, async () => {
-      console.log(`\n🕐 CRON RECORDATORIO — ${new Date().toLocaleTimeString('es-ES')}`);
-      if (estadoWA === 'conectado') await procesarCola('cita');
-      else console.log('⚠️  WhatsApp desconectado, cron saltado');
+    const [h,m] = config.cita_horaEnvio.split(':').map(Number);
+    cronJobCita = cron.schedule(`${m} ${h} * * 1-5`, async () => {
+      console.log(`\n🕐 CRON CITA (${config.cita_horaEnvio})`);
+      if (estadoWA==='conectado') await procesarCola('cita');
     }, opts);
-    console.log(`⏰ Cron RECORDATORIO: L-V a las ${config.cita_horaEnvio}`);
+    console.log(`⏰ Recordatorios: L-V a las ${config.cita_horaEnvio}`);
   }
-
-  if (!config.val_activo && !config.cita_activo) console.log('⏸  Envíos automáticos desactivados');
 }
 
 // ── BAILEYS ───────────────────────────────────────────────────────────────────
 async function conectar() {
   const { state, saveCreds } = await useMultiFileAuthState('./auth_avancedental');
   const sock = makeWASocket({
-    auth: state, printQRInTerminal: true,
-    logger: P({ level: 'silent' }),
-    browser: ['Chrome (Linux)', 'Chrome', '122.0.6261.94'],
-    generateHighQualityLinkPreview: false,
-    defaultQueryTimeoutMs: 30000,
+    auth:state, printQRInTerminal:true,
+    logger:P({level:'silent'}),
+    browser:['Chrome (Linux)','Chrome','122.0.6261.94'],
+    generateHighQualityLinkPreview:false,
+    defaultQueryTimeoutMs:30000,
   });
 
-  sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
-    if (qr) { qrActual = qr; estadoWA = 'qr'; console.log('📱 QR disponible en la app'); }
-    if (connection === 'open') {
-      estadoWA = 'conectado'; qrActual = null; sockGlobal = sock;
-      console.log('✅ WhatsApp conectado');
-    }
-    if (connection === 'close') {
-      estadoWA = 'desconectado'; sockGlobal = null;
-      const reconectar = (lastDisconnect?.error instanceof Boom)
-        ? lastDisconnect.error.output?.statusCode !== DisconnectReason.loggedOut : true;
-      if (reconectar) { console.log('🔄 Reconectando en 5s...'); setTimeout(conectar, 5000); }
+  sock.ev.on('connection.update', async ({connection,lastDisconnect,qr})=>{
+    if (qr) { qrActual=qr; estadoWA='qr'; }
+    if (connection==='open') { estadoWA='conectado'; qrActual=null; sockGlobal=sock; console.log('✅ WhatsApp conectado'); }
+    if (connection==='close') {
+      estadoWA='desconectado'; sockGlobal=null;
+      const r=(lastDisconnect?.error instanceof Boom)?lastDisconnect.error.output?.statusCode!==DisconnectReason.loggedOut:true;
+      if(r){console.log('🔄 Reconectando...');setTimeout(conectar,5000);}
       else console.log('🚪 Sesión cerrada. Borra ./auth_avancedental y reinicia.');
     }
   });
-  sock.ev.on('creds.update', saveCreds);
-  return sock;
+
+  // Escuchar SÍ/NO
+  sock.ev.on('messages.upsert', async ({messages,type})=>{
+    if(type!=='notify')return;
+    const msg=messages[0];
+    if(msg.key.fromMe||!msg.message)return;
+    const rem=msg.key.remoteJid;
+    if(!rem.endsWith('@s.whatsapp.net'))return;
+    const txt=msg.message?.conversation||msg.message?.extendedTextMessage?.text||'';
+    if(txt.trim()) procesarRespuesta(rem,txt);
+  });
+
+  sock.ev.on('creds.update',saveCreds);
 }
 
-// ── EXPRESS API ───────────────────────────────────────────────────────────────
+// ── API REST ──────────────────────────────────────────────────────────────────
 const app = express();
-app.use(cors());
-app.use(express.json({ limit: '2mb' }));
-app.use(express.static(__dirname));
+app.use(cors()); app.use(express.json({limit:'2mb'})); app.use(express.static(__dirname));
 
-app.get('/api/status', (req, res) => {
-  const diaActual = new Date().toLocaleString('es-ES', { weekday: 'long', timeZone: 'Europe/Madrid' }).toLowerCase();
-  const esFin = diaActual === 'sábado' || diaActual === 'domingo';
+app.get('/api/status', (req,res)=>{
+  const dia=new Date().toLocaleString('es-ES',{weekday:'long',timeZone:'Europe/Madrid'}).toLowerCase();
   res.json({
-    estado: estadoWA, qr: estadoWA === 'qr' ? qrActual : null,
+    estado:estadoWA, qr:estadoWA==='qr'?qrActual:null,
     enviosHoyVal, enviosHoyCita, config,
-    esFinDeSemana: esFin, diaActual,
+    esFinDeSemana:dia==='sábado'||dia==='domingo', diaActual:dia,
+    esperandoRespuesta:esperandoRespuesta.size,
   });
 });
 
-app.get('/api/config', (req, res) => res.json(config));
-app.post('/api/config', (req, res) => {
-  const campos = ['val_horaEnvio','val_maxPorDia','val_activo','cita_horaEnvio','cita_maxPorDia','cita_activo','delayMinSeg','delayMaxSeg','bloquearFinde'];
-  campos.forEach(k => { if (req.body[k] !== undefined) config[k] = req.body[k]; });
-  // Asegurar tipos numéricos/booleanos
-  ['val_maxPorDia','cita_maxPorDia','delayMinSeg','delayMaxSeg'].forEach(k => config[k] = parseInt(config[k]));
-  ['val_activo','cita_activo','bloquearFinde'].forEach(k => config[k] = Boolean(config[k]));
+app.get('/api/config',(req,res)=>res.json(config));
+app.post('/api/config',(req,res)=>{
+  ['val_activo','val_maxPorDia','horariosVal','cita_activo','cita_maxPorDia','cita_horaEnvio',
+   'delayMinSeg','delayMaxSeg','bloquearFinde','numResenias','flujoSiNo','abTracking'
+  ].forEach(k=>{if(req.body[k]!==undefined)config[k]=req.body[k];});
+  ['val_maxPorDia','cita_maxPorDia','delayMinSeg','delayMaxSeg','numResenias'].forEach(k=>config[k]=parseInt(config[k]));
+  ['val_activo','cita_activo','bloquearFinde','flujoSiNo','abTracking'].forEach(k=>config[k]=Boolean(config[k]));
   programarCrons();
-  res.json({ ok: true, config });
+  res.json({ok:true,config});
 });
 
-app.get('/api/cola', (req, res) => {
-  const cola  = cargarCola();
-  const datos = cargarDatos();
-  const lb    = new Set((datos.listaNegra || []).map(e => e.tel || e));
-  const pendientes = cola.filter(p => !p.enviado && !lb.has(p.tel) && !datos.enviados[p.tel]?.[p.mod]);
-  res.json({
-    total: cola.length,
-    pendientes: pendientes.length,
-    pendientesVal:  pendientes.filter(p=>p.mod==='val').length,
-    pendientesCita: pendientes.filter(p=>p.mod==='cita').length,
-    cola
-  });
+// A/B stats — muestra envíos internos. Clics reales → GA4
+app.get('/api/ab-stats',(req,res)=>{
+  const d=cargarDatos();
+  const stats=Object.entries(d.abStats||{}).map(([k,v])=>({
+    variante:k, gancho:ganchos('Paciente','esta mañana')[parseInt(k.replace('v',''))],
+    enviados:v.enviados||0, clics:v.clics||0,
+    ctr:v.enviados?((v.clics/v.enviados)*100).toFixed(1)+'%':'—',
+  }));
+  res.json({stats, esperandoRespuesta:esperandoRespuesta.size, urlsUtm:[0,1,2,3].map(v=>urlConUtm(v))});
 });
 
-app.post('/api/cola/añadir', (req, res) => {
-  const pacientes = req.body.pacientes;
-  if (!Array.isArray(pacientes) || !pacientes.length)
-    return res.status(400).json({ error: 'Se esperaba array de pacientes' });
-  const cola  = cargarCola();
-  const datos = cargarDatos();
-  let nuevos  = 0;
-  pacientes.forEach(p => {
-    const tel = telLimpio(p.tel);
-    if (!tel || !/^\d{9}$/.test(tel)) return;
-    const mod = p.mod || 'val';
-    if (cola.some(c => c.tel === tel && c.mod === mod && !c.enviado)) return;
-    if (datos.enviados[tel]?.[mod]) return;
-    cola.push({ nombre: p.nombre, tel, fecha: p.fecha||null, hora: p.hora||'', trat: p.trat||'', mod, enviado: false, añadido: new Date().toISOString() });
+app.get('/api/cola',(req,res)=>{
+  const cola=cargarCola(); const d=cargarDatos();
+  const lb=new Set((d.listaNegra||[]).map(e=>e.tel||e));
+  const pend=cola.filter(p=>!p.enviado&&!lb.has(p.tel)&&!d.enviados[p.tel]?.[p.mod]);
+  res.json({total:cola.length,pendientes:pend.length,pendientesVal:pend.filter(p=>p.mod==='val').length,pendientesCita:pend.filter(p=>p.mod==='cita').length});
+});
+
+app.post('/api/cola/añadir',(req,res)=>{
+  const pacientes=req.body.pacientes;
+  if(!Array.isArray(pacientes)||!pacientes.length) return res.status(400).json({error:'Array requerido'});
+  const cola=cargarCola(); const d=cargarDatos(); let nuevos=0;
+  pacientes.forEach(p=>{
+    const tel=telLimpio(p.tel); if(!tel||!/^\d{9}$/.test(tel))return;
+    const mod=p.mod||'val';
+    if(cola.some(c=>c.tel===tel&&c.mod===mod&&!c.enviado))return;
+    if(d.enviados[tel]?.[mod])return;
+    cola.push({nombre:p.nombre,tel,fecha:p.fecha||null,hora:p.hora||'',trat:p.trat||'',mod,enviado:false,añadido:new Date().toISOString()});
     nuevos++;
   });
   guardarCola(cola);
-  res.json({ ok: true, añadidos: nuevos, total: cola.length });
+  res.json({ok:true,añadidos:nuevos});
 });
 
-app.delete('/api/cola/limpiar', (req, res) => {
-  const mod = req.query.mod;
-  if (mod) {
-    const cola = cargarCola().filter(p => p.enviado || p.mod !== mod);
-    guardarCola(cola);
-  } else { guardarCola([]); }
-  res.json({ ok: true });
+app.delete('/api/cola/limpiar',(req,res)=>{
+  const mod=req.query.mod;
+  guardarCola(mod?cargarCola().filter(p=>p.enviado||p.mod!==mod):[]);
+  res.json({ok:true});
 });
 
-app.post('/api/cola/enviar-ahora', async (req, res) => {
-  if (estadoWA !== 'conectado') return res.status(503).json({ error: 'WhatsApp no conectado' });
-  if (config.bloquearFinde && esFinde()) return res.status(403).json({ error: 'Hoy es fin de semana — envíos bloqueados. Desactiva la opción si quieres enviar igualmente.' });
-  const mod = req.body?.mod || null;
-  res.json({ ok: true, mensaje: `Procesando cola${mod?' ('+mod+')':''} en segundo plano...` });
+app.post('/api/cola/enviar-ahora',async(req,res)=>{
+  if(estadoWA!=='conectado')return res.status(503).json({error:'WhatsApp no conectado'});
+  if(config.bloquearFinde&&esFinde())return res.status(403).json({error:'Fin de semana bloqueado'});
+  const mod=req.body?.mod||null;
+  res.json({ok:true,mensaje:`Procesando cola${mod?' ('+mod+')':''}...`});
   procesarCola(mod).catch(console.error);
 });
 
-app.post('/api/enviar', async (req, res) => {
-  const { telefono, mensaje } = req.body;
-  if (!telefono || !mensaje) return res.status(400).json({ error: 'Faltan datos' });
-  const tel = telLimpio(telefono);
-  try { await enviarMensaje(tel, mensaje); res.json({ ok: true }); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+app.post('/api/enviar',async(req,res)=>{
+  const{telefono,mensaje}=req.body;
+  if(!telefono||!mensaje)return res.status(400).json({error:'Faltan datos'});
+  try{await enviarMensaje(telLimpio(telefono),mensaje);res.json({ok:true});}
+  catch(e){res.status(500).json({error:e.message});}
 });
 
-app.get('/api/historial', (req, res) => {
-  const datos = cargarDatos();
-  const lista = Object.entries(datos.enviados || {}).map(([tel, d]) => ({ tel, ...d }));
-  lista.sort((a, b) => (b.val || b.cita || '').localeCompare(a.val || a.cita || ''));
-  res.json(lista);
+app.get('/api/historial',(req,res)=>{
+  const d=cargarDatos();
+  const l=Object.entries(d.enviados||{}).map(([tel,v])=>({tel,...v}));
+  l.sort((a,b)=>(b.val||b.cita||'').localeCompare(a.val||a.cita||''));
+  res.json(l);
 });
 
-app.delete('/api/historial/:tel', (req, res) => {
-  const { tel } = req.params;
-  const { mod } = req.query;
-  const datos = cargarDatos();
-  if (!datos.enviados[tel]) return res.status(404).json({ error: 'No encontrado' });
-  if (mod) {
-    delete datos.enviados[tel][mod];
-    const keys = Object.keys(datos.enviados[tel]).filter(k => !['nombre','trat','modFull'].includes(k));
-    if (!keys.length) delete datos.enviados[tel];
-  } else { delete datos.enviados[tel]; }
-  guardarDatos(datos);
-  res.json({ ok: true });
+app.delete('/api/historial/:tel',(req,res)=>{
+  const{tel}=req.params;const{mod}=req.query;
+  const d=cargarDatos();if(!d.enviados[tel])return res.status(404).json({error:'No encontrado'});
+  if(mod){delete d.enviados[tel][mod];if(!Object.keys(d.enviados[tel]).filter(k=>!['nombre','trat','variante'].includes(k)).length)delete d.enviados[tel];}
+  else delete d.enviados[tel];
+  guardarDatos(d);res.json({ok:true});
 });
 
-app.post('/api/historial/:tel/resetear', (req, res) => {
-  const { tel } = req.params;
-  const { mod } = req.body;
-  const datos = cargarDatos();
-  if (datos.enviados[tel]) {
-    if (mod) delete datos.enviados[tel][mod];
-    else     delete datos.enviados[tel];
-  }
-  guardarDatos(datos);
-  res.json({ ok: true });
+app.post('/api/historial/:tel/resetear',(req,res)=>{
+  const{tel}=req.params;const{mod}=req.body;
+  const d=cargarDatos();
+  if(d.enviados[tel]){if(mod)delete d.enviados[tel][mod];else delete d.enviados[tel];}
+  guardarDatos(d);res.json({ok:true});
 });
 
-app.get('/api/listanegra', (req, res) => {
-  res.json(cargarDatos().listaNegra || []);
+app.get('/api/listanegra',(req,res)=>res.json(cargarDatos().listaNegra||[]));
+app.post('/api/listanegra',(req,res)=>{
+  const{tel,nombre}=req.body;const t=telLimpio(tel);
+  if(!t||!/^\d{9}$/.test(t))return res.status(400).json({error:'Inválido'});
+  const d=cargarDatos();if(!d.listaNegra)d.listaNegra=[];
+  if(!d.listaNegra.some(e=>(e.tel||e)===t))d.listaNegra.push({tel:t,nombre:nombre||'',bloqueado:hoy()});
+  guardarDatos(d);res.json({ok:true});
+});
+app.delete('/api/listanegra/:tel',(req,res)=>{
+  const d=cargarDatos();
+  d.listaNegra=(d.listaNegra||[]).filter(e=>(e.tel||e)!==req.params.tel);
+  guardarDatos(d);res.json({ok:true});
 });
 
-app.post('/api/listanegra', (req, res) => {
-  const { tel, nombre } = req.body;
-  const t = telLimpio(tel);
-  if (!t || !/^\d{9}$/.test(t)) return res.status(400).json({ error: 'Teléfono inválido' });
-  const datos = cargarDatos();
-  if (!datos.listaNegra) datos.listaNegra = [];
-  if (!datos.listaNegra.some(e => (e.tel || e) === t))
-    datos.listaNegra.push({ tel: t, nombre: nombre || '', bloqueado: hoy() });
-  guardarDatos(datos);
-  res.json({ ok: true });
-});
-
-app.delete('/api/listanegra/:tel', (req, res) => {
-  const datos = cargarDatos();
-  datos.listaNegra = (datos.listaNegra || []).filter(e => (e.tel || e) !== req.params.tel);
-  guardarDatos(datos);
-  res.json({ ok: true });
-});
-
-app.get('/api/qr', (req, res) => {
-  res.json({ qr: estadoWA === 'qr' ? qrActual : null, estado: estadoWA });
-});
+app.get('/api/qr',(req,res)=>res.json({qr:estadoWA==='qr'?qrActual:null,estado:estadoWA}));
 
 // ── ARRANQUE ──────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
+app.listen(PORT,()=>{
   console.log(`\n╔══════════════════════════════════════╗`);
-  console.log(`║  Avance Dental — Servidor WhatsApp   ║`);
+  console.log(`║  Avance Dental — WhatsApp v4         ║`);
   console.log(`║  http://localhost:${PORT}               ║`);
   console.log(`╚══════════════════════════════════════╝\n`);
   programarCrons();
   conectar().catch(console.error);
 });
 
-process.on('uncaughtException',  err => console.error('💥 Error no capturado:', err));
-process.on('unhandledRejection', err => console.error('💥 Promise rechazada:',  err));
+process.on('uncaughtException', e=>console.error('💥',e));
+process.on('unhandledRejection',e=>console.error('💥',e));
