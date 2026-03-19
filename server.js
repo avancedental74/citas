@@ -7,6 +7,7 @@ const {
   default: makeWASocket,
   DisconnectReason,
   useMultiFileAuthState,
+  fetchLatestBaileysVersion,
   Browsers
 } = require('@whiskeysockets/baileys');
 const { Boom }   = require('@hapi/boom');
@@ -370,11 +371,13 @@ function programarCrons() {
 
 // ── BAILEYS ───────────────────────────────────────────────────────────────────
 async function conectar() {
+  const { version } = await fetchLatestBaileysVersion();
   const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname, 'auth_avancedental'));
   const sock = makeWASocket({
     auth:state,
     logger:P({level:'silent'}),
     browser: Browsers.macOS('Desktop'),
+    version,
     generateHighQualityLinkPreview:false,
     defaultQueryTimeoutMs:60000,
   });
