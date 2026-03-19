@@ -600,7 +600,16 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
           <label>Delay máximo entre mensajes (seg)</label>
           <input type="number" id="cfg-delay-max" class="sched-input" value="20" min="10">
         </div>
-        <div style="grid-column:1/-1;display:flex;flex-direction:column;gap:10px">
+        <div class="form-field">
+          <label>Nº reseñas Google actuales</label>
+          <input type="number" id="cfg-num-resenias" class="sched-input" value="127" min="1">
+          <div style="font-size:11px;color:var(--gris-m);margin-top:3px">Se usa en el mensaje: "Ya somos X familias..."</div>
+        </div>
+        <div class="form-field">
+          <label style="opacity:.5">—</label>
+          <div style="padding:9px 0"></div>
+        </div>
+        <div style="grid-column:1/-1;display:flex;flex-direction:column;gap:12px">
           <div class="toggle-wrap">
             <label class="toggle">
               <input type="checkbox" id="cfg-bloquear-finde" checked>
@@ -608,12 +617,39 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
             </label>
             <div>
               <div style="font-size:13px;font-weight:500;color:var(--gris-o)">No enviar sábados ni domingos</div>
-              <div style="font-size:11px;color:var(--gris-m);margin-top:1px">Los mensajes programados para el fin de semana se quedan en cola hasta el lunes</div>
+              <div style="font-size:11px;color:var(--gris-m);margin-top:1px">Los mensajes quedan en cola hasta el lunes</div>
+            </div>
+          </div>
+          <div class="toggle-wrap">
+            <label class="toggle">
+              <input type="checkbox" id="cfg-flujo-sino" checked>
+              <span class="toggle-slider"></span>
+            </label>
+            <div>
+              <div style="font-size:13px;font-weight:500;color:var(--gris-o)">⚡ Flujo SÍ/NO (mayor conversión)</div>
+              <div style="font-size:11px;color:var(--gris-m);margin-top:1px">Primero pregunta SÍ o NO — si responde SÍ, Baileys manda el enlace automáticamente</div>
+            </div>
+          </div>
+          <div class="toggle-wrap">
+            <label class="toggle">
+              <input type="checkbox" id="cfg-ab-tracking" checked>
+              <span class="toggle-slider"></span>
+            </label>
+            <div>
+              <div style="font-size:13px;font-weight:500;color:var(--gris-o)">📊 Test A/B (tracking de variantes)</div>
+              <div style="font-size:11px;color:var(--gris-m);margin-top:1px">Registra qué variante de mensaje convierte más</div>
             </div>
           </div>
         </div>
       </div>
       <button class="btn-sched" style="margin-top:16px" onclick="guardarConfig()">💾 Guardar todos los cambios</button>
+
+      <!-- Stats A/B -->
+      <div id="ab-stats-wrap" style="margin-top:16px;display:none">
+        <div style="font-size:11px;font-weight:600;color:var(--gris-m);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📊 Resultados A/B test</div>
+        <div id="ab-stats-tabla" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px"></div>
+      </div>
+      <button class="btn-sm ghost" style="margin-top:10px" onclick="cargarAbStats()">📊 Ver stats A/B</button>
       <div style="margin-top:14px;padding:11px 14px;background:var(--amber-c);border:1px solid #fcd34d;border-radius:9px;font-size:12px;color:var(--amber);line-height:1.6">
         ⚠️ <strong>Anti-baneo:</strong> Delay aleatorio, verificación de número y simulación de "escribiendo..." en cada mensaje. No superes 150/día en cuentas con más de 1 mes, ni 30/día en cuentas nuevas.
       </div>
@@ -1552,7 +1588,7 @@ async function cargarQR() {
 // ═══════════════════════════════════════════════════
 function rellenarConfig(cfg) {
   const g = id => document.getElementById(id);
-  if(g('cfg-val-hora'))  g('cfg-val-hora').value   = cfg.val_horaEnvio  || '10:00';
+  if(g('cfg-val-hora'))  g('cfg-val-hora').value   = cfg.val_horaEnvio  || '10:30';
   if(g('cfg-val-max'))   g('cfg-val-max').value    = cfg.val_maxPorDia  || 30;
   if(g('cfg-val-activo')) g('cfg-val-activo').checked = cfg.val_activo !== false;
   if(g('cfg-cita-hora')) g('cfg-cita-hora').value  = cfg.cita_horaEnvio || '09:00';
@@ -1560,13 +1596,16 @@ function rellenarConfig(cfg) {
   if(g('cfg-cita-activo')) g('cfg-cita-activo').checked = cfg.cita_activo !== false;
   if(g('cfg-delay-min')) g('cfg-delay-min').value  = cfg.delayMinSeg    || 8;
   if(g('cfg-delay-max')) g('cfg-delay-max').value  = cfg.delayMaxSeg    || 20;
-  if(g('cfg-bloquear-finde')) g('cfg-bloquear-finde').checked = cfg.bloquearFinde !== false;
+  if(g('cfg-bloquear-finde'))  g('cfg-bloquear-finde').checked  = cfg.bloquearFinde !== false;
+  if(g('cfg-num-resenias')) g('cfg-num-resenias').value = cfg.numResenias || 127;
+  if(g('cfg-flujo-sino'))  g('cfg-flujo-sino').checked  = cfg.flujoSiNo  !== false;
+  if(g('cfg-ab-tracking')) g('cfg-ab-tracking').checked = cfg.abTracking !== false;
 }
 
 async function guardarConfig() {
   const g = id => document.getElementById(id);
   const cfg = {
-    val_horaEnvio:  g('cfg-val-hora')?.value  || '10:00',
+    val_horaEnvio:  g('cfg-val-hora')?.value  || '10:30',
     val_maxPorDia:  parseInt(g('cfg-val-max')?.value  || 30),
     val_activo:     g('cfg-val-activo')?.checked !== false,
     cita_horaEnvio: g('cfg-cita-hora')?.value || '09:00',
@@ -1575,12 +1614,33 @@ async function guardarConfig() {
     delayMinSeg:    parseInt(g('cfg-delay-min')?.value || 8),
     delayMaxSeg:    parseInt(g('cfg-delay-max')?.value || 20),
     bloquearFinde:  g('cfg-bloquear-finde')?.checked !== false,
+    numResenias:    parseInt(g('cfg-num-resenias')?.value || 127),
+    flujoSiNo:      g('cfg-flujo-sino')?.checked !== false,
+    abTracking:     g('cfg-ab-tracking')?.checked !== false,
   };
   if (!MODO_BAILEYS) { toast('⚠️ Servidor offline — ejecuta iniciar.bat primero','err'); localStorage.setItem('ad_config',JSON.stringify(cfg)); return; }
   try {
     await fetch(API_BASE+'/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});
     toast('✅ Configuración guardada','ok');
   } catch(err) { toast('❌ Error al guardar: '+err.message,'err'); }
+}
+
+async function cargarAbStats() {
+  if (!MODO_BAILEYS) { toast('⚠️ Servidor offline','err'); return; }
+  try {
+    const r = await fetch(API_BASE+'/api/ab-stats');
+    const d = await r.json();
+    const wrap = document.getElementById('ab-stats-wrap');
+    const tabla = document.getElementById('ab-stats-tabla');
+    if (!d.stats?.length) { toast('Sin datos A/B todavía'); return; }
+    wrap.style.display = 'block';
+    tabla.innerHTML = d.stats.map(s => `
+      <div style="background:var(--blanco);border:1.5px solid var(--borde);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:11px;font-weight:600;color:var(--gris-m);text-transform:uppercase;margin-bottom:6px">Variante ${s.variante}</div>
+        <div style="font-size:22px;font-weight:500;color:var(--azul)">${s.ctr}</div>
+        <div style="font-size:11px;color:var(--gris-m);margin-top:3px">${s.clics} clics / ${s.enviados} enviados</div>
+      </div>`).join('');
+  } catch(err) { toast('❌ '+err.message,'err'); }
 }
 
 // ═══════════════════════════════════════════════════
@@ -1640,86 +1700,74 @@ function msgCita(p){
   const hora=p.hora?` a las *${p.hora}*`:'';
   const trat=p.trat?` de ${p.trat.toLowerCase()}`:'';
   const fechaTxt=p.fecha?`*${fmtFecha(p.fecha)}*`:'próximamente';
-  return [`Hola ${nombre} 👋`,``,`Te escribimos desde *${CLINICA}* para recordarte tu cita${trat} el ${fechaTxt}${hora}.`,``,`Si necesitas cambiarla o cancelarla, avísanos con tiempo — así podemos ofrecerle el hueco a otro paciente 🙏`,``,`¿Nos confirmas que todo sigue bien? ✅`].join('\n');
+  // #2: primera línea como gancho de la push notification
+  return [
+    `Tu cita${trat} es ${fechaTxt}${hora} — ¿lo confirmas, ${nombre}? ✅`,
+    ``,
+    `Te lo recordamos desde *${CLINICA}* 😊`,
+    ``,
+    `Si necesitas cambiarla o cancelarla, avísanos con tiempo — así podemos ofrecerle el hueco a otro paciente 🙏`,
+    ``,
+    `Responde *SÍ* para confirmar o escríbenos si necesitas cambiarla.`,
+  ].join('\n');
 }
 
 const GOOGLE_REVIEW_URL = 'https://g.page/r/CRkkiSExZLnnEAE/review';
 
-// ── MENSAJES DE VALORACIÓN ────────────────────────────────────────────────────
-// Principios de CTR aplicados:
-// ✅ Nombre al inicio Y al cierre (personalización doble, +~15% CTR)
-// ✅ URL corta de Google — no se parte, da confianza, van directo a reseñar
-// ✅ CTA en línea propia precedido de 👉 (el ojo lo encuentra solo)
-// ✅ Pregunta condicional antes del CTA ("si quedaste contento/a") — activa el sí
-// ✅ Tiempo concreto: "2 clics" / "30 segundos" (más creíble que "1 minuto")
-// ✅ "otras familias" > "otras personas" (más emocional y cercano)
+const GOOGLE_REVIEW_URL = 'https://g.page/r/CRkkiSExZLnnEAE/review';
+const LANDING_BASE = 'https://avancedental74.github.io/citas/opinion.html';
+
+// UTM para A/B tracking en GA4 — sin tocar opinion.html
+function urlConUtm(variante) {
+  return `${LANDING_BASE}?utm_source=whatsapp&utm_medium=directo&utm_campaign=val&utm_content=v${variante}`;
+}
+
+// Referencia temporal sin datos clínicos (LOPD)
+function cuandoTemporal(fecha, hora) {
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  let franja = null;
+  if (hora) {
+    const h = parseInt(hora.split(':')[0]);
+    franja = h < 12 ? 'esta mañana' : h < 15 ? 'a mediodía' : 'esta tarde';
+  }
+  if (!fecha) return franja || 'recientemente';
+  const f = new Date(fecha); f.setHours(0,0,0,0);
+  const diff = Math.round((hoy - f) / 86400000);
+  if (diff === 0) return franja || 'hoy';
+  if (diff === 1) return franja || 'ayer';
+  return 'el ' + dias[f.getDay()];
+}
+
+// 4 GANCHOS A/B — "¿Cómo fue tu experiencia?" es V0 (elegido por ti)
+function ganchos4(nombre, cuando) {
+  return [
+    `¿Cómo fue tu experiencia en *${CLINICA}* ${cuando}, ${nombre}? 😊`,  // V0
+    `¿Qué tal saliste de *${CLINICA}* ${cuando}, ${nombre}? ✨`,            // V1
+    `¿Quedaste contento/a con tu visita ${cuando}, ${nombre}? 👋`,          // V2
+    `¿Cómo te ha ido desde tu cita ${cuando}, ${nombre}? 🦷`,              // V3
+  ];
+}
 
 function msgVal(p) {
   const nombre   = p.nombre.split(' ')[0];
+  const cuando   = cuandoTemporal(p.fecha, p.hora);
   const fechaTxt = p.fecha ? fmtFecha(p.fecha) : null;
-  const ventana  = ventanaTemporal(p.fecha);
-  const dificil  = esTratDificil(p.trat);
-  const trat     = p.trat ? ` de *${p.trat.toLowerCase()}*` : '';
-  const cuando   = fechaTxt ? `el *${fechaTxt}*` : (ventana ? ventana : 'recientemente');
+  const cuandoF  = fechaTxt ? `el *${fechaTxt}*` : cuando;
+  const n        = 127; // actualizar con el nº real de Google Reviews
+  const idx      = parseInt(p.tel.slice(-1)) % 4;
 
-  // Tratamientos difíciles — más empáticos, reseña como cierre natural
-  if (dificil) {
-    const vars = [
-      [
-        `Hola ${nombre} 🙏`, ``,
-        `Sabemos que${trat ? ` una${trat}` : ' tu última visita'} no es de las más sencillas. Esperamos que te hayas recuperado bien y que el resultado esté siendo el que esperabas.`, ``,
-        `Si quedaste contento/a con la atención, una reseña tuya vale muchísimo para otras familias que buscan un dentista de confianza 💙`, ``,
-        `👉 Déjanos tu opinión aquí:`, GOOGLE_REVIEW_URL, ``,
-        `¡Muchas gracias, ${nombre}! 🌟`,
-      ],
-      [
-        `Hola ${nombre} 💙`, ``,
-        `¿Cómo estás tras${trat ? ` la${trat}` : ' tu visita'}? Esperamos que la recuperación esté yendo bien 🙏`, ``,
-        `Si tu experiencia en *${CLINICA}* fue buena, ¿nos regalas un momento? Tu reseña orienta a muchas familias que buscan un dentista de confianza.`, ``,
-        `👉 Pulsa aquí para dejar tu opinión:`, GOOGLE_REVIEW_URL, ``,
-        `¡Gracias de corazón, ${nombre}! ⭐`,
-      ],
-    ];
-    return vars[parseInt(p.tel.slice(-1)) % vars.length].join('\n');
-  }
+  const gs = ganchos4(nombre, cuando);
 
-  // Mensajes normales — 4 variantes rotativas
-  const variantes = [
-    // V0 — Directa + pregunta condicional + "un momento" (no "1 minuto")
-    [
-      `Hola ${nombre} 😊`, ``,
-      `Te atendimos ${cuando} en *${CLINICA}*${trat}. Esperamos que todo haya ido de maravilla.`, ``,
-      `Si quedaste contento/a con la atención, ¿nos regalas un momento? Tu opinión ayuda a otras familias a encontrar un dentista de confianza 🙏`, ``,
-      `👉 Déjanos tu reseña aquí:`, GOOGLE_REVIEW_URL, ``,
-      `¡Gracias de corazón, ${nombre}! 🌟`,
-    ],
-    // V1 — Pregunta abierta + "2 clics" (concreto y creíble)
-    [
-      `Hola ${nombre} 👋`, ``,
-      `¿Cómo estás tras tu visita ${cuando} en *${CLINICA}*${trat}?`, ``,
-      `Si todo fue bien, una reseña tuya es el mejor regalo que puedes hacernos — y ayuda a otras familias a elegir bien 🦷`, ``,
-      `👉 Aquí, son solo 2 clics:`, GOOGLE_REVIEW_URL, ``,
-      `¡Muchas gracias, ${nombre}! 😊`,
-    ],
-    // V2 — Social proof + CTA con tiempo concreto
-    [
-      `Hola ${nombre} 😄`, ``,
-      `Fue un placer atenderte ${cuando} en *${CLINICA}*${trat}. Esperamos que estés encantado/a con el resultado.`, ``,
-      `Muchos pacientes nos encuentran gracias a las reseñas de personas como tú. ¿Nos ayudas con la tuya? 🌟`, ``,
-      `👉 Tu opinión en Google (30 segundos):`, GOOGLE_REVIEW_URL, ``,
-      `¡Te lo agradecemos un montón, ${nombre}! 🙌`,
-    ],
-    // V3 — Conversacional + reciprocidad + CTA directo
-    [
-      `Hola ${nombre} 👋`, ``,
-      `Desde *${CLINICA}* queríamos saber cómo estás después de tu visita ${cuando}${trat}.`, ``,
-      `Si tu experiencia fue buena, ¿nos dejas una reseña en Google? Con eso nos ayudas muchísimo y orientas a otras familias que buscan un buen dentista 🙏`, ``,
-      `👉 Pulsa aquí para dejar tu opinión:`, GOOGLE_REVIEW_URL, ``,
-      `¡Gracias de verdad, ${nombre}! ⭐`,
-    ],
+  const cuerpos = [
+    [`Te atendimos ${cuandoF} en *${CLINICA}*. Esperamos que todo haya ido de maravilla.`,``,`Ya somos *${n} familias* que confían en nosotros — si tu experiencia fue buena, ¿nos cuentas cómo fue? 🙏`],
+    [`Queríamos saber cómo saliste de tu visita ${cuandoF} en *${CLINICA}*.`,``,`Si quedaste contento/a, tu opinión orientaría a las *${n} familias* que cada mes buscan un buen dentista 🦷`],
+    [`Fue un placer atenderte ${cuandoF} en *${CLINICA}*.`,``,`*${n} familias* ya confían en nosotros. ¿Compartes tu experiencia para ayudar a otras? 🌟`],
+    [`Desde *${CLINICA}* queríamos saber cómo estás después de tu visita ${cuandoF}.`,``,`Si todo fue bien, tu opinión ayuda a las *${n} familias* que cada mes buscan un dentista de confianza 🙏`],
   ];
 
-  return variantes[parseInt(p.tel.slice(-1)) % variantes.length].join('\n');
+  // Flujo SÍ/NO: sin enlace — Baileys lo manda automáticamente al recibir SÍ
+  return [gs[idx], ``, ...cuerpos[idx], ``, `Responde solo *SÍ* o *NO* 👇`].join('\n');
 }
 
 // ═══════════════════════════════════════════════════
