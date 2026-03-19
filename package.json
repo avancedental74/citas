@@ -1,0 +1,17 @@
+{
+  "name": "avancedental-whatsapp",
+  "version": "1.0.0",
+  "description": "Avance Dental — Gestor WhatsApp Baileys",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.9",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "node-cron": "^3.0.3",
+    "pino": "^8.19.0"
+  }
+}
