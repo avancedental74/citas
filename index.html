@@ -790,8 +790,8 @@ const CLINICA       = 'Avance Dental';
 const GOOGLE_REVIEW = 'https://g.page/r/CRkkiSExZLnnEAE/review';
 const LANDING       = localStorage.getItem('ad_landing') || 'https://avancedental74.github.io/citas/opinion.html';
 const GEMINI_KEY_STORE = 'ad_gemini_key';
-const API_BASE      = 'http://localhost:3001'; // servidor Baileys
-let MODO_BAILEYS    = false; // true si el servidor responde
+const API_BASE = 'http://localhost:3001';
+let MODO_BAILEYS = false;
 
 // ═══════════════════════════════════════════════════
 // ESTADO LOCAL (fallback sin servidor)
@@ -1748,13 +1748,14 @@ function msgVal(p) {
 
   // 4 cuerpos A/B — estructura D1, varía el ángulo emocional
   const cuerpos = [
-    'Gracias por visitarnos ' + cuandoF + ' en *' + CLINICA + '*.\n\nTu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a que otras familias encuentren un dentista de confianza 🙏',
-    'Gracias por confiar en *' + CLINICA + '* ' + cuandoF + '.\n\nNos tomamos muy en serio cada visita — y tu opinión nos ayuda a ser mejores cada día 🙏',
-    'Fue un placer tenerte con nosotros ' + cuandoF + ' en *' + CLINICA + '*.\n\nTu valoración nos importa de verdad — es lo que nos ayuda a seguir dando el mejor servicio a cada paciente 🙏',
-    'Gracias por elegirnos ' + cuandoF + ' en *' + CLINICA + '*.\n\nSomos *' + n + ' familias* que confían en nosotros — y la opinión de cada una hace que sigamos mejorando 🙏',
+    'Gracias por visitarnos ' + cuandoF + ' en *' + CLINICA + '*. Tu opinión nos ayuda a seguir mejorando 🙏',
+    'Gracias por confiar en *' + CLINICA + '* ' + cuandoF + '. Tu opinión nos ayuda a ser mejores cada día 🙏',
+    'Fue un placer tenerte con nosotros ' + cuandoF + '. Tu valoración nos importa de verdad 🙏',
+    'Gracias por elegirnos ' + cuandoF + ' en *' + CLINICA + '*. Ya somos *' + n + ' familias* — y tu opinión nos ayuda a seguir creciendo 🙏',
   ];
 
-  const cta = '👇 ¿Nos cuentas? Responde *SÍ* o *NO* y en un momento te escribimos';
+  const url = urlConUtm(idx);
+  const cta = '👇 Si tienes un momento, aquí puedes dejarnos tu opinión:\n' + url;
   return 'Hola ' + nombre + ' 🦷\n\n' + cuerpos[idx] + '\n\n' + cta;
 }
 
