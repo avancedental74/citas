@@ -1746,34 +1746,16 @@ function msgVal(p) {
   const n       = 127;
   const idx     = parseInt(p.tel.slice(-1)) % 4;
 
-  // 4 cuerpos A/B — estructura D1 elegida, varía el ángulo emocional del cuerpo
+  // 4 cuerpos A/B — estructura D1, varía el ángulo emocional
   const cuerpos = [
-    // V0 — Importancia + comunidad
-    'Gracias por visitarnos ' + cuandoF + ' en *' + CLINICA + '*.
-
-Tu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a que otras familias encuentren un dentista de confianza 🙏',
-    // V1 — Gratitud + mejora continua
-    'Gracias por confiar en *' + CLINICA + '* ' + cuandoF + '.
-
-Nos tomamos muy en serio cada visita — y tu opinión nos ayuda a ser mejores cada día 🙏',
-    // V2 — Cercanía + impacto real
-    'Fue un placer tenerte con nosotros ' + cuandoF + ' en *' + CLINICA + '*.
-
-Tu valoración nos importa de verdad — es lo que nos ayuda a seguir dando el mejor servicio a cada paciente 🙏',
-    // V3 — Confianza + pertenencia
-    'Gracias por elegirnos ' + cuandoF + ' en *' + CLINICA + '*.
-
-Somos *' + n + ' familias* que confían en nosotros — y la opinión de cada una hace que sigamos mejorando 🙏',
+    'Gracias por visitarnos ' + cuandoF + ' en *' + CLINICA + '*.\n\nTu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a que otras familias encuentren un dentista de confianza 🙏',
+    'Gracias por confiar en *' + CLINICA + '* ' + cuandoF + '.\n\nNos tomamos muy en serio cada visita — y tu opinión nos ayuda a ser mejores cada día 🙏',
+    'Fue un placer tenerte con nosotros ' + cuandoF + ' en *' + CLINICA + '*.\n\nTu valoración nos importa de verdad — es lo que nos ayuda a seguir dando el mejor servicio a cada paciente 🙏',
+    'Gracias por elegirnos ' + cuandoF + ' en *' + CLINICA + '*.\n\nSomos *' + n + ' familias* que confían en nosotros — y la opinión de cada una hace que sigamos mejorando 🙏',
   ];
 
-  // CTA fijo neutro — instrucción clara, sin presuponer nada negativo
   const cta = '👇 ¿Nos cuentas? Responde *SÍ* o *NO* y en un momento te escribimos';
-
-  return 'Hola ' + nombre + ' 🦷
-
-' + cuerpos[idx] + '
-
-' + cta;
+  return 'Hola ' + nombre + ' 🦷\n\n' + cuerpos[idx] + '\n\n' + cta;
 }
 
 // ═══════════════════════════════════════════════════
