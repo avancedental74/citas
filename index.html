@@ -376,6 +376,17 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
       <div id="leads-wrap-cita" style="display:none">
         <div style="height:16px"></div>
         <div id="aviso-futuros-cita" class="aviso-fut"></div>
+        <!-- Cola summary cita -->
+        <div class="cola-bar" id="cola-bar-cita" style="display:none;background:linear-gradient(135deg,#1e40af,#1d4ed8)">
+          <div class="cola-bar-info">
+            <h3 id="cola-bar-cita-txt">0 en la cola de recordatorios</h3>
+            <p>Se enviarán automáticamente según el horario programado</p>
+          </div>
+          <div class="cola-bar-btns">
+            <button class="btn-cola-enviar" onclick="enviarAhora('cita')">⚡ Enviar ahora</button>
+            <button class="btn-cola-limpiar" onclick="limpiarCola('cita')">✕ Vaciar cola</button>
+          </div>
+        </div>
         <div class="leads-header">
           <div>
             <div class="leads-title" id="leads-title-cita">Pacientes cargados</div>
@@ -548,7 +559,8 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
             <div style="font-size:11px;color:var(--gris-m);margin-top:3px">Recomendado ≤50</div>
           </div>
         </div>
-        <button class="btn-enviar-ahora" style="margin-top:14px;width:100%;background:var(--verde);justify-content:center" id="btn-enviar-val" onclick="enviarAhora('val')">
+        <button class="btn-sched" style="margin-top:12px;width:100%" onclick="guardarConfig()">💾 Guardar</button>
+        <button class="btn-enviar-ahora" style="margin-top:8px;width:100%;background:var(--verde);justify-content:center" id="btn-enviar-val" onclick="enviarAhora('val')">
           ⚡ Enviar valoraciones ahora
         </button>
       </div>
@@ -578,7 +590,8 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
             <div style="font-size:11px;color:var(--gris-m);margin-top:3px">Recomendado ≤80</div>
           </div>
         </div>
-        <button class="btn-enviar-ahora" style="margin-top:14px;width:100%;justify-content:center" id="btn-enviar-cita" onclick="enviarAhora('cita')">
+        <button class="btn-sched" style="margin-top:12px;width:100%" onclick="guardarConfig()">💾 Guardar</button>
+        <button class="btn-enviar-ahora" style="margin-top:8px;width:100%;justify-content:center" id="btn-enviar-cita" onclick="enviarAhora('cita')">
           ⚡ Enviar recordatorios ahora
         </button>
       </div>
@@ -1109,40 +1122,84 @@ function addManual(mod){
 // ═══════════════════════════════════════════════════
 // PROCESAR FILAS EXCEL/PASTE
 // ═══════════════════════════════════════════════════
+function esFecha(v){if(!v)return false;const s=String(v).trim();return /^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}$/.test(s)||/^\d{4}-\d{2}-\d{2}/.test(s)||(v instanceof Date&&!isNaN(v));}
+function esTelefono(v){if(!v)return false;const s=String(v).replace(/\s/g,'').replace(/^\+34|^0034/,'');return /^[679]\d{8}$/.test(s)||/^[679][\d\s]{8,10}$/.test(s.replace(/\s/g,'').slice(0,9));}
+function esApellido(v){if(!v)return false;const s=String(v).trim();return /^[A-ZÁÉÍÓÚÑÜ\s]{3,}$/.test(s)&&!esFecha(v)&&!esTelefono(v);}
+
+function detectarFormatoSinCabecera(fila){
+  // Formato KliniKare: Apellido | Fecha | Nombre | Teléfono
+  if(fila.length>=4&&esApellido(str(fila[0]))&&esFecha(fila[1])&&!esFecha(fila[2])&&esTelefono(str(fila[3]))){
+    return{tipo:'apellido_fecha_nombre_tel',apellido:0,fecha:1,nombre:2,tel:3};
+  }
+  // Formato: Nombre | Teléfono | Fecha
+  if(fila.length>=2&&!esFecha(fila[0])&&esTelefono(str(fila[1]))){
+    return{tipo:'nombre_tel_fecha',nombre:0,tel:1,fecha:fila.length>=3?2:null};
+  }
+  // Formato: Nombre | Fecha | Teléfono
+  if(fila.length>=3&&!esFecha(fila[0])&&esFecha(fila[1])&&esTelefono(str(fila[2]))){
+    return{tipo:'nombre_fecha_tel',nombre:0,fecha:1,tel:2};
+  }
+  return null;
+}
+
 function procesarFilas(filas,mod){
   if(!filas.length)return;
   const cab=filas[0];
   const esCab=cab.some(h=>{const hn=norm(String(h));return hn.includes('nombre')||hn.includes('pac.')||hn.includes('cita.')||hn.includes('estado')||hn.includes('telefon');});
-  COL=detectarColumnas(cab);
-  const inicio=esCab?1:0;
-  const telPresente=COL.movil!==undefined||COL.tel!==undefined;
-  const nombrePresente=COL.nombre!==undefined;
-  if(!telPresente||!nombrePresente){
-    const msg=[];
-    if(!nombrePresente)msg.push('No se encontró columna de nombre');
-    if(!telPresente)msg.push('No se encontró columna de teléfono');
-    msg.push('\nColumnas detectadas: '+cab.filter(Boolean).join(' | '));
-    alert('⚠️ No se puede importar\n\n'+msg.join('\n'));return;
+  
+  let pacientes=[];
+
+  if(esCab){
+    // Tiene cabecera — detección por nombre de columna
+    COL=detectarColumnas(cab);
+    const telPresente=COL.movil!==undefined||COL.tel!==undefined;
+    const nombrePresente=COL.nombre!==undefined;
+    if(!telPresente||!nombrePresente){
+      const msg=[];
+      if(!nombrePresente)msg.push('No se encontró columna de nombre');
+      if(!telPresente)msg.push('No se encontró columna de teléfono');
+      msg.push('\nColumnas detectadas: '+cab.filter(Boolean).join(' | '));
+      alert('⚠️ No se puede importar\n\n'+msg.join('\n'));return;
+    }
+    const datos=filas.slice(1).filter(r=>r.some(c=>c!==''&&c!==null&&c!==undefined));
+    pacientes=datos.map(r=>{
+      const nombre=(cap(str(r[COL.nombre]))+(COL.apellidos!==undefined?' '+cap(str(r[COL.apellidos])):'')).trim();
+      const movil=COL.movil!==undefined?limTel(str(r[COL.movil])):'';
+      const telP=COL.tel!==undefined?limTel(str(r[COL.tel])):'';
+      const tel=movil||telP;
+      const estado=COL.estado!==undefined?str(r[COL.estado]).toLowerCase():(mod==='val'?'en gabinete':'no confirmada');
+      const hora=COL.hora!==undefined?str(r[COL.hora]):'';
+      const trat=(COL.obs!==undefined?str(r[COL.obs]):'').replace(/\.+$/,'').trim();
+      const prof=formatDoctor(COL.prof!==undefined?str(r[COL.prof]):'');
+      const fecha=COL.fecha!==undefined?parseFecha(r[COL.fecha]):null;
+      return{nombre,tel,estado,hora,trat,prof,fecha};
+    }).filter(p=>p.nombre.length>1&&p.tel);
+  } else {
+    // Sin cabecera — detectar formato por contenido de la primera fila
+    const fmt=detectarFormatoSinCabecera(cab);
+    if(!fmt){
+      alert('⚠️ No se puede importar\n\nNo se reconoce el formato.\nColumnas detectadas: '+cab.filter(Boolean).join(' | ')+'\n\nFormatos soportados:\n• Apellido | Fecha | Nombre | Teléfono\n• Nombre | Teléfono | Fecha\n• Nombre | Fecha | Teléfono');
+      return;
+    }
+    const datos=filas.filter(r=>r.some(c=>c!==''&&c!==null&&c!==undefined));
+    pacientes=datos.map(r=>{
+      let nombre='';
+      if(fmt.apellido!==undefined&&fmt.nombre!==undefined){
+        nombre=(cap(str(r[fmt.nombre]))+' '+cap(str(r[fmt.apellido]))).trim();
+      } else if(fmt.nombre!==undefined){
+        nombre=cap(str(r[fmt.nombre]));
+      }
+      const tel=limTel(str(r[fmt.tel]));
+      const fecha=fmt.fecha!==null&&fmt.fecha!==undefined?parseFecha(r[fmt.fecha]):null;
+      return{nombre,tel,estado:mod==='val'?'en gabinete':'no confirmada',hora:'',trat:'',prof:null,fecha};
+    }).filter(p=>p.nombre.length>1&&p.tel);
   }
-  const datos=filas.slice(inicio).filter(r=>r.some(c=>c!==''&&c!==null&&c!==undefined));
-  const pacientes=datos.map(r=>{
-    const nombre=(cap(str(r[COL.nombre]))+(COL.apellidos!==undefined?' '+cap(str(r[COL.apellidos])):'')).trim();
-    const movil=COL.movil!==undefined?limTel(str(r[COL.movil])):'';
-    const telP=COL.tel!==undefined?limTel(str(r[COL.tel])):'';
-    const tel=movil||telP;
-    const estado=COL.estado!==undefined?str(r[COL.estado]).toLowerCase():(mod==='val'?'en gabinete':'no confirmada');
-    const hora=COL.hora!==undefined?str(r[COL.hora]):'';
-    const trat=(COL.obs!==undefined?str(r[COL.obs]):'').replace(/\.+$/,'').trim();
-    const prof=formatDoctor(COL.prof!==undefined?str(r[COL.prof]):'');
-    const fecha=COL.fecha!==undefined?parseFecha(r[COL.fecha]):null;
-    return{nombre,tel,estado,hora,trat,prof,fecha};
-  }).filter(p=>p.nombre.length>1&&p.tel);
+
   const previos=window['datos_'+mod]||[];
   const nuevos=pacientes.filter(p=>!previos.some(e=>e.tel===p.tel));
   window['datos_'+mod]=[...previos,...nuevos];
   if(previos.length&&nuevos.length)toast(`✓ ${nuevos.length} nuevos añadidos (${previos.length} ya existentes conservados)`);
   renderLeads(mod);
-  // Actualizar zona de carga
   const zona=document.getElementById('zona-'+mod);
   if(zona){zona.classList.add('ok');zona.querySelector('.zona-txt').textContent=`✓ ${(window['datos_'+mod]||[]).length} registros cargados`;zona.querySelector('.zona-sub').textContent='Haz clic para cargar otro archivo';}
 }
@@ -1164,7 +1221,17 @@ function renderLeads(mod) {
 
   const filtrados = todos.filter(p => {
     const eNorm = norm(p.estado || '');
-    if (mod === 'cita') return eNorm.includes('no confirmada') || eNorm === '';
+    if (mod === 'cita') {
+      const estadoOk = eNorm.includes('no confirmada') || eNorm === '';
+      if (!estadoOk) return false;
+      if (p.fecha) {
+        const hoyD = new Date(); hoyD.setHours(0,0,0,0);
+        const manana = new Date(hoyD); manana.setDate(manana.getDate()+1);
+        const f = new Date(p.fecha); f.setHours(0,0,0,0);
+        return f >= hoyD && f <= manana;
+      }
+      return true;
+    }
     if (mod === 'val') {
       const tieneEstado = p.estado && p.estado.trim() !== '';
       const estadoOk = !tieneEstado || ESTADOS_VAL.some(s => eNorm.includes(norm(s)));
@@ -1243,19 +1310,40 @@ function renderLeads(mod) {
 }
 
 async function actualizarColaBar() {
-  if (!MODO_BAILEYS) { document.getElementById('cola-bar-val').style.display='none'; return; }
+  if (!MODO_BAILEYS) {
+    const bv = document.getElementById('cola-bar-val');
+    const bc = document.getElementById('cola-bar-cita');
+    if(bv) bv.style.display='none';
+    if(bc) bc.style.display='none';
+    return;
+  }
   try {
     const r = await fetch(API_BASE+'/api/cola');
     const d = await r.json();
-    const bar = document.getElementById('cola-bar-val');
-    if (d.pendientes > 0) {
-      bar.style.display = 'flex';
-      document.getElementById('cola-bar-txt').textContent = `${d.pendientes} en la cola de envío`;
-    } else {
-      bar.style.display = 'none';
+    // Barra valoraciones
+    const barVal = document.getElementById('cola-bar-val');
+    if(barVal) {
+      if ((d.pendientesVal||0) > 0) {
+        barVal.style.display = 'flex';
+        document.getElementById('cola-bar-txt').textContent = `${d.pendientesVal} en la cola de valoraciones`;
+      } else { barVal.style.display = 'none'; }
     }
-    document.getElementById('sched-pendientes').textContent = d.pendientes || 0;
-  } catch { document.getElementById('cola-bar-val').style.display='none'; }
+    // Barra citas
+    const barCita = document.getElementById('cola-bar-cita');
+    if(barCita) {
+      if ((d.pendientesCita||0) > 0) {
+        barCita.style.display = 'flex';
+        document.getElementById('cola-bar-cita-txt').textContent = `${d.pendientesCita} en la cola de recordatorios`;
+      } else { barCita.style.display = 'none'; }
+    }
+    const sp = document.getElementById('sched-pendientes');
+    if(sp) sp.textContent = (d.pendientes||0);
+  } catch {
+    const bv = document.getElementById('cola-bar-val');
+    const bc = document.getElementById('cola-bar-cita');
+    if(bv) bv.style.display='none';
+    if(bc) bc.style.display='none';
+  }
 }
 
 function vaciarLista(mod) {
@@ -1327,6 +1415,16 @@ async function añadirUnoACola(tel, mod) {
 
 async function enviarAhora(mod) {
   if (!MODO_BAILEYS) { toast('⚠️ Servidor Baileys no disponible — ejecuta iniciar.bat','err'); return; }
+  // Verificar que hay algo en cola antes de enviar
+  try {
+    const rc = await fetch(API_BASE+'/api/cola');
+    const dc = await rc.json();
+    const pendientes = mod==='val' ? (dc.pendientesVal||0) : mod==='cita' ? (dc.pendientesCita||0) : (dc.pendientes||0);
+    if (pendientes === 0) {
+      toast(`ℹ️ No hay ${mod==='cita'?'recordatorios':'valoraciones'} en la cola — añade pacientes primero`);
+      return;
+    }
+  } catch {}
   const btnId = mod ? 'btn-enviar-'+mod : 'btn-enviar-ahora-main';
   const btn = document.getElementById(btnId);
   if(btn) btn.disabled=true;
@@ -1342,10 +1440,11 @@ async function enviarAhora(mod) {
   finally { if(btn) setTimeout(()=>btn.disabled=false,3000); }
 }
 
-async function limpiarCola() {
+async function limpiarCola(mod) {
   if (!confirm('¿Vaciar la cola de envío? Los mensajes no enviados se perderán.')) return;
   if (!MODO_BAILEYS) return;
-  await fetch(API_BASE+'/api/cola/limpiar',{method:'DELETE'});
+  const url = mod ? API_BASE+'/api/cola/limpiar?mod='+mod : API_BASE+'/api/cola/limpiar';
+  await fetch(url,{method:'DELETE'});
   toast('🗑 Cola vaciada');
   actualizarColaBar();
 }
@@ -1597,7 +1696,7 @@ document.getElementById('mfondo-qr').addEventListener('click', function(e){ if(e
 // ═══════════════════════════════════════════════════
 function rellenarConfig(cfg) {
   const g = id => document.getElementById(id);
-  if(g('cfg-val-hora'))  g('cfg-val-hora').value   = cfg.val_horaEnvio  || '10:30';
+  if(g('cfg-val-hora'))  g('cfg-val-hora').value   = (cfg.horariosVal && cfg.horariosVal[1]) || cfg.val_horaEnvio || '10:30';
   if(g('cfg-val-max'))   g('cfg-val-max').value    = cfg.val_maxPorDia  || 30;
   if(g('cfg-val-activo')) g('cfg-val-activo').checked = cfg.val_activo !== false;
   if(g('cfg-cita-hora')) g('cfg-cita-hora').value  = cfg.cita_horaEnvio || '09:00';
@@ -1612,8 +1711,9 @@ function rellenarConfig(cfg) {
 
 async function guardarConfig() {
   const g = id => document.getElementById(id);
+  const horaVal = g('cfg-val-hora')?.value || '10:30';
   const cfg = {
-    val_horaEnvio:  g('cfg-val-hora')?.value  || '10:30',
+    horariosVal:    { 1: horaVal, 2: horaVal, 3: horaVal, 4: horaVal, 5: horaVal },
     val_maxPorDia:  parseInt(g('cfg-val-max')?.value  || 30),
     val_activo:     g('cfg-val-activo')?.checked !== false,
     cita_horaEnvio: g('cfg-cita-hora')?.value || '09:00',
@@ -1623,7 +1723,8 @@ async function guardarConfig() {
     delayMaxSeg:    parseInt(g('cfg-delay-max')?.value || 20),
     bloquearFinde:  g('cfg-bloquear-finde')?.checked !== false,
     numResenias:    parseInt(g('cfg-num-resenias')?.value || 127),
-
+    flujoSiNo:      false,
+    abTracking:     false,
   };
   if (!MODO_BAILEYS) { toast('⚠️ Servidor offline — ejecuta iniciar.bat primero','err'); localStorage.setItem('ad_config',JSON.stringify(cfg)); return; }
   try {
@@ -1787,6 +1888,12 @@ function toast(msg, tipo=''){
   if(_toastTimer)clearTimeout(_toastTimer);
   _toastTimer=setTimeout(()=>t.classList.remove('on'),3000);
 }
+
+// Fecha por defecto en pruebas = hoy
+(function(){
+  const el = document.getElementById('prueba-fecha');
+  if(el) el.value = new Date().toISOString().split('T')[0];
+})();
 </script>
 </body>
 </html>
