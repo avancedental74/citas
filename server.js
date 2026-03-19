@@ -371,7 +371,7 @@ function programarCrons() {
 async function conectar() {
   const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname, 'auth_avancedental'));
   const sock = makeWASocket({
-    auth:state, printQRInTerminal:true,
+    auth:state,
     logger:P({level:'silent'}),
     browser:['Chrome (Linux)','Chrome','122.0.6261.94'],
     generateHighQualityLinkPreview:false,
@@ -379,13 +379,17 @@ async function conectar() {
   });
 
   sock.ev.on('connection.update', async ({connection,lastDisconnect,qr})=>{
-    if (qr) { qrActual=qr; estadoWA='qr'; }
+    if (qr) {
+      qrActual = qr;
+      estadoWA = 'qr';
+      console.log('📱 QR generado — escanea desde la web en localhost:3001');
+    }
     if (connection==='open') { estadoWA='conectado'; qrActual=null; sockGlobal=sock; console.log('✅ WhatsApp conectado'); }
     if (connection==='close') {
       estadoWA='desconectado'; sockGlobal=null;
       const r=(lastDisconnect?.error instanceof Boom)?lastDisconnect.error.output?.statusCode!==DisconnectReason.loggedOut:true;
       if(r){console.log('🔄 Reconectando...');setTimeout(conectar,5000);}
-      else console.log('🚪 Sesión cerrada. Borra ./auth_avancedental y reinicia.');
+      else console.log('🚪 Sesión cerrada. Borra auth_avancedental y reinicia.');
     }
   });
 
