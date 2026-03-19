@@ -646,6 +646,86 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
     </div>
   </div>
 
+  <!-- Flujo SÍ / NO -->
+  <div class="section-card">
+    <div class="section-card-header">
+      <div>
+        <div class="section-card-title">🤖 Respuesta automática al recordatorio de cita</div>
+        <div style="font-size:12px;color:var(--gris-m);margin-top:2px">Si el paciente responde SÍ → mensaje de gracias automático · Si responde NO → se pasa al operador</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="cfg-flujo-sino" onchange="guardarConfig()">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="section-card-body">
+
+      <div style="background:var(--azul-xc);border:1px solid var(--azul-c);border-radius:9px;padding:11px 14px;font-size:12px;color:var(--azul-m);margin-bottom:16px;line-height:1.6">
+        ℹ️ Activa el toggle para que Baileys detecte la respuesta del paciente y actúe automáticamente. El servidor debe estar ejecutándose.
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px">
+
+        <!-- SÍ -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--verde);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">✅ Si responde SÍ</div>
+          <textarea id="cfg-msg-confirmado" rows="4" style="width:100%;padding:10px 12px;border:1.5px solid var(--borde);border-radius:9px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;resize:vertical;background:#fff;transition:border .15s;line-height:1.6" onfocus="this.style.borderColor='var(--verde)'" onblur="this.style.borderColor='var(--borde)'">¡Perfecto, [nombre]! ✅ Cita confirmada.
+Te esperamos el [fecha] a las [hora] en Avance Dental.
+Si necesitas algo, escríbenos sin problema 😊</textarea>
+          <div style="font-size:11px;color:var(--gris-m);margin-top:4px">Variables: <code>[nombre]</code> <code>[fecha]</code> <code>[hora]</code></div>
+        </div>
+
+        <!-- NO -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--coral);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">❌ Si responde NO</div>
+          <textarea id="cfg-msg-rechazado" rows="3" style="width:100%;padding:10px 12px;border:1.5px solid var(--borde);border-radius:9px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;resize:vertical;background:#fff;transition:border .15s;line-height:1.6" onfocus="this.style.borderColor='var(--coral)'" onblur="this.style.borderColor='var(--borde)'">Entendido, [nombre] 🙏
+Nuestros operadores se pondrán en contacto contigo lo antes posible para agendar una nueva cita.</textarea>
+          <div style="font-size:11px;color:var(--gris-m);margin-top:4px">Tras este mensaje se notifica al operador</div>
+        </div>
+
+      </div>
+
+      <div style="border-top:1px solid var(--borde);padding-top:14px;margin-top:4px">
+        <div style="font-size:11px;font-weight:700;color:var(--gris-m);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📣 Aviso al operador cuando paciente dice NO</div>
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;margin-bottom:12px">
+          <div class="form-field" style="min-width:160px">
+            <label>Método de aviso</label>
+            <select id="cfg-aviso-metodo" class="sched-input" style="margin-top:4px" onchange="toggleAvisoMetodo()">
+              <option value="email">📧 Email</option>
+              <option value="whatsapp">📱 WhatsApp (2º número)</option>
+            </select>
+          </div>
+          <div id="aviso-email-fields">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div class="form-field">
+                <label>Email destinatario</label>
+                <input type="email" id="cfg-aviso-email" class="sched-input" placeholder="recepcion@avancedental.es" style="margin-top:4px">
+              </div>
+              <div class="form-field">
+                <label>Gmail que envía</label>
+                <input type="email" id="cfg-aviso-email-user" class="sched-input" placeholder="clinica@gmail.com" style="margin-top:4px">
+              </div>
+              <div class="form-field" style="grid-column:1/-1">
+                <label>Contraseña de aplicación Gmail</label>
+                <input type="password" id="cfg-aviso-email-pass" class="sched-input" placeholder="xxxx xxxx xxxx xxxx" style="margin-top:4px">
+                <div style="font-size:11px;color:var(--gris-m);margin-top:3px">En Google Account → Seguridad → Contraseñas de aplicación (no es tu contraseña normal)</div>
+              </div>
+            </div>
+          </div>
+          <div id="aviso-wa-fields" style="display:none">
+            <div class="form-field">
+              <label>Teléfono del operador (2º número, distinto al de envíos)</label>
+              <input type="tel" id="cfg-aviso-whatsapp" class="sched-input" placeholder="612345678" style="margin-top:4px">
+              <div style="font-size:11px;color:var(--gris-m);margin-top:3px">Debe ser un número diferente al que usa Baileys para enviar</div>
+            </div>
+          </div>
+        </div>
+        <button class="btn-sched" onclick="guardarConfig()">💾 Guardar configuración</button>
+      </div>
+
+    </div>
+  </div>
+
   <!-- QR de conexión -->
   <div class="section-card">
     <div class="section-card-header">
@@ -1694,7 +1774,30 @@ document.getElementById('mfondo-qr').addEventListener('click', function(e){ if(e
 // ═══════════════════════════════════════════════════
 // CONFIG SERVIDOR
 // ═══════════════════════════════════════════════════
+// Evita que el polling cada 5s sobreescriba campos que el usuario está editando
+let _editandoConfig = false;
+function _marcarEditando() {
+  _editandoConfig = true;
+  clearTimeout(window._editTimer);
+  window._editTimer = setTimeout(() => { _editandoConfig = false; }, 8000);
+}
+(function() {
+  const campos = ['cfg-val-hora','cfg-val-max','cfg-cita-hora','cfg-cita-max','cfg-delay-min','cfg-delay-max','cfg-num-resenias','cfg-tel-operador','cfg-msg-confirmado','cfg-msg-rechazado'];
+  document.addEventListener('DOMContentLoaded', () => {
+    campos.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.addEventListener('input', _marcarEditando); el.addEventListener('focus', _marcarEditando); }
+    });
+  });
+  // Inicializar también de forma inmediata por si el DOM ya está listo
+  campos.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.addEventListener('input', _marcarEditando); el.addEventListener('focus', _marcarEditando); }
+  });
+})();
+
 function rellenarConfig(cfg) {
+  if (_editandoConfig) return; // el usuario está tocando campos — no interrumpir
   const g = id => document.getElementById(id);
   if(g('cfg-val-hora'))  g('cfg-val-hora').value   = (cfg.horariosVal && cfg.horariosVal[1]) || cfg.val_horaEnvio || '10:30';
   if(g('cfg-val-max'))   g('cfg-val-max').value    = cfg.val_maxPorDia  || 30;
@@ -1706,7 +1809,23 @@ function rellenarConfig(cfg) {
   if(g('cfg-delay-max')) g('cfg-delay-max').value  = cfg.delayMaxSeg    || 20;
   if(g('cfg-bloquear-finde'))  g('cfg-bloquear-finde').checked  = cfg.bloquearFinde !== false;
   if(g('cfg-num-resenias')) g('cfg-num-resenias').value = cfg.numResenias || 127;
+  if(g('cfg-flujo-sino')) g('cfg-flujo-sino').checked = cfg.flujoSiNo === true;
+  if(g('cfg-msg-confirmado') && cfg.msgConfirmado) g('cfg-msg-confirmado').value = cfg.msgConfirmado;
+  if(g('cfg-msg-rechazado')  && cfg.msgRechazado)  g('cfg-msg-rechazado').value  = cfg.msgRechazado;
+  if(g('cfg-aviso-metodo')   && cfg.avisoMetodo)   { g('cfg-aviso-metodo').value = cfg.avisoMetodo; toggleAvisoMetodo(); }
+  if(g('cfg-aviso-email')    && cfg.avisoEmail)    g('cfg-aviso-email').value    = cfg.avisoEmail;
+  if(g('cfg-aviso-email-user') && cfg.avisoEmailUser) g('cfg-aviso-email-user').value = cfg.avisoEmailUser;
+  if(g('cfg-aviso-email-pass') && cfg.avisoEmailPass) g('cfg-aviso-email-pass').value = cfg.avisoEmailPass;
+  if(g('cfg-aviso-whatsapp') && cfg.avisoWhatsapp) g('cfg-aviso-whatsapp').value = cfg.avisoWhatsapp;
+}
 
+function toggleAvisoMetodo() {
+  const metodo = document.getElementById('cfg-aviso-metodo')?.value;
+  const emailF = document.getElementById('aviso-email-fields');
+  const waF    = document.getElementById('aviso-wa-fields');
+  if (!emailF || !waF) return;
+  emailF.style.display = metodo === 'email'     ? 'block' : 'none';
+  waF.style.display    = metodo === 'whatsapp'  ? 'block' : 'none';
 }
 
 async function guardarConfig() {
@@ -1723,7 +1842,14 @@ async function guardarConfig() {
     delayMaxSeg:    parseInt(g('cfg-delay-max')?.value || 20),
     bloquearFinde:  g('cfg-bloquear-finde')?.checked !== false,
     numResenias:    parseInt(g('cfg-num-resenias')?.value || 127),
-    flujoSiNo:      false,
+    flujoSiNo:      g('cfg-flujo-sino')?.checked || false,
+    msgConfirmado:  g('cfg-msg-confirmado')?.value || '',
+    msgRechazado:   g('cfg-msg-rechazado')?.value || '',
+    avisoMetodo:    g('cfg-aviso-metodo')?.value || 'email',
+    avisoEmail:     g('cfg-aviso-email')?.value || '',
+    avisoEmailUser: g('cfg-aviso-email-user')?.value || '',
+    avisoEmailPass: g('cfg-aviso-email-pass')?.value || '',
+    avisoWhatsapp:  limTel(g('cfg-aviso-whatsapp')?.value || ''),
     abTracking:     false,
   };
   if (!MODO_BAILEYS) { toast('⚠️ Servidor offline — ejecuta iniciar.bat primero','err'); localStorage.setItem('ad_config',JSON.stringify(cfg)); return; }
@@ -1787,19 +1913,34 @@ function ventanaTemporal(fecha){
 function fmtFecha(fecha){if(!fecha)return'';const f=new Date(fecha);if(isNaN(f))return'';return f.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});}
 
 function msgCita(p){
-  const nombre  = p.nombre.split(' ')[0];
-  const hora    = p.hora ? ' a las *' + p.hora + '*' : '';
-  const trat    = p.trat ? ' de ' + p.trat.toLowerCase() : '';
-  const fechaTxt= p.fecha ? '*' + fmtFecha(p.fecha) + '*' : 'próximamente';
-  return [
-    'Tu cita' + trat + ' es ' + fechaTxt + hora + ' — ¿lo confirmas, ' + nombre + '? ✅',
+  const nombre   = p.nombre.split(' ')[0];
+  const hora     = p.hora ? ' a las *' + p.hora + '*' : '';
+  const tratTxt  = p.trat ? ' para tu *' + p.trat.toLowerCase() + '*' : '';
+  const fechaTxt = p.fecha ? '*' + fmtFecha(p.fecha) + '*' : 'próximamente';
+  const difícil  = esTratDificil(p.trat);
+
+  const lineas = [
+    'Hola ' + nombre + ' 👋',
     '',
-    'Te lo recordamos desde *' + CLINICA + '* 😊',
+    'Te escribimos desde *' + CLINICA + '* para recordarte que tienes cita' + tratTxt + ' el ' + fechaTxt + hora + '.',
     '',
-    'Si necesitas cambiarla o cancelarla, avísanos con tiempo — así podemos ofrecerle el hueco a otro paciente 🙏',
+  ];
+
+  if (difícil) {
+    lineas.push('Sabemos que este tipo de tratamiento puede generar algo de nervios — estamos aquí para que te sientas cómodo/a en todo momento 🙌');
+    lineas.push('');
+  }
+
+  lineas.push(
+    '¿Puedes confirmarnos la asistencia?',
     '',
-    'Responde *SÍ* para confirmar o escríbenos si necesitas cambiarla.',
-  ].join('\n');
+    '✅ Responde *SÍ* para confirmar',
+    '❌ Responde *NO* si necesitas cambiarla',
+    '',
+    'Si prefieres llamarnos o cambiar el horario, con gusto te buscamos otro hueco 😊'
+  );
+
+  return lineas.join('\n');
 }
 
 const GOOGLE_REVIEW_URL = 'https://g.page/r/CRkkiSExZLnnEAE/review';

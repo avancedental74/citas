@@ -17,6 +17,8 @@ const cors       = require('cors');
 const cron       = require('node-cron');
 const fs         = require('fs');
 const path       = require('path');
+let nodemailer;
+try { nodemailer = require('nodemailer'); } catch { nodemailer = null; }
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const PORT      = 3001;
@@ -40,6 +42,16 @@ const CONFIG_DEFAULT = {
   numResenias:    127,   // se muestra en el mensaje ("ya somos X familias")
   flujoSiNo:      false,  // true = pide SÍ/NO y manda enlace automático
   abTracking:     false,  // registra variante enviada + clics por UTM
+
+  // Aviso al operador cuando paciente dice NO a cita
+  // Método: 'email' (recomendado) | 'whatsapp' (requiere segundo número)
+  avisoMetodo:    'email',
+  avisoEmail:     '',         // email de la recepcionista
+  avisoEmailUser: '',         // cuenta Gmail que envía (p.ej. clinica@gmail.com)
+  avisoEmailPass: '',         // contraseña de aplicación Gmail (no la normal)
+  avisoWhatsapp:  '',         // si método=whatsapp, número de 9 dígitos del operador
+  msgConfirmado:  '',         // mensaje cuando paciente dice SÍ (vacío = usar default)
+  msgRechazado:   '',         // mensaje cuando paciente dice NO (vacío = usar default)
 };
 
 // ── CONSTANTES ────────────────────────────────────────────────────────────────
@@ -184,23 +196,104 @@ function construirMsgEnlace(nombre, variante) {
 }
 
 function construirMsgRespuestaNo(nombre) {
-  return [`Gracias por contestar, ${nombre} 🙏`, ``, `Si en algún momento quieres comentarnos algo, estamos aquí. ¡Hasta pronto!`].join('\n');
+  return [`Gracias por contestar, ${nombre} 🙏`, ``, `Si en algún momento quieres comentarnos algo, estamos aquí.`].join('\n');
+}
+
+// Respuestas para citas — usan config editable desde el HTML o mensajes default
+function msgCitaConfirmado(nombre, fecha, hora) {
+  if (config.msgConfirmado && config.msgConfirmado.trim()) {
+    return config.msgConfirmado
+      .replace('[nombre]', nombre)
+      .replace('[fecha]', fecha ? fmtFecha(fecha) : '')
+      .replace('[hora]', hora || '');
+  }
+  const horaTxt = hora ? ` a las ${hora}` : '';
+  const fechaTxt = fecha ? fmtFecha(fecha) : '';
+  return [`¡Perfecto, ${nombre}! ✅ Cita confirmada.`, `Te esperamos el ${fechaTxt}${horaTxt} en ${CLINICA}.`, `Si necesitas algo, escríbenos sin problema 😊`].join('\n');
+}
+
+function msgCitaRechazado(nombre) {
+  if (config.msgRechazado && config.msgRechazado.trim()) {
+    return config.msgRechazado
+      .replace('[nombre]', nombre)
+      .replace('[fecha]', '')
+      .replace('[hora]', '');
+  }
+  return [`Entendido, ${nombre} 🙏`, `Nuestros operadores se pondrán en contacto contigo lo antes posible para agendar una nueva cita.`].join('\n');
+}
+
+// ── AVISO AL OPERADOR ─────────────────────────────────────────────────────────
+async function avisarOperador(nombre, tel, fecha, hora, trat) {
+  const fechaTxt = fecha ? fmtFecha(fecha) : 'sin fecha';
+  const horaTxt  = hora  ? ` a las ${hora}` : '';
+  const tratTxt  = trat  ? ` (${trat})` : '';
+  const texto    = `⚠️ CITA CANCELADA\n\nPaciente: ${nombre}\nTeléfono: ${tel}\nCita: ${fechaTxt}${horaTxt}${tratTxt}\n\nPendiente de reagendar.`;
+
+  if (config.avisoMetodo === 'whatsapp' && config.avisoWhatsapp) {
+    // Aviso por WhatsApp a un segundo número (recepcionista)
+    const telOp = String(config.avisoWhatsapp).replace(/\D/g,'').replace(/^34/,'').slice(-9);
+    if (/^\d{9}$/.test(telOp)) {
+      await enviarMensaje(telOp, texto).catch(e => console.error('❌ Aviso WA operador:', e.message));
+      console.log(`📲 Aviso WA operador → ${telOp}`);
+    }
+  } else if (config.avisoMetodo === 'email' && config.avisoEmail && nodemailer) {
+    // Aviso por email (gmail con contraseña de aplicación)
+    try {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: config.avisoEmailUser, pass: config.avisoEmailPass }
+      });
+      await transporter.sendMail({
+        from: config.avisoEmailUser,
+        to: config.avisoEmail,
+        subject: `⚠️ Cita cancelada — ${nombre} (${tel})`,
+        text: `Paciente: ${nombre}\nTeléfono: ${tel}\nCita: ${fechaTxt}${horaTxt}${tratTxt}\n\nEl paciente ha respondido NO al recordatorio de cita. Pendiente de reagendar.`,
+      });
+      console.log(`📧 Aviso email operador → ${config.avisoEmail}`);
+    } catch(e) {
+      console.error('❌ Aviso email operador:', e.message);
+    }
+  } else {
+    // Sin configuración — solo log en consola
+    console.log(`⚠️ [AVISO OPERADOR] ${nombre} (${tel}) canceló su cita el ${fechaTxt}${horaTxt}${tratTxt}`);
+  }
 }
 
 // Recordatorio de cita — gancho en primera línea para la push notification
+const TRAT_DIFICIL = ['endodoncia','extraccion','extracción','implante','cirugia','cirugía','periodoncia','curetaje','injerto','ortodoncia','aparato','brackets'];
+function esTratDificil(t) { if(!t)return false; const s=t.toLowerCase(); return TRAT_DIFICIL.some(k=>s.includes(k)); }
+
 function construirMsgCita(p) {
   const nombre   = p.nombre.split(' ')[0];
   const hora     = p.hora ? ` a las *${p.hora}*` : '';
+  const tratTxt  = p.trat ? ` para tu *${p.trat.toLowerCase()}*` : '';
   const fechaTxt = p.fecha ? `*${fmtFecha(p.fecha)}*` : 'próximamente';
-  return [
-    `Tu cita es ${fechaTxt}${hora} — ¿lo confirmas, ${nombre}? ✅`,
+  const difícil  = esTratDificil(p.trat);
+
+  const lineas = [
+    `Hola ${nombre} 👋`,
     ``,
-    `Te lo recordamos desde *${CLINICA}* 😊`,
+    `Te escribimos desde *${CLINICA}* para recordarte que tienes cita${tratTxt} el ${fechaTxt}${hora}.`,
     ``,
-    `Si necesitas cambiarla o cancelarla, avísanos con tiempo — así podemos ofrecerle el hueco a otro paciente 🙏`,
+  ];
+
+  if (difícil) {
+    lineas.push(`Sabemos que este tipo de tratamiento puede generar algo de nervios — estamos aquí para que te sientas cómodo/a en todo momento 🙌`);
+    lineas.push(``);
+  }
+
+  lineas.push(
+    `¿Puedes confirmarnos la asistencia?`,
     ``,
-    `Responde *SÍ* para confirmar o escríbenos si necesitas cambiarla.`,
-  ].join('\n');
+    `✅ Responde *SÍ* para confirmar`,
+    `❌ Responde *NO* si necesitas cambiarla`
+  );
+
+  if (!config.flujoSiNo) {
+    lineas.push(``, `Si prefieres llamarnos, con gusto te buscamos otro hueco 😊`);
+  }
+
+  return lineas.join('\n');
 }
 
 // ── A/B TRACKING ──────────────────────────────────────────────────────────────
@@ -236,24 +329,38 @@ async function enviarMensaje(telefono, texto) {
 }
 
 // ── PROCESAR RESPUESTAS SÍ/NO ─────────────────────────────────────────────────
-function procesarRespuesta(remitente, texto) {
+async function procesarRespuesta(remitente, texto) {
   const tel = remitente.replace('@s.whatsapp.net','').replace(/^34/,'');
   if (!esperandoRespuesta.has(tel)) return;
 
   const t = texto.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  const { nombre, variante } = esperandoRespuesta.get(tel);
+  const { nombre, variante, mod, fecha, hora, trat } = esperandoRespuesta.get(tel);
 
-  const esSi = ['si','yes','s','1','ok','dale','bueno','claro','por supuesto','adelante'].some(w=>t===w||t.startsWith(w+' '));
-  const esNo = ['no','nope','n','0'].some(w=>t===w||t.startsWith(w+' '));
+  const esSi = ['si','yes','s','1','ok','dale','bueno','claro','por supuesto','adelante','confirmo','confirmar','alli estare','allí estaré'].some(w=>t===w||t.startsWith(w+' '));
+  const esNo = ['no','nope','n','0','cancelar','cancelo','cancelo','no puedo','no voy'].some(w=>t===w||t.startsWith(w+' '));
 
-  if (esSi) {
-    enviarMensaje(tel, construirMsgEnlace(nombre, variante)).catch(console.error);
-    esperandoRespuesta.delete(tel);
-    console.log(`✅ SÍ de ${nombre} (${tel}) — enlace V${variante} enviado`);
-  } else if (esNo) {
-    enviarMensaje(tel, construirMsgRespuestaNo(nombre)).catch(console.error);
-    esperandoRespuesta.delete(tel);
-    console.log(`🚫 NO de ${nombre} (${tel})`);
+  if (mod === 'cita') {
+    if (esSi) {
+      await enviarMensaje(tel, msgCitaConfirmado(nombre, fecha, hora)).catch(console.error);
+      esperandoRespuesta.delete(tel);
+      console.log(`✅ CITA CONFIRMADA — ${nombre} (${tel})`);
+    } else if (esNo) {
+      await enviarMensaje(tel, msgCitaRechazado(nombre)).catch(console.error);
+      esperandoRespuesta.delete(tel);
+      console.log(`❌ CITA CANCELADA — ${nombre} (${tel})`);
+      await avisarOperador(nombre, tel, fecha, hora, trat);
+    }
+  } else {
+    // flujo valoración (original)
+    if (esSi) {
+      enviarMensaje(tel, construirMsgEnlace(nombre, variante)).catch(console.error);
+      esperandoRespuesta.delete(tel);
+      console.log(`✅ SÍ de ${nombre} (${tel}) — enlace V${variante} enviado`);
+    } else if (esNo) {
+      enviarMensaje(tel, construirMsgRespuestaNo(nombre)).catch(console.error);
+      esperandoRespuesta.delete(tel);
+      console.log(`🚫 NO de ${nombre} (${tel})`);
+    }
   }
 }
 
@@ -312,9 +419,13 @@ async function procesarCola(modFiltro = null) {
       // A/B tracking envío
       if (p.mod==='val') registrarAbEnvio(varianteIdx);
 
-      // SÍ/NO: guardar para respuesta automática (con variante para el UTM)
-      if (p.mod==='val' && config.flujoSiNo) {
-        esperandoRespuesta.set(p.tel, { nombre:p.nombre, variante:varianteIdx, ts:Date.now() });
+      // SÍ/NO: guardar para respuesta automática
+      if (config.flujoSiNo) {
+        if (p.mod==='val') {
+          esperandoRespuesta.set(p.tel, { mod:'val', nombre:p.nombre, variante:varianteIdx, ts:Date.now() });
+        } else if (p.mod==='cita') {
+          esperandoRespuesta.set(p.tel, { mod:'cita', nombre:p.nombre, fecha:p.fecha||null, hora:p.hora||'', trat:p.trat||'', ts:Date.now() });
+        }
       }
 
       p.enviado=true; p.fechaEnvio=new Date().toISOString(); p.variante=varianteIdx;
@@ -428,7 +539,9 @@ app.get('/api/status', (req,res)=>{
 app.get('/api/config',(req,res)=>res.json(config));
 app.post('/api/config',(req,res)=>{
   ['val_activo','val_maxPorDia','horariosVal','cita_activo','cita_maxPorDia','cita_horaEnvio',
-   'delayMinSeg','delayMaxSeg','bloquearFinde','numResenias','flujoSiNo','abTracking'
+   'delayMinSeg','delayMaxSeg','bloquearFinde','numResenias','flujoSiNo','abTracking',
+   'avisoMetodo','avisoEmail','avisoEmailUser','avisoEmailPass','avisoWhatsapp',
+   'msgConfirmado','msgRechazado'
   ].forEach(k=>{if(req.body[k]!==undefined)config[k]=req.body[k];});
   ['val_maxPorDia','cita_maxPorDia','delayMinSeg','delayMaxSeg','numResenias'].forEach(k=>config[k]=parseInt(config[k]));
   ['val_activo','cita_activo','bloquearFinde','flujoSiNo','abTracking'].forEach(k=>config[k]=Boolean(config[k]));
