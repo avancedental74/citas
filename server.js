@@ -86,7 +86,8 @@ function resetarContadoresSiNuevoDia() {
 
 // ── MENSAJES ──────────────────────────────────────────────────────────────────
 const CLINICA     = 'Avance Dental';
-const LANDING_URL = 'https://avancedental74.github.io/citas/opinion.html';
+const LANDING_URL        = 'https://avancedental74.github.io/citas/opinion.html';
+const GOOGLE_REVIEW_URL  = 'https://g.page/r/CRkkiSExZLnnEAE/review'; // URL corta Google
 const TRAT_DIFICIL = ['endodoncia','extraccion','extracción','implante','cirugia',
   'cirugía','periodoncia','curetaje','injerto','ortodoncia','aparato','brackets'];
 
@@ -117,22 +118,107 @@ function construirMsgVal(p) {
   const nombre  = p.nombre.split(' ')[0];
   const fechaTxt = p.fecha ? fmtFecha(p.fecha) : null;
   const ventana  = ventanaTemporal(p.fecha);
-  const visita   = fechaTxt ? `tu visita del *${fechaTxt}*` : (ventana ? `tu visita ${ventana}` : 'tu última visita');
-  const trat     = p.trat ? ` de *${p.trat.toLowerCase()}*` : '';
   const dificil  = esDificil(p.trat);
+  const trat     = p.trat ? ` de *${p.trat.toLowerCase()}*` : '';
+  const cuando   = fechaTxt ? `el *${fechaTxt}*` : (ventana ? ventana : 'recientemente');
 
-  const pool = dificil ? [
-    (n,v,t) => `Hola ${n} 🙏\n\nSabemos que ${v}${t} no es de las más sencillas. Esperamos que te hayas recuperado bien y que el resultado esté siendo justo lo que esperabas.`,
-    (n,v,t) => `Hola ${n} 💙\n\nQueríamos saber cómo estás después de ${v}${t}. Esperamos que la recuperación haya ido bien y que estés contento/a con el resultado.`,
-  ] : [
-    (n,v,t) => `Hola ${n} 😊\n\nEsperamos que ${v}${t} haya ido genial. En *${CLINICA}* cada paciente importa, y nos encantaría saber cómo fue tu experiencia.`,
-    (n,v,t) => `Hola ${n} 👋\n\nYa han pasado unos días desde ${v}${t} y queríamos saber qué tal te fue. Esperamos que todo haya ido a pedir de boca 🦷`,
-    (n,v,t) => `Hola ${n} 😄\n\nFue un placer tenerte en *${CLINICA}* ${v}${t}. ¿Cómo te has sentido después?`,
+  // ── TRATAMIENTO DIFÍCIL — más empático, reseña como cierre natural ──────────
+  if (dificil) {
+    const variantes = [
+      [
+        `Hola ${nombre} 🙏`,
+        ``,
+        `Sabemos que${trat ? ` una${trat}` : ' tu última visita'} no es de las más sencillas. Esperamos que te hayas recuperado bien y que el resultado esté siendo el que esperabas.`,
+        ``,
+        `Si quedaste contento/a con la atención, una reseña tuya vale muchísimo para otras familias que buscan un dentista de confianza 💙`,
+        ``,
+        `👉 Déjanos tu opinión aquí:`,
+        GOOGLE_REVIEW_URL,
+        ``,
+        `¡Muchas gracias, ${nombre}! 🌟`,
+      ],
+      [
+        `Hola ${nombre} 💙`,
+        ``,
+        `¿Cómo estás tras${trat ? ` la${trat}` : ' tu visita'}? Esperamos que la recuperación esté yendo bien 🙏`,
+        ``,
+        `Si tu experiencia en *${CLINICA}* fue buena, ¿nos regalas un momento? Tu reseña orienta a muchas familias que buscan un dentista de confianza.`,
+        ``,
+        `👉 Pulsa aquí para dejar tu opinión:`,
+        GOOGLE_REVIEW_URL,
+        ``,
+        `¡Gracias de corazón, ${nombre}! ⭐`,
+      ],
+    ];
+    return variantes[parseInt(p.tel.slice(-1)) % variantes.length].join('\n');
+  }
+
+  // ── MENSAJES NORMALES — 4 variantes rotativas ────────────────────────────────
+  // Principios de CTR aplicados en cada variante:
+  // ✅ Nombre al inicio Y al cierre (personalización doble +15% CTR)
+  // ✅ CTA en línea propia con 👉 (el ojo lo encuentra solo)
+  // ✅ URL corta de Google directa (no dominio desconocido)
+  // ✅ Pregunta condicional antes del CTA (activa el "sí" interno)
+  // ✅ "otras familias" en vez de "otras personas" (más emocional)
+  // ✅ CTA específico: "2 clics" / "30 segundos" (más creíble que "1 minuto")
+
+  const variantes = [
+    // V0 — Directa + cálida + condicional
+    [
+      `Hola ${nombre} 😊`,
+      ``,
+      `Te atendimos ${cuando} en *${CLINICA}*${trat}. Esperamos que todo haya ido de maravilla.`,
+      ``,
+      `Si quedaste contento/a con la atención, ¿nos regalas un momento? Tu opinión ayuda a otras familias a encontrar un dentista de confianza 🙏`,
+      ``,
+      `👉 Déjanos tu reseña aquí:`,
+      GOOGLE_REVIEW_URL,
+      ``,
+      `¡Gracias de corazón, ${nombre}! 🌟`,
+    ],
+    // V1 — Pregunta abierta + "2 clics" (concreto y creíble)
+    [
+      `Hola ${nombre} 👋`,
+      ``,
+      `¿Cómo estás tras tu visita ${cuando} en *${CLINICA}*${trat}?`,
+      ``,
+      `Si todo fue bien, una reseña tuya es el mejor regalo que puedes hacernos — y ayuda a otras familias a elegir bien 🦷`,
+      ``,
+      `👉 Aquí, son solo 2 clics:`,
+      GOOGLE_REVIEW_URL,
+      ``,
+      `¡Muchas gracias, ${nombre}! 😊`,
+    ],
+    // V2 — Social proof + CTA con tiempo concreto
+    [
+      `Hola ${nombre} 😄`,
+      ``,
+      `Fue un placer atenderte ${cuando} en *${CLINICA}*${trat}. Esperamos que estés encantado/a con el resultado.`,
+      ``,
+      `Muchos pacientes nos encuentran gracias a las reseñas de personas como tú. ¿Nos ayudas con la tuya? 🌟`,
+      ``,
+      `👉 Tu opinión en Google (30 segundos):`,
+      GOOGLE_REVIEW_URL,
+      ``,
+      `¡Te lo agradecemos un montón, ${nombre}! 🙌`,
+    ],
+    // V3 — Conversacional + reciprocidad + CTA directo
+    [
+      `Hola ${nombre} 👋`,
+      ``,
+      `Desde *${CLINICA}* queríamos saber cómo estás después de tu visita ${cuando}${trat}.`,
+      ``,
+      `Si tu experiencia fue buena, ¿nos dejas una reseña en Google? Con eso nos ayudas muchísimo y orientas a otras familias que buscan un buen dentista 🙏`,
+      ``,
+      `👉 Pulsa aquí para dejar tu opinión:`,
+      GOOGLE_REVIEW_URL,
+      ``,
+      `¡Gracias de verdad, ${nombre}! ⭐`,
+    ],
   ];
 
-  const idx      = parseInt(p.tel.slice(-1)) % pool.length;
-  const apertura = pool[idx](nombre, visita, trat);
-  return [apertura, ``, `⭐ ¿Nos dejas una reseña? Solo toma 1 minuto y ayuda a muchas otras personas a encontrar una buena clínica dental:`, LANDING_URL, ``, `¡Gracias por confiar en nosotros! 🙌`].join('\n');
+  const idx = parseInt(p.tel.slice(-1)) % variantes.length;
+  return variantes[idx].join('\n');
 }
 
 function construirMsgCita(p) {
