@@ -280,6 +280,88 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
   .nav-tabs{overflow-x:auto;padding:0 12px}
   .ntab{padding:12px 14px}
 }
+
+/* ── DASHBOARD STATS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.stat-card{background:var(--blanco);border-radius:var(--r);border:1px solid var(--borde);padding:18px 20px;box-shadow:var(--sombra)}
+.stat-card.accent-verde{border-left:3px solid var(--verde)}
+.stat-card.accent-azul{border-left:3px solid var(--azul-m)}
+.stat-card.accent-amber{border-left:3px solid var(--amber)}
+.stat-card.accent-coral{border-left:3px solid var(--coral)}
+.stat-label{font-size:11px;font-weight:600;color:var(--gris-m);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.stat-val{font-size:30px;font-weight:300;color:var(--azul);font-family:'DM Serif Display',serif;line-height:1}
+.stat-sub{font-size:11px;color:var(--gris-m);margin-top:4px}
+.stat-pct{font-size:13px;font-weight:600;margin-top:3px}
+.stat-pct.verde{color:var(--verde)}.stat-pct.coral{color:var(--coral)}.stat-pct.amber{color:var(--amber)}
+.chart-card{background:var(--blanco);border-radius:var(--r);border:1px solid var(--borde);padding:20px;box-shadow:var(--sombra);margin-bottom:16px}
+.chart-card-title{font-size:14px;font-weight:600;color:var(--azul);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.chart-card-sub{font-size:12px;color:var(--gris-m);margin-bottom:16px}
+.chart-wrap{position:relative;height:220px}
+.chart-wrap.tall{height:280px}
+.stats-2col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.ga4-section{background:var(--blanco);border-radius:var(--r);border:1.5px dashed var(--borde);padding:20px;margin-bottom:16px}
+.ga4-setup{padding:24px;text-align:center;background:linear-gradient(135deg,var(--azul-xc),var(--blanco));border-radius:var(--r-sm)}
+.ga4-setup h3{font-size:15px;font-weight:600;color:var(--azul);margin-bottom:8px}
+.ga4-setup p{font-size:12px;color:var(--gris-m);line-height:1.7;margin-bottom:14px}
+.ga4-steps{text-align:left;background:var(--blanco);border-radius:var(--r-sm);border:1px solid var(--borde);padding:14px 16px;margin-bottom:14px}
+.ga4-steps li{font-size:12px;color:var(--gris-m);line-height:1.9;list-style:none;padding-left:4px}
+.ga4-steps li::before{content:'→ ';color:var(--azul-m);font-weight:600}
+.ga4-key-row{display:flex;gap:8px;margin-bottom:8px}
+.ga4-key-row input{flex:1;padding:8px 11px;border:1.5px solid var(--borde);border-radius:8px;font-size:12px;font-family:'DM Sans',sans-serif;outline:none;background:#fff}
+.ga4-key-row input:focus{border-color:var(--azul-m)}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.bar-row-label{font-size:12px;color:var(--gris-m);width:80px;text-align:right;flex-shrink:0}
+.bar-track{flex:1;height:8px;background:var(--gris-c);border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .6s cubic-bezier(.22,1,.36,1)}
+.bar-val{font-size:12px;font-weight:600;color:var(--azul);width:36px;text-align:right;flex-shrink:0}
+.stats-refresh{padding:7px 14px;background:transparent;border:1.5px solid var(--borde);border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;color:var(--gris-m);font-family:'DM Sans',sans-serif;transition:all .15s;display:flex;align-items:center;gap:5px}
+.stats-refresh:hover{border-color:var(--azul-m);color:var(--azul)}
+.stats-last{font-size:11px;color:var(--gris-m)}
+@media(max-width:700px){.stats-grid{grid-template-columns:1fr 1fr}.stats-2col{grid-template-columns:1fr}}
+
+
+/* ── WORKFLOW STEPS ── */
+.workflow-steps{display:flex;align-items:center;gap:6px;margin-bottom:16px;padding:12px 16px;background:var(--azul-xc);border-radius:10px;border:1px solid var(--azul-c)}
+.wf-step{display:flex;align-items:center;gap:7px;opacity:.45;transition:opacity .2s}
+.wf-step.done{opacity:1}
+.wf-step.active{opacity:1}
+.wf-num{width:22px;height:22px;border-radius:50%;background:var(--gris-b);color:var(--gris-m);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s}
+.wf-step.done .wf-num{background:var(--azul-m);color:#fff}
+.wf-step.active .wf-num{background:var(--verde);color:#fff}
+.wf-label{font-size:12px;font-weight:500;color:var(--gris-m);white-space:nowrap}
+.wf-step.done .wf-label{color:var(--azul-m);font-weight:600}
+.wf-step.active .wf-label{color:var(--verde);font-weight:600}
+.wf-arrow{color:var(--borde);font-size:18px;font-weight:300;flex-shrink:0}
+
+/* ── LEAD BUTTONS con texto ── */
+.lead-btn.lbl{width:auto;padding:0 9px;font-size:11px;font-weight:600}
+.lead-btn.ico{width:28px}
+
+/* ── HISTORIAL RESUMEN CARDS ── */
+.hist-mini-card{background:var(--blanco);border:1px solid var(--borde);border-radius:9px;padding:10px 12px;text-align:center}
+.hist-mini-val{font-size:22px;font-weight:300;font-family:'DM Serif Display',serif;color:var(--azul);line-height:1}
+.hist-mini-lbl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--gris-m);margin-top:3px}
+
+
+/* ── BACKUP PANEL ── */
+.backup-list{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;margin-top:12px}
+.backup-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--gris-c);border-radius:9px;border:1px solid var(--borde);transition:background .1s}
+.backup-row:hover{background:var(--azul-xc)}
+.backup-row-ico{font-size:18px;flex-shrink:0}
+.backup-row-info{flex:1;min-width:0}
+.backup-row-nombre{font-size:12px;font-weight:600;color:var(--azul);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.backup-row-meta{font-size:11px;color:var(--gris-m);margin-top:1px}
+.backup-row-actions{display:flex;gap:5px;flex-shrink:0}
+.backup-auto-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:var(--verde-c);color:var(--verde);margin-left:5px}
+.backup-manual-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:var(--azul-c);color:var(--azul-m);margin-left:5px}
+.backup-restore-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:var(--amber-c);color:var(--amber);margin-left:5px}
+.backup-upload-zone{border:2px dashed var(--borde);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:#fff;margin-top:10px}
+.backup-upload-zone:hover,.backup-upload-zone.drag{border-color:var(--azul-m);background:var(--azul-xc)}
+.backup-upload-zone.ok{border-color:var(--verde);background:var(--verde-c);border-style:solid}
+.backup-status{font-size:12px;padding:8px 12px;border-radius:8px;margin-top:8px;display:none}
+.backup-status.ok{background:var(--verde-c);color:var(--verde);display:block}
+.backup-status.err{background:var(--coral-c);color:var(--coral);display:block}
+
 </style>
 </head>
 <body>
@@ -301,12 +383,21 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
   <button class="ntab on" onclick="irPagina('recordar',this)">📅 Recordar cita <span class="nbadge" id="badge-cita">0</span></button>
   <button class="ntab" onclick="irPagina('valorar',this)">⭐ Pedir valoración <span class="nbadge" id="badge-val">0</span></button>
   <button class="ntab" onclick="irPagina('programar',this)">⏰ Programar envíos</button>
+  <button class="ntab" onclick="irPagina('stats',this)">📊 Estadísticas</button>
   <button class="ntab" onclick="irPagina('historial',this)">📋 Historial <span class="nbadge" id="badge-hist">0</span></button>
   <button class="ntab" onclick="irPagina('listanegra',this)">🚫 Lista negra <span class="nbadge coral" id="badge-lb">0</span></button>
   <button class="ntab" onclick="irPagina('pruebas',this)">🧪 Pruebas</button>
 </div>
 
 <main>
+
+<div id="banner-offline" style="display:none;margin-bottom:16px;padding:13px 18px;background:#fff1f2;border:1.5px solid #fca5a5;border-radius:10px;display:flex;align-items:center;gap:12px;font-size:13px;font-weight:500;color:var(--coral)">
+  <span style="font-size:20px">⚠️</span>
+  <div>
+    <strong>WhatsApp desconectado</strong> — Los mensajes no se enviarán hasta que el servidor esté conectado.
+    <span style="margin-left:8px;text-decoration:underline;cursor:pointer;opacity:.8" onclick="abrirQR()">Conectar ahora →</span>
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════════════════
      PÁGINA: RECORDAR CITA
@@ -321,6 +412,24 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
       <span class="badge-count" id="badge-cita-2">0 pendientes</span>
     </div>
     <div class="section-card-body">
+
+      <!-- Guía de pasos -->
+      <div class="workflow-steps" id="wf-cita">
+        <div class="wf-step done" id="wf-cita-1">
+          <div class="wf-num">1</div>
+          <div class="wf-label">Carga pacientes</div>
+        </div>
+        <div class="wf-arrow">›</div>
+        <div class="wf-step" id="wf-cita-2">
+          <div class="wf-num">2</div>
+          <div class="wf-label">Añade a la cola</div>
+        </div>
+        <div class="wf-arrow">›</div>
+        <div class="wf-step" id="wf-cita-3">
+          <div class="wf-num">3</div>
+          <div class="wf-label">Envía</div>
+        </div>
+      </div>
       <div class="entrada-tabs">
         <button class="etab on" onclick="setEntrada('cita','excel',this)">📂 Excel</button>
         <button class="etab" onclick="setEntrada('cita','pegar',this)">📋 Pegar</button>
@@ -416,6 +525,24 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
       <span class="badge-count verde" id="badge-val-2">0 pendientes</span>
     </div>
     <div class="section-card-body">
+
+      <!-- Guía de pasos -->
+      <div class="workflow-steps" id="wf-val">
+        <div class="wf-step done" id="wf-val-1">
+          <div class="wf-num">1</div>
+          <div class="wf-label">Carga pacientes</div>
+        </div>
+        <div class="wf-arrow">›</div>
+        <div class="wf-step" id="wf-val-2">
+          <div class="wf-num">2</div>
+          <div class="wf-label">Añade a la cola</div>
+        </div>
+        <div class="wf-arrow">›</div>
+        <div class="wf-step" id="wf-val-3">
+          <div class="wf-num">3</div>
+          <div class="wf-label">Envía</div>
+        </div>
+      </div>
       <div class="entrada-tabs">
         <button class="etab on" onclick="setEntrada('val','excel',this)">📂 Excel</button>
         <button class="etab" onclick="setEntrada('val','pegar',this)">📋 Pegar</button>
@@ -726,6 +853,67 @@ Nuestros operadores se pondrán en contacto contigo lo antes posible para agenda
     </div>
   </div>
 
+
+  <!-- ── BACKUP Y RESTAURACIÓN ─────────────────────────────────── -->
+  <div class="section-card">
+    <div class="section-card-header">
+      <div>
+        <div class="section-card-title">💾 Copia de seguridad</div>
+        <div style="font-size:12px;color:var(--gris-m);margin-top:2px">Backup automático cada hora · Historial, lista negra, configuración y sesión WhatsApp</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="backup-auto-status" style="font-size:11px;color:var(--verde);font-weight:500">⏱ Cada hora</span>
+        <button class="btn-sm primary" onclick="crearBackupManual()">💾 Backup ahora</button>
+      </div>
+    </div>
+    <div class="section-card-body">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+        <!-- Columna izquierda: backups existentes -->
+        <div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gris-m);margin-bottom:8px">
+            Backups guardados
+            <button onclick="cargarListaBackups()" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--azul-m);margin-left:6px;font-family:'DM Sans',sans-serif">↺ Actualizar</button>
+          </div>
+          <div id="backup-list-container">
+            <div style="font-size:12px;color:var(--gris-m);padding:12px 0">Cargando...</div>
+          </div>
+        </div>
+
+        <!-- Columna derecha: exportar + restaurar -->
+        <div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gris-m);margin-bottom:8px">Exportar / Restaurar</div>
+
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+            <button class="btn-sm primary" style="justify-content:center" onclick="exportarJSON()">
+              📥 Descargar backup completo (.json)
+            </button>
+            <button class="btn-sm ghost" style="justify-content:center" onclick="crearBackupZip()" id="btn-backup-zip">
+              🗜 Descargar backup con sesión WhatsApp (.zip)
+            </button>
+          </div>
+
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gris-m);margin-bottom:6px">Restaurar desde archivo</div>
+          <div class="backup-upload-zone" id="backup-upload-zone" onclick="document.getElementById('backup-file-input').click()">
+            <div style="font-size:22px;margin-bottom:4px">📂</div>
+            <div style="font-size:13px;font-weight:600;color:var(--azul)">Arrastra o haz clic</div>
+            <div style="font-size:11px;color:var(--gris-m);margin-top:2px">Archivos .json de backup de Avance Dental</div>
+            <input type="file" id="backup-file-input" accept=".json" style="display:none">
+          </div>
+          <div id="backup-status" class="backup-status"></div>
+        </div>
+
+      </div>
+
+      <div style="margin-top:14px;padding:10px 14px;background:var(--amber-c);border:1px solid #fcd34d;border-radius:9px;font-size:12px;color:var(--amber);line-height:1.6">
+        ⚠️ <strong>Los backups se guardan en la carpeta <code>backups/</code></strong> junto al server.js.
+        Para máxima seguridad copia esa carpeta también a un disco externo o nube periódicamente.
+        La sesión de WhatsApp (carpeta <code>auth_avancedental/</code>) solo se incluye en el .zip.
+      </div>
+    </div>
+  </div>
+
   <!-- QR de conexión -->
   <div class="section-card">
     <div class="section-card-header">
@@ -754,6 +942,7 @@ Nuestros operadores se pondrán en contacto contigo lo antes posible para agenda
       </div>
     </div>
     <div class="section-card-body">
+      <div id="hist-resumen" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px"></div>
       <div class="hist-filters">
         <input type="text" class="hist-search" id="hist-search" placeholder="🔍 Buscar por nombre o teléfono..." oninput="renderHistorial()">
         <button class="hist-filter-btn on" onclick="filtroHist('todos',this)">Todos</button>
@@ -832,7 +1021,125 @@ Nuestros operadores se pondrán en contacto contigo lo antes posible para agenda
   </div>
 </div>
 
+
+<!-- ═══════════════════════════════════════════════════
+     PÁGINA: ESTADÍSTICAS
+════════════════════════════════════════════════════ -->
+<div class="page" id="page-stats">
+
+  <!-- Header con refresh -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+    <div>
+      <div style="font-size:17px;font-weight:600;color:var(--azul)">📊 Panel de estadísticas</div>
+      <div class="stats-last" id="stats-last-update">Cargando datos...</div>
+    </div>
+    <button class="stats-refresh" onclick="cargarStats()">🔄 Actualizar</button>
+  </div>
+
+  <!-- KPIs principales -->
+  <div class="stats-grid">
+    <div class="stat-card accent-azul">
+      <div class="stat-label">📅 Recordatorios enviados</div>
+      <div class="stat-val" id="st-cita-enviados">—</div>
+      <div class="stat-sub">Total histórico</div>
+      <div class="stat-pct verde" id="st-cita-tasa">—</div>
+    </div>
+    <div class="stat-card accent-verde">
+      <div class="stat-label">✅ Confirmadas</div>
+      <div class="stat-val" id="st-cita-si">—</div>
+      <div class="stat-sub">Respuestas SÍ</div>
+      <div class="stat-pct verde" id="st-cita-si-pct">—</div>
+    </div>
+    <div class="stat-card accent-coral">
+      <div class="stat-label">❌ Canceladas</div>
+      <div class="stat-val" id="st-cita-no">—</div>
+      <div class="stat-sub">Respuestas NO</div>
+      <div class="stat-pct coral" id="st-cita-no-pct">—</div>
+    </div>
+    <div class="stat-card accent-amber">
+      <div class="stat-label">⭐ Valoraciones enviadas</div>
+      <div class="stat-val" id="st-val-enviados">—</div>
+      <div class="stat-sub">Total histórico</div>
+      <div class="stat-pct amber" id="st-val-hoy">—</div>
+    </div>
+  </div>
+
+  <div class="stats-2col">
+
+    <!-- Envíos por día (últimos 14 días) -->
+    <div class="chart-card">
+      <div class="chart-card-title">📈 Envíos últimos 14 días</div>
+      <div class="chart-card-sub">Recordatorios y valoraciones por día</div>
+      <div class="chart-wrap"><canvas id="chart-envios"></canvas></div>
+    </div>
+
+    <!-- Respuestas SÍ/NO citas -->
+    <div class="chart-card">
+      <div class="chart-card-title">🎯 Tasa de confirmación de citas</div>
+      <div class="chart-card-sub">Solo cuando flujo SÍ/NO está activo</div>
+      <div class="chart-wrap" style="height:200px;display:flex;align-items:center;justify-content:center">
+        <canvas id="chart-sino" style="max-width:200px;max-height:200px"></canvas>
+      </div>
+      <div id="sino-legend" style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:8px;font-size:12px"></div>
+    </div>
+
+  </div>
+
+  <!-- Variantes A/B -->
+  <div class="chart-card" style="margin-bottom:16px">
+    <div class="chart-card-title">🧪 Rendimiento variantes A/B <span style="font-size:11px;font-weight:400;color:var(--gris-m)">(mensajes de valoración)</span></div>
+    <div class="chart-card-sub">Cuántos mensajes de cada variante se han enviado</div>
+    <div id="ab-bars" style="padding:4px 0"></div>
+  </div>
+
+  <!-- GA4 Section -->
+  <div class="chart-card" style="border:1.5px solid var(--azul-c)">
+    <div class="chart-card-title">
+      <span style="background:linear-gradient(135deg,#e37400,#f9ab00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:700">G</span>
+      Google Analytics 4 — Clics en reseña
+    </div>
+    <div class="chart-card-sub">Datos reales de cuántos pacientes hicieron clic en Google Reviews tras recibir el mensaje</div>
+    <div id="ga4-content">
+      <!-- Se rellena dinámicamente: setup si no hay creds, datos si sí -->
+      <div class="ga4-setup">
+        <div style="font-size:32px;margin-bottom:10px">📡</div>
+        <h3>Conecta Google Analytics 4</h3>
+        <p>Para ver los datos de clics en Google Reviews necesitas crear una <strong>Service Account</strong> en Google Cloud y darle acceso a tu propiedad de GA4. Es un proceso de 5 minutos.</p>
+        <ol class="ga4-steps">
+          <li>Ve a <strong>console.cloud.google.com</strong> → Crea un proyecto</li>
+          <li>Habilita la API: <strong>Google Analytics Data API</strong></li>
+          <li>Crea una <strong>Service Account</strong> y descarga el JSON de credenciales</li>
+          <li>En <strong>analytics.google.com</strong> → Admin → Gestión de acceso → añade el email de la Service Account como <em>Viewer</em></li>
+          <li>Pon la ruta al JSON y el Property ID abajo y pulsa Guardar</li>
+        </ol>
+        <div class="ga4-key-row">
+          <input type="text" id="ga4-property-id" placeholder="Property ID de GA4 (ej: 123456789)" style="max-width:260px">
+          <input type="text" id="ga4-credentials-path" placeholder="Ruta al JSON (ej: ./ga4-key.json)">
+          <button class="btn-sched" onclick="guardarGA4Config()">💾 Guardar</button>
+        </div>
+        <div id="ga4-status" style="font-size:12px;color:var(--gris-m);margin-top:4px"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
 </main>
+
+
+<!-- Modal Preview Mensaje -->
+<div class="mfondo" id="mfondo-preview" onclick="if(event.target===this)this.classList.remove('on')">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-h">
+      <h3 id="preview-titulo">Vista previa del mensaje</h3>
+      <button class="modal-x" onclick="document.getElementById('mfondo-preview').classList.remove('on')">×</button>
+    </div>
+    <div class="modal-b">
+      <div style="background:#e9fbe9;border-radius:12px 12px 12px 4px;padding:14px 16px;font-size:13px;line-height:1.7;color:#1a1a2e;white-space:pre-wrap;font-family:'DM Sans',sans-serif;max-height:380px;overflow-y:auto;border:1px solid #c6f0c6" id="preview-texto"></div>
+      <div style="font-size:11px;color:var(--gris-m);margin-top:10px;text-align:right">Así se verá en WhatsApp del paciente</div>
+    </div>
+  </div>
+</div>
 
 <!-- Modal QR -->
 <div class="mfondo" id="mfondo-qr" onclick="if(event.target===this)document.getElementById('mfondo-qr').classList.remove('on')">
@@ -924,6 +1231,7 @@ function actualizarEstadoWA(estado) {
 
   btn.className = 'wa-status';
   dot.className = 'wa-dot';
+  actualizarBannerOffline(estado);
 
   if (estado === 'conectado') {
     btn.classList.add('connected');
@@ -963,7 +1271,8 @@ function irPagina(nombre, btn) {
   btn.classList.add('on');
   if (nombre==='historial') { sincronizarHistorial(); renderHistorial(); }
   if (nombre==='listanegra') { sincronizarLB(); renderListaNegra(); }
-  if (nombre==='programar') { cargarEstadoCola(); }
+  if (nombre==='programar') { cargarEstadoCola(); cargarListaBackups(); }
+  if (nombre==='stats') { cargarStats(); }
 }
 
 // ═══════════════════════════════════════════════════
@@ -1340,6 +1649,7 @@ function renderLeads(mod) {
   // Mostrar sección
   const wrap = document.getElementById('leads-wrap-'+mod);
   wrap.style.display = 'block';
+  actualizarWorkflow(mod, pendientes.length>0 ? 1 : 2);
 
   // Título
   const total = filtrados.length;
@@ -1373,12 +1683,13 @@ function renderLeads(mod) {
     if (esLB) tags.push(`<span class="lead-tag lb">🚫 Bloqueado</span>`);
 
     const acciones = esLB
-      ? `<button class="lead-btn" onclick="quitarLB('${p.tel}')" title="Desbloquear">✓</button>`
+      ? `<button class="lead-btn lbl" onclick="quitarLB('${p.tel}')" title="Desbloquear">✓ Desbloquear</button>`
       : esEnviado
-        ? `<button class="lead-btn" onclick="resetearEnviado('${p.tel}','${mod}')" title="Marcar como no enviado para reenviar">↺</button>
-           <button class="lead-btn red" onclick="bloquearDesdeLeads('${p.tel}','${x(p.nombre)}')" title="Bloquear">🚫</button>`
-        : `<button class="lead-btn green" onclick="añadirUnoACola('${p.tel}','${mod}')" title="Añadir a cola">+</button>
-           <button class="lead-btn red" onclick="bloquearDesdeLeads('${p.tel}','${x(p.nombre)}')" title="Bloquear">🚫</button>`;
+        ? `<button class="lead-btn lbl" onclick="resetearEnviado('${p.tel}','${mod}')" title="Marcar como no enviado para reenviar">↺ Reenviar</button>
+           <button class="lead-btn red ico" onclick="bloquearDesdeLeads('${p.tel}','${x(p.nombre)}')" title="Bloquear">🚫</button>`
+        : `<button class="lead-btn green lbl" onclick="verMensaje('${p.tel}','${mod}')" title="Ver mensaje">👁</button>
+           <button class="lead-btn green lbl" onclick="añadirUnoACola('${p.tel}','${mod}')">+ Cola</button>
+           <button class="lead-btn red ico" onclick="bloquearDesdeLeads('${p.tel}','${x(p.nombre)}')" title="Bloquear">🚫</button>`;
 
     return `<div class="lead-card ${cls}" id="lead-card-${p.tel}-${mod}">
       <div class="lead-nombre">${x(p.nombre)}</div>
@@ -1416,8 +1727,6 @@ async function actualizarColaBar() {
         document.getElementById('cola-bar-cita-txt').textContent = `${d.pendientesCita} en la cola de recordatorios`;
       } else { barCita.style.display = 'none'; }
     }
-    const sp = document.getElementById('sched-pendientes');
-    if(sp) sp.textContent = (d.pendientes||0);
   } catch {
     const bv = document.getElementById('cola-bar-val');
     const bc = document.getElementById('cola-bar-cita');
@@ -1427,7 +1736,8 @@ async function actualizarColaBar() {
 }
 
 function vaciarLista(mod) {
-  if (!confirm('¿Vaciar la lista de pacientes cargados?')) return;
+  const cnt = (window['datos_'+mod]||[]).length;
+  if (!confirm(`¿Vaciar la lista? Se eliminarán ${cnt} paciente${cnt!==1?'s':''} de la pantalla (no afecta al historial ni a lo ya enviado).`)) return;
   window['datos_'+mod] = [];
   document.getElementById('leads-wrap-'+mod).style.display = 'none';
   document.getElementById('badge-'+mod).textContent = '0';
@@ -1471,6 +1781,7 @@ async function añadirTodosACola(mod) {
     const d = await r.json();
     toast(`✅ ${d.añadidos} pacientes añadidos a la cola de envío`,'ok');
     actualizarColaBar();
+    actualizarWorkflow(mod, 2);
   } catch(err) {
     toast('❌ Error al añadir a la cola: '+err.message,'err');
   }
@@ -1487,7 +1798,7 @@ async function añadirUnoACola(tel, mod) {
       body: JSON.stringify({ pacientes:[{...p, fecha:p.fecha?.toISOString()||null, mod}] })
     });
     const d = await r.json();
-    if (d.añadidos) toast(`✅ ${p.nombre} añadido a la cola`,'ok');
+    if (d.añadidos) { toast(`✅ ${p.nombre} añadido a la cola`,'ok'); actualizarWorkflow(mod, 2); }
     else toast(`ℹ️ ${p.nombre} ya está en la cola`);
     actualizarColaBar();
   } catch(err) { toast('❌ '+err.message,'err'); }
@@ -1516,12 +1827,19 @@ async function enviarAhora(mod) {
     if (!r.ok) { const e=await r.json(); throw new Error(e.error||'Error'); }
     const d = await r.json();
     toast('⚡ '+d.mensaje,'ok');
+    if(mod) actualizarWorkflow(mod, 3);
   } catch(err) { toast('❌ '+err.message,'err'); }
   finally { if(btn) setTimeout(()=>btn.disabled=false,3000); }
 }
 
 async function limpiarCola(mod) {
-  if (!confirm('¿Vaciar la cola de envío? Los mensajes no enviados se perderán.')) return;
+  let pendInfo = '';
+  try {
+    const rc = await fetch(API_BASE+'/api/cola'); const dc = await rc.json();
+    const n = mod ? (mod==='cita'?dc.pendientesCita:dc.pendientesVal) : dc.pendientes;
+    if (n > 0) pendInfo = ` Se perderán ${n} mensaje${n!==1?'s':''} pendientes de envío.`;
+  } catch {}
+  if (!confirm('¿Vaciar la cola de envío?' + pendInfo)) return;
   if (!MODO_BAILEYS) return;
   const url = mod ? API_BASE+'/api/cola/limpiar?mod='+mod : API_BASE+'/api/cola/limpiar';
   await fetch(url,{method:'DELETE'});
@@ -1540,6 +1858,7 @@ function filtroHist(tipo, btn) {
 }
 
 function renderHistorial() {
+  renderHistorialResumen();
   const busq = (document.getElementById('hist-search')?.value || '').toLowerCase();
   const lista = Object.entries(enviados);
 
@@ -1577,6 +1896,8 @@ function renderHistorial() {
       <td>
         ${d.cita?`<span class="hist-tag cita">📅 Cita</span> `:''}
         ${d.val?`<span class="hist-tag val">⭐ Valoración</span>`:''}
+        ${d.confirmado===true?`<span class="hist-tag" style="background:#dcfce7;color:#15803d">✅ Confirmó</span>`:''}
+        ${d.cancelado===true?`<span class="hist-tag" style="background:#fee2e2;color:#dc2626">❌ Canceló</span>`:''}
       </td>
       <td>
         <div class="hist-actions">
@@ -1606,7 +1927,8 @@ async function resetearHist(tel, mod) {
 }
 
 async function borrarHist(tel) {
-  if (!confirm('¿Eliminar este registro del historial?')) return;
+  const nom = enviados[tel]?.nombre || tel;
+  if (!confirm(`¿Eliminar el registro de ${nom}? Se borrará del historial permanentemente.`)) return;
   if (MODO_BAILEYS) await fetch(`${API_BASE}/api/historial/${tel}`,{method:'DELETE'});
   delete enviados[tel];
   localStorage.setItem('ad_enviados',JSON.stringify(enviados));
@@ -1621,7 +1943,8 @@ function bloquearDesdeHist(tel, nombre) {
 }
 
 function limpiarHistorialCompleto() {
-  if (!confirm('¿Borrar TODO el historial? Esta acción no se puede deshacer.')) return;
+  const cnt = Object.keys(enviados).length;
+  if (!confirm(`¿Borrar todo el historial? Se eliminarán ${cnt} registro${cnt!==1?'s':''} permanentemente. Esta acción no se puede deshacer.`)) return;
   enviados = {};
   localStorage.setItem('ad_enviados','{}');
   renderHistorial();
@@ -1696,7 +2019,7 @@ async function quitarLB(tel) {
 }
 
 function bloquearDesdeLeads(tel, nombre) {
-  if (!confirm(`¿Bloquear el teléfono ${tel}${nombre?' de '+nombre:''}?`)) return;
+  if (!confirm(`¿Bloquear a ${nombre||tel}? No recibirá más mensajes de ningún módulo.`)) return;
   _addLB(tel, nombre);
 }
 
@@ -2036,5 +2359,535 @@ function toast(msg, tipo=''){
   if(el) el.value = new Date().toISOString().split('T')[0];
 })();
 </script>
+
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════
+// DASHBOARD DE ESTADÍSTICAS
+// ═══════════════════════════════════════════════════
+
+let chartEnvios = null;
+let chartSino   = null;
+
+// Paleta coherente con la app
+const C = {
+  azul:   '#2563a8',
+  azulC:  'rgba(37,99,168,0.12)',
+  verde:  '#0f7b55',
+  verdeC: 'rgba(15,123,85,0.15)',
+  coral:  '#c0392b',
+  coralC: 'rgba(192,57,43,0.15)',
+  amber:  '#d97706',
+  amberC: 'rgba(217,119,6,0.15)',
+  gris:   '#e8e8f0',
+};
+
+async function cargarStats() {
+  if (!MODO_BAILEYS) {
+    document.getElementById('stats-last-update').textContent = '⚠️ Servidor offline — inicia el servidor para ver estadísticas';
+    renderStatsLocal();
+    return;
+  }
+  try {
+    // Cargar historial, cola, status y ab-stats en paralelo
+    const [rHist, rStatus, rAb] = await Promise.all([
+      fetch(API_BASE+'/api/historial'),
+      fetch(API_BASE+'/api/status'),
+      fetch(API_BASE+'/api/ab-stats').catch(()=>null),
+    ]);
+    const historial = await rHist.json();
+    const status    = await rStatus.json();
+    const abData    = rAb ? await rAb.json().catch(()=>null) : null;
+
+    renderStatsFromServer(historial, status, abData);
+    document.getElementById('stats-last-update').textContent =
+      'Actualizado ' + new Date().toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit'});
+  } catch(e) {
+    document.getElementById('stats-last-update').textContent = '❌ Error cargando datos';
+    renderStatsLocal();
+  }
+}
+
+function renderStatsLocal() {
+  // Usa datos de localStorage como fallback
+  const env = JSON.parse(localStorage.getItem('ad_enviados') || '{}');
+  const historial = Object.entries(env).map(([tel,v])=>({tel,...v}));
+  renderStatsFromServer(historial, null, null);
+}
+
+function renderStatsFromServer(historial, status, abData) {
+  // ── Calcular métricas ──────────────────────────────────────────────────────
+  const totalCita = historial.filter(h => h.cita).length;
+  const totalVal  = historial.filter(h => h.val).length;
+  const hoyStr    = new Date().toISOString().split('T')[0];
+  const valHoy    = status ? (status.enviosHoyVal || 0) : historial.filter(h=>h.val===hoyStr).length;
+
+  // SÍ/NO desde el campo 'confirmado'/'cancelado' si existe
+  const conResp  = historial.filter(h => h.cita && (h.confirmado !== undefined || h.cancelado !== undefined));
+  const siCount  = historial.filter(h => h.confirmado === true).length;
+  const noCount  = historial.filter(h => h.cancelado  === true).length;
+  const sinResp  = totalCita - siCount - noCount;
+
+  // ── KPIs ──────────────────────────────────────────────────────────────────
+  const g = id => document.getElementById(id);
+  g('st-cita-enviados').textContent = totalCita;
+  g('st-cita-si').textContent       = siCount;
+  g('st-cita-no').textContent       = noCount;
+  g('st-val-enviados').textContent  = totalVal;
+
+  const tasaCita = totalCita > 0 ? Math.round(siCount / totalCita * 100) : 0;
+  const tasaSi   = (siCount + noCount) > 0 ? Math.round(siCount / (siCount + noCount) * 100) : 0;
+  const tasaNo   = (siCount + noCount) > 0 ? Math.round(noCount / (siCount + noCount) * 100) : 0;
+
+  if (totalCita > 0) {
+    g('st-cita-tasa').textContent   = tasaCita + '% tasa respuesta';
+    g('st-cita-tasa').className     = 'stat-pct ' + (tasaCita >= 60 ? 'verde' : tasaCita >= 30 ? 'amber' : 'coral');
+  } else {
+    g('st-cita-tasa').textContent = 'Sin datos aún';
+  }
+  if (siCount > 0) {
+    g('st-cita-si-pct').textContent = tasaSi + '% de respuestas';
+    g('st-cita-si-pct').className   = 'stat-pct verde';
+  }
+  if (noCount > 0) {
+    g('st-cita-no-pct').textContent = tasaNo + '% de respuestas';
+    g('st-cita-no-pct').className   = 'stat-pct coral';
+  }
+  g('st-val-hoy').textContent = valHoy + ' enviadas hoy';
+  g('st-val-hoy').className   = 'stat-pct amber';
+
+  // ── Gráfica envíos últimos 14 días ────────────────────────────────────────
+  const dias14 = Array.from({length:14}, (_,i) => {
+    const d = new Date(); d.setDate(d.getDate()-13+i);
+    return d.toISOString().split('T')[0];
+  });
+  const citasPorDia = dias14.map(d => historial.filter(h=>h.cita===d).length);
+  const valPorDia   = dias14.map(d => historial.filter(h=>h.val===d).length);
+  const labels14    = dias14.map(d => {
+    const f = new Date(d+'T12:00:00');
+    return f.toLocaleDateString('es-ES',{day:'numeric',month:'short'});
+  });
+
+  const ctxE = document.getElementById('chart-envios').getContext('2d');
+  if (chartEnvios) chartEnvios.destroy();
+  chartEnvios = new Chart(ctxE, {
+    type: 'bar',
+    data: {
+      labels: labels14,
+      datasets: [
+        { label:'Recordatorios cita', data:citasPorDia, backgroundColor:C.azulC, borderColor:C.azul, borderWidth:1.5, borderRadius:4 },
+        { label:'Valoraciones',       data:valPorDia,   backgroundColor:C.verdeC, borderColor:C.verde, borderWidth:1.5, borderRadius:4 },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, boxWidth:12, padding:12 } } },
+      scales:{
+        x:{ grid:{display:false}, ticks:{font:{size:10},maxRotation:45} },
+        y:{ beginAtZero:true, grid:{color:'rgba(0,0,0,0.04)'}, ticks:{font:{size:11},stepSize:1} }
+      }
+    }
+  });
+
+  // ── Gráfica SÍ/NO ─────────────────────────────────────────────────────────
+  const ctxS = document.getElementById('chart-sino').getContext('2d');
+  if (chartSino) chartSino.destroy();
+
+  if (siCount + noCount + sinResp === 0) {
+    // Sin datos de SÍ/NO — mensaje de espera
+    ctxS.canvas.style.display = 'none';
+    document.getElementById('sino-legend').innerHTML =
+      '<span style="font-size:12px;color:var(--gris-m)">Sin respuestas registradas aún — activa el flujo SÍ/NO en Programar envíos</span>';
+  } else {
+    ctxS.canvas.style.display = '';
+    chartSino = new Chart(ctxS, {
+      type: 'doughnut',
+      data: {
+        labels: ['Confirmadas ✅','Canceladas ❌', sinResp > 0 ? 'Sin respuesta' : null].filter(Boolean),
+        datasets:[{
+          data: [siCount, noCount, sinResp > 0 ? sinResp : null].filter(v=>v!==null&&v>0),
+          backgroundColor:[C.verde, C.coral, C.gris],
+          borderWidth:0, hoverOffset:6
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:true, cutout:'68%',
+        plugins:{
+          legend:{ display:false },
+          tooltip:{ callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.raw} (${Math.round(ctx.raw/(siCount+noCount+(sinResp||0))*100)}%)` } }
+        }
+      }
+    });
+    // Leyenda manual
+    const colores = [C.verde, C.coral, C.gris];
+    const leyendaItems = [
+      {l:'Confirmadas', v:siCount, c:C.verde},
+      {l:'Canceladas',  v:noCount, c:C.coral},
+      ...(sinResp > 0 ? [{l:'Sin resp.',v:sinResp,c:C.gris}] : [])
+    ];
+    document.getElementById('sino-legend').innerHTML = leyendaItems.map(it=>
+      `<span style="display:flex;align-items:center;gap:5px">
+        <span style="width:10px;height:10px;border-radius:50%;background:${it.c};display:inline-block"></span>
+        <span style="color:var(--gris-m)">${it.l}: <strong style="color:var(--gris-o)">${it.v}</strong></span>
+      </span>`
+    ).join('');
+  }
+
+  // ── Barras A/B ────────────────────────────────────────────────────────────
+  const abContainer = document.getElementById('ab-bars');
+  if (abData && abData.stats && abData.stats.length) {
+    const maxEnv = Math.max(...abData.stats.map(s=>s.enviados), 1);
+    const coloresAb = [C.azul, C.verde, C.amber, C.coral];
+    abContainer.innerHTML = abData.stats.map((s,i) => {
+      const pct = Math.round(s.enviados/maxEnv*100);
+      return `<div class="bar-row">
+        <div class="bar-row-label">Variante ${i}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${coloresAb[i%4]}"></div></div>
+        <div class="bar-val">${s.enviados}</div>
+      </div>`;
+    }).join('') + `<div style="font-size:11px;color:var(--gris-m);margin-top:8px">Los clics reales en Google Reviews se miden en GA4 (ver sección abajo)</div>`;
+  } else {
+    abContainer.innerHTML = '<div style="font-size:12px;color:var(--gris-m);padding:8px 0">Sin envíos de valoración registrados aún</div>';
+  }
+
+  // ── GA4 ──────────────────────────────────────────────────────────────────
+  cargarGA4Stats();
+}
+
+// ── GA4 ───────────────────────────────────────────────────────────────────
+async function cargarGA4Stats() {
+  if (!MODO_BAILEYS) return;
+  try {
+    const r = await fetch(API_BASE+'/api/analytics');
+    if (!r.ok) return; // no configurado aún — mantiene el panel de setup
+    const d = await r.json();
+    if (d.noConfigurado) return; // mostrar setup
+    renderGA4(d);
+  } catch { /* mantener panel setup */ }
+}
+
+function renderGA4(d) {
+  const container = document.getElementById('ga4-content');
+  // d.totalClics, d.clicsPorDia [{fecha, clics}], d.clicsPorVariante {v0,v1,v2,v3}
+  const totalClics = d.totalClics || 0;
+  const porDia     = d.clicsPorDia || [];
+  const porVar     = d.clicsPorVariante || {};
+
+  container.innerHTML = `
+    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
+      <div class="stat-card accent-verde">
+        <div class="stat-label">Clics en Google Reviews</div>
+        <div class="stat-val">${totalClics}</div>
+        <div class="stat-sub">Últimos 30 días</div>
+      </div>
+      <div class="stat-card accent-azul">
+        <div class="stat-label">Clics hoy</div>
+        <div class="stat-val">${d.clicsHoy || 0}</div>
+        <div class="stat-sub">Sesiones landing</div>
+      </div>
+      <div class="stat-card accent-amber">
+        <div class="stat-label">Tasa conversión</div>
+        <div class="stat-val">${d.tasaConversion || '—'}</div>
+        <div class="stat-sub">Enviados → clic Google</div>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:160px">
+      <canvas id="chart-ga4"></canvas>
+    </div>
+  `;
+
+  if (porDia.length) {
+    const ctxG = document.getElementById('chart-ga4').getContext('2d');
+    new Chart(ctxG, {
+      type:'line',
+      data:{
+        labels: porDia.map(r=>new Date(r.fecha+'T12:00').toLocaleDateString('es-ES',{day:'numeric',month:'short'})),
+        datasets:[{
+          label:'Clics Google Reviews',
+          data: porDia.map(r=>r.clics),
+          borderColor:C.amber, backgroundColor:'rgba(217,119,6,0.08)',
+          borderWidth:2, fill:true, tension:.35,
+          pointBackgroundColor:C.amber, pointRadius:3
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{
+          x:{grid:{display:false},ticks:{font:{size:10}}},
+          y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11},stepSize:1}}
+        }
+      }
+    });
+  }
+}
+
+async function guardarGA4Config() {
+  const propId = document.getElementById('ga4-property-id')?.value.trim();
+  const credPath = document.getElementById('ga4-credentials-path')?.value.trim();
+  const statusEl = document.getElementById('ga4-status');
+  if (!propId || !credPath) { statusEl.textContent = '⚠️ Rellena ambos campos'; return; }
+  try {
+    const r = await fetch(API_BASE+'/api/analytics/config', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ propertyId: propId, credentialsPath: credPath })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      statusEl.textContent = '✅ Configuración guardada — probando conexión...';
+      statusEl.style.color = 'var(--verde)';
+      setTimeout(cargarGA4Stats, 1500);
+    } else {
+      statusEl.textContent = '❌ ' + (d.error || 'Error');
+      statusEl.style.color = 'var(--coral)';
+    }
+  } catch(e) {
+    statusEl.textContent = '❌ Servidor offline';
+    statusEl.style.color = 'var(--coral)';
+  }
+}
+
+
+// ════════════════════════════════════════════
+// MEJORA 6 — Preview del mensaje
+// ════════════════════════════════════════════
+function verMensaje(tel, mod) {
+  const todos = window['datos_'+mod] || [];
+  const p = todos.find(t=>t.tel===tel);
+  if (!p) return;
+  const msg = mod==='cita' ? msgCita(p) : msgVal(p);
+  // Convertir *texto* a negrita simulada y saltos de línea
+  const html = msg
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*(.*?)\*/g,'<strong>$1</strong>')
+    .replace(/\n/g,'<br>');
+  document.getElementById('preview-titulo').textContent =
+    mod==='cita' ? `📅 Recordatorio — ${p.nombre.split(' ')[0]}` : `⭐ Valoración — ${p.nombre.split(' ')[0]}`;
+  document.getElementById('preview-texto').innerHTML = html;
+  document.getElementById('mfondo-preview').classList.add('on');
+}
+
+// ════════════════════════════════════════════
+// MEJORA 2 — Actualizar pasos del workflow
+// ════════════════════════════════════════════
+function actualizarWorkflow(mod, paso) {
+  // paso: 1=cargado, 2=en cola, 3=enviando
+  for (let i=1; i<=3; i++) {
+    const el = document.getElementById('wf-'+mod+'-'+i);
+    if (!el) continue;
+    el.classList.remove('done','active');
+    if (i < paso) el.classList.add('done');
+    else if (i === paso) el.classList.add('active');
+  }
+}
+
+// ════════════════════════════════════════════
+// MEJORA 3 — Banner offline actualizado
+// ════════════════════════════════════════════
+function actualizarBannerOffline(estado) {
+  const banner = document.getElementById('banner-offline');
+  if (!banner) return;
+  banner.style.display = (estado !== 'conectado') ? 'flex' : 'none';
+}
+
+// ════════════════════════════════════════════
+// MEJORA 7 — Resumen mini en historial
+// ════════════════════════════════════════════
+function renderHistorialResumen() {
+  const lista = Object.values(enviados);
+  const hoyStr = new Date().toISOString().split('T')[0];
+  const totalCita = lista.filter(d=>d.cita).length;
+  const totalVal  = lista.filter(d=>d.val).length;
+  const confirm_  = lista.filter(d=>d.confirmado===true).length;
+  const cancel_   = lista.filter(d=>d.cancelado===true).length;
+  const hoyCount  = lista.filter(d=>d.cita===hoyStr||d.val===hoyStr).length;
+
+  const cards = [
+    {v:totalCita, l:'Recordatorios', color:'var(--azul-m)'},
+    {v:totalVal,  l:'Valoraciones',  color:'var(--verde)'},
+    {v:confirm_,  l:'Confirmaron ✅', color:'#15803d'},
+    {v:cancel_,   l:'Cancelaron ❌',  color:'#dc2626'},
+  ];
+  const el = document.getElementById('hist-resumen');
+  if (el) el.innerHTML = cards.map(c=>
+    `<div class="hist-mini-card" style="border-top:2px solid ${c.color}">
+      <div class="hist-mini-val" style="color:${c.color}">${c.v}</div>
+      <div class="hist-mini-lbl">${c.l}</div>
+    </div>`
+  ).join('');
+}
+
+
+
+
+// ═══════════════════════════════════════════════════
+// BACKUP
+// ═══════════════════════════════════════════════════
+
+async function cargarListaBackups() {
+  const container = document.getElementById('backup-list-container');
+  if (!MODO_BAILEYS) {
+    container.innerHTML = '<div style="font-size:12px;color:var(--gris-m);padding:8px 0">⚠️ Servidor offline</div>';
+    return;
+  }
+  try {
+    const r = await fetch(API_BASE+'/api/backup/list');
+    const d = await r.json();
+    const backups = d.backups || [];
+    if (!backups.length) {
+      container.innerHTML = '<div style="font-size:12px;color:var(--gris-m);padding:8px 0">Ningún backup todavía — se creará el primero en breve.</div>';
+      return;
+    }
+    container.innerHTML = '<div class="backup-list">' + backups.slice(0, 20).map(b => {
+      const isAuto    = b.nombre.includes('_auto_');
+      const isManual  = b.nombre.includes('_manual_');
+      const isRestore = b.nombre.includes('_pre-restore_');
+      const isZip     = b.nombre.endsWith('.zip');
+      const badge = isRestore ? '<span class="backup-restore-badge">Pre-restore</span>'
+                  : isAuto   ? '<span class="backup-auto-badge">Auto</span>'
+                  : isManual ? '<span class="backup-manual-badge">Manual</span>' : '';
+      const kb   = (b.tamaño / 1024).toFixed(1);
+      const fecha = new Date(b.fecha).toLocaleString('es-ES', {day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+      return `<div class="backup-row">
+        <div class="backup-row-ico">${isZip ? '🗜' : '📄'}</div>
+        <div class="backup-row-info">
+          <div class="backup-row-nombre">${b.nombre}${badge}</div>
+          <div class="backup-row-meta">${fecha} · ${kb} KB</div>
+        </div>
+        <div class="backup-row-actions">
+          <button class="btn-sm ghost" style="padding:4px 9px;font-size:11px" onclick="descargarBackup('${b.nombre}')" title="Descargar">⬇</button>
+          <button class="btn-sm danger" style="padding:4px 9px;font-size:11px" onclick="restaurarBackupServidor('${b.nombre}')" title="Restaurar este backup">↺</button>
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+  } catch(e) {
+    container.innerHTML = `<div style="font-size:12px;color:var(--coral);padding:8px 0">❌ ${e.message}</div>`;
+  }
+}
+
+async function crearBackupManual() {
+  if (!MODO_BAILEYS) { toast('⚠️ Servidor offline','err'); return; }
+  toast('💾 Creando backup...', '');
+  try {
+    const r = await fetch(API_BASE+'/api/backup/crear', { method:'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      toast(`✅ Backup creado: ${d.nombre} (${(d.tamaño/1024).toFixed(1)} KB)`, 'ok');
+      cargarListaBackups();
+    } else { toast('❌ ' + d.error, 'err'); }
+  } catch(e) { toast('❌ ' + e.message, 'err'); }
+}
+
+async function crearBackupZip() {
+  if (!MODO_BAILEYS) { toast('⚠️ Servidor offline','err'); return; }
+  toast('🗜 Creando backup ZIP con sesión WhatsApp...', '');
+  try {
+    const r = await fetch(API_BASE+'/api/backup/crear', { method:'POST' });
+    const d = await r.json();
+    if (!d.ok) { toast('❌ ' + d.error, 'err'); return; }
+    if (d.tipo === 'zip') {
+      toast('✅ ZIP creado — descargando...', 'ok');
+      descargarBackup(d.nombre);
+    } else {
+      toast('ℹ️ archiver no instalado — descargando JSON. Ejecuta: npm install archiver', '');
+      descargarBackup(d.nombre);
+    }
+    cargarListaBackups();
+  } catch(e) { toast('❌ ' + e.message, 'err'); }
+}
+
+function descargarBackup(nombre) {
+  const a = document.createElement('a');
+  a.href = API_BASE + '/api/backup/descargar/' + encodeURIComponent(nombre);
+  a.download = nombre;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+async function exportarJSON() {
+  if (!MODO_BAILEYS) { toast('⚠️ Servidor offline','err'); return; }
+  window.open(API_BASE + '/api/backup/export-json', '_blank');
+}
+
+async function restaurarBackupServidor(nombre) {
+  if (!confirm(`¿Restaurar el backup "${nombre}"?\n\nSe creará automáticamente un backup de seguridad del estado actual antes de restaurar.`)) return;
+  if (!MODO_BAILEYS) { toast('⚠️ Servidor offline','err'); return; }
+  try {
+    const r = await fetch(API_BASE+'/api/backup/descargar/'+encodeURIComponent(nombre));
+    const text = await r.text();
+    await _restaurarJSON(text, nombre);
+  } catch(e) { toast('❌ ' + e.message, 'err'); }
+}
+
+// Restaurar desde archivo local (drag&drop o input)
+async function restaurarDesdeArchivo(file) {
+  if (!file || !file.name.endsWith('.json')) {
+    mostrarBackupStatus('❌ Solo se admiten archivos .json de backup de Avance Dental', 'err');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const text = e.target.result;
+    if (!confirm(`¿Restaurar datos desde "${file.name}"?\n\nSe hará un backup de seguridad del estado actual antes de restaurar. Esta acción reemplaza el historial y la configuración actuales.`)) return;
+    await _restaurarJSON(text, file.name);
+  };
+  reader.readAsText(file);
+}
+
+async function _restaurarJSON(jsonText, origen) {
+  const statusEl = document.getElementById('backup-status');
+  mostrarBackupStatus('⏳ Restaurando...', '');
+  if (!MODO_BAILEYS) { mostrarBackupStatus('❌ Servidor offline — no se puede restaurar', 'err'); return; }
+  try {
+    const parsed = JSON.parse(jsonText); // validar que es JSON válido
+    const r = await fetch(API_BASE+'/api/backup/restaurar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(parsed)
+    });
+    const d = await r.json();
+    if (d.ok) {
+      mostrarBackupStatus(`✅ Restaurado correctamente — ${d.enviados} registros, ${d.listaNegra} bloqueados. Backup de seguridad: ${d.safeBackup}`, 'ok');
+      toast('✅ Backup restaurado correctamente', 'ok');
+      // Recargar datos en memoria
+      await sincronizarHistorial();
+      await sincronizarLB();
+      renderHistorial();
+      renderListaNegra();
+      cargarListaBackups();
+    } else {
+      mostrarBackupStatus('❌ ' + d.error, 'err');
+    }
+  } catch(e) { mostrarBackupStatus('❌ ' + e.message, 'err'); }
+}
+
+function mostrarBackupStatus(msg, tipo) {
+  const el = document.getElementById('backup-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.className = 'backup-status ' + tipo;
+  if (tipo === 'ok') setTimeout(() => { el.style.display = 'none'; }, 6000);
+}
+
+// Drag & drop en zona de restauración
+(function() {
+  const zone  = document.getElementById('backup-upload-zone');
+  const input = document.getElementById('backup-file-input');
+  if (!zone || !input) return;
+  input.addEventListener('change', e => { if(e.target.files[0]) restaurarDesdeArchivo(e.target.files[0]); });
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag');
+    if (e.dataTransfer.files[0]) restaurarDesdeArchivo(e.dataTransfer.files[0]);
+  });
+})();
+
+// Cargar lista al entrar en la pestaña programar
+
+</script>
+
 </body>
 </html>

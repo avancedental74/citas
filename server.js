@@ -19,11 +19,18 @@ const fs         = require('fs');
 const path       = require('path');
 let nodemailer;
 try { nodemailer = require('nodemailer'); } catch { nodemailer = null; }
+let archiver;
+try { archiver = require('archiver'); } catch { archiver = null; }
+let BetaAnalyticsDataClient;
+try { BetaAnalyticsDataClient = require('@google-analytics/data').BetaAnalyticsDataClient; } catch { BetaAnalyticsDataClient = null; }
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const PORT      = 3001;
-const DATA_FILE = path.join(__dirname, 'data.json');
-const COLA_FILE = path.join(__dirname, 'cola.json');
+const DATA_FILE   = path.join(__dirname, 'data.json');
+const COLA_FILE   = path.join(__dirname, 'cola.json');
+const CONFIG_FILE = path.join(__dirname, 'config.json');
+const BACKUP_DIR  = path.join(__dirname, 'backups');
+if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
 const CONFIG_DEFAULT = {
   val_activo:     true,
@@ -50,8 +57,12 @@ const CONFIG_DEFAULT = {
   avisoEmailUser: '',         // cuenta Gmail que envía (p.ej. clinica@gmail.com)
   avisoEmailPass: '',         // contraseña de aplicación Gmail (no la normal)
   avisoWhatsapp:  '',         // si método=whatsapp, número de 9 dígitos del operador
-  msgConfirmado:  '',         // mensaje cuando paciente dice SÍ (vacío = usar default)
-  msgRechazado:   '',         // mensaje cuando paciente dice NO (vacío = usar default)
+  msgConfirmado:  '',
+  msgRechazado:   '',
+
+  // Google Analytics 4
+  ga4PropertyId:      '',
+  ga4CredentialsPath: '',
 };
 
 // ── CONSTANTES ────────────────────────────────────────────────────────────────
@@ -70,6 +81,14 @@ let sockGlobal    = null;
 let estadoWA      = 'desconectado';
 let qrActual      = null;
 let config        = { ...CONFIG_DEFAULT };
+// Cargar config guardada en disco (sobreescribe defaults)
+(function() {
+  const saved = cargarConfigDisco ? (() => {
+    if (!fs.existsSync(CONFIG_FILE)) return {};
+    try { return JSON.parse(fs.readFileSync(CONFIG_FILE,'utf8')); } catch { return {}; }
+  })() : {};
+  Object.assign(config, saved);
+})();
 let cronJobVal    = null;
 let cronJobCita   = null;
 let enviosHoyVal  = 0;
@@ -91,6 +110,13 @@ function cargarCola() {
   try { return JSON.parse(fs.readFileSync(COLA_FILE,'utf8')); } catch { return []; }
 }
 function guardarCola(c) { fs.writeFileSync(COLA_FILE, JSON.stringify(c,null,2)); }
+
+// ── CONFIG EN DISCO ───────────────────────────────────────────────────────────
+function cargarConfigDisco() {
+  if (!fs.existsSync(CONFIG_FILE)) return {};
+  try { return JSON.parse(fs.readFileSync(CONFIG_FILE,'utf8')); } catch { return {}; }
+}
+function guardarConfigDisco(obj) { fs.writeFileSync(CONFIG_FILE, JSON.stringify(obj,null,2)); }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 function hoy() { return new Date().toISOString().split('T')[0]; }
@@ -541,11 +567,13 @@ app.post('/api/config',(req,res)=>{
   ['val_activo','val_maxPorDia','horariosVal','cita_activo','cita_maxPorDia','cita_horaEnvio',
    'delayMinSeg','delayMaxSeg','bloquearFinde','numResenias','flujoSiNo','abTracking',
    'avisoMetodo','avisoEmail','avisoEmailUser','avisoEmailPass','avisoWhatsapp',
-   'msgConfirmado','msgRechazado'
+   'msgConfirmado','msgRechazado','ga4PropertyId','ga4CredentialsPath'
   ].forEach(k=>{if(req.body[k]!==undefined)config[k]=req.body[k];});
   ['val_maxPorDia','cita_maxPorDia','delayMinSeg','delayMaxSeg','numResenias'].forEach(k=>config[k]=parseInt(config[k]));
   ['val_activo','cita_activo','bloquearFinde','flujoSiNo','abTracking'].forEach(k=>config[k]=Boolean(config[k]));
   programarCrons();
+  // Persistir en disco para sobrevivir reinicios
+  guardarConfigDisco(config);
   res.json({ok:true,config});
 });
 
@@ -642,11 +670,200 @@ app.delete('/api/listanegra/:tel',(req,res)=>{
 
 app.get('/api/qr',(req,res)=>res.json({qr:estadoWA==='qr'?qrActual:null,estado:estadoWA}));
 
+
+// ── BACKUP ────────────────────────────────────────────────────────────────────
+
+function nombreBackup(tipo = 'manual') {
+  const ts = new Date().toISOString().replace(/:/g,'-').replace('T','_').split('.')[0];
+  return `backup_${tipo}_${ts}`;
+}
+
+function datosParaBackup() {
+  const datos  = fs.existsSync(DATA_FILE)   ? fs.readFileSync(DATA_FILE,  'utf8') : '{}';
+  const cola   = fs.existsSync(COLA_FILE)   ? fs.readFileSync(COLA_FILE,  'utf8') : '[]';
+  const cfg    = fs.existsSync(CONFIG_FILE) ? fs.readFileSync(CONFIG_FILE,'utf8') : '{}';
+  return { datos, cola, config: cfg };
+}
+
+async function crearZipBackup(nombre) {
+  if (!archiver) throw new Error('Instala: npm install archiver');
+  const zipPath = path.join(BACKUP_DIR, nombre + '.zip');
+  return new Promise((resolve, reject) => {
+    const output  = fs.createWriteStream(zipPath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    output.on('close', () => resolve(zipPath));
+    archive.on('error', reject);
+    archive.pipe(output);
+    if (fs.existsSync(DATA_FILE))   archive.file(DATA_FILE,   { name: 'data.json'   });
+    if (fs.existsSync(COLA_FILE))   archive.file(COLA_FILE,   { name: 'cola.json'   });
+    if (fs.existsSync(CONFIG_FILE)) archive.file(CONFIG_FILE, { name: 'config.json' });
+    const authDir = path.join(__dirname, 'auth_avancedental');
+    if (fs.existsSync(authDir)) archive.directory(authDir, 'auth_avancedental');
+    archive.finalize();
+  });
+}
+
+function listarBackups() {
+  return fs.readdirSync(BACKUP_DIR)
+    .filter(f => f.endsWith('.zip') || f.endsWith('.json'))
+    .map(f => {
+      const fp   = path.join(BACKUP_DIR, f);
+      const stat = fs.statSync(fp);
+      return { nombre: f, tamaño: stat.size, fecha: stat.mtime.toISOString() };
+    })
+    .sort((a, b) => b.fecha.localeCompare(a.fecha));
+}
+
+function restaurarDesdeJSON(jsonStr) {
+  const obj = JSON.parse(jsonStr);
+  if (obj.datos || obj.cola || obj.config) {
+    if (obj.datos)  fs.writeFileSync(DATA_FILE,   JSON.stringify(JSON.parse(obj.datos),  null, 2));
+    if (obj.cola)   fs.writeFileSync(COLA_FILE,   JSON.stringify(JSON.parse(obj.cola),   null, 2));
+    if (obj.config) fs.writeFileSync(CONFIG_FILE, JSON.stringify(JSON.parse(obj.config), null, 2));
+  } else if (obj.enviados || obj.listaNegra) {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(obj, null, 2));
+  } else {
+    throw new Error('Formato no reconocido');
+  }
+  // Recargar config en memoria
+  const cfg = cargarConfigDisco();
+  Object.assign(config, CONFIG_DEFAULT, cfg);
+  const d = cargarDatos();
+  return { enviados: Object.keys(d.enviados||{}).length, listaNegra: (d.listaNegra||[]).length };
+}
+
+function backupAutomatico() {
+  try {
+    const nombre   = nombreBackup('auto');
+    const filePath = path.join(BACKUP_DIR, nombre + '.json');
+    fs.writeFileSync(filePath, JSON.stringify(datosParaBackup(), null, 2));
+    // Limpiar backups automáticos > 30 días
+    const limite = Date.now() - 30 * 24 * 3600 * 1000;
+    fs.readdirSync(BACKUP_DIR)
+      .filter(f => f.startsWith('backup_auto_') && f.endsWith('.json'))
+      .map(f => ({ f, t: fs.statSync(path.join(BACKUP_DIR, f)).mtimeMs }))
+      .filter(({ t }) => t < limite)
+      .forEach(({ f }) => fs.unlinkSync(path.join(BACKUP_DIR, f)));
+    console.log(`💾 Backup automático: ${nombre}.json`);
+  } catch(e) { console.error('❌ Backup automático:', e.message); }
+}
+
+// Endpoints backup
+app.get('/api/backup/list', (req, res) => res.json({ backups: listarBackups() }));
+
+app.post('/api/backup/crear', async (req, res) => {
+  try {
+    const nombre = nombreBackup('manual');
+    if (archiver) {
+      const zipPath = await crearZipBackup(nombre);
+      res.json({ ok:true, nombre:nombre+'.zip', tipo:'zip', tamaño:fs.statSync(zipPath).size });
+    } else {
+      const filePath = path.join(BACKUP_DIR, nombre + '.json');
+      fs.writeFileSync(filePath, JSON.stringify(datosParaBackup(), null, 2));
+      res.json({ ok:true, nombre:nombre+'.json', tipo:'json', tamaño:fs.statSync(filePath).size });
+    }
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/backup/descargar/:nombre', (req, res) => {
+  const nombre   = req.params.nombre.replace(/\.\./g, '');
+  const filePath = path.join(BACKUP_DIR, nombre);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'No encontrado' });
+  res.download(filePath, nombre);
+});
+
+app.post('/api/backup/restaurar', (req, res) => {
+  try {
+    // Backup de seguridad antes de restaurar
+    const safe = nombreBackup('pre-restore');
+    fs.writeFileSync(path.join(BACKUP_DIR, safe+'.json'), JSON.stringify(datosParaBackup(), null, 2));
+    const jsonStr = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    const result  = restaurarDesdeJSON(jsonStr);
+    res.json({ ok:true, ...result, safeBackup: safe+'.json' });
+  } catch(e) { res.status(400).json({ error: e.message }); }
+});
+
+app.get('/api/backup/export-json', (req, res) => {
+  const ts = new Date().toISOString().split('T')[0];
+  res.setHeader('Content-Disposition', `attachment; filename="avancedental_backup_${ts}.json"`);
+  res.setHeader('Content-Type', 'application/json');
+  res.send(JSON.stringify(datosParaBackup(), null, 2));
+});
+
+// Cron backup cada hora
+cron.schedule('0 * * * *', backupAutomatico, { timezone: 'Europe/Madrid' });
+setTimeout(backupAutomatico, 5000); // Uno al arrancar
+
+// ── GOOGLE ANALYTICS 4 ────────────────────────────────────────────────────────
+
+app.get('/api/analytics', async (req, res) => {
+  if (!config.ga4PropertyId || !config.ga4CredentialsPath) return res.json({ noConfigurado: true });
+  if (!BetaAnalyticsDataClient) return res.json({ noConfigurado: true, error: 'Instala: npm install @google-analytics/data' });
+  try {
+    const credPath = path.isAbsolute(config.ga4CredentialsPath)
+      ? config.ga4CredentialsPath
+      : path.join(__dirname, config.ga4CredentialsPath);
+    const client = new BetaAnalyticsDataClient({ keyFilename: credPath });
+    const propertyId = String(config.ga4PropertyId).replace('properties/','');
+
+    const [respTotal] = await client.runReport({
+      property: `properties/${propertyId}`,
+      dateRanges: [{ startDate:'30daysAgo', endDate:'today' }],
+      dimensions: [{ name:'date' }],
+      metrics:    [{ name:'eventCount' }],
+      dimensionFilter: { filter: { fieldName:'eventName', stringFilter:{ value:'google_click', matchType:'PARTIAL_REGEXP' } } }
+    });
+    const [respVar] = await client.runReport({
+      property: `properties/${propertyId}`,
+      dateRanges: [{ startDate:'90daysAgo', endDate:'today' }],
+      dimensions: [{ name:'customEvent:utm_content' }],
+      metrics:    [{ name:'sessions' }],
+    });
+
+    const porDia = (respTotal.rows||[]).map(r=>({
+      fecha: r.dimensionValues[0].value.replace(/(\d{4})(\d{2})(\d{2})/,'$1-$2-$3'),
+      clics: parseInt(r.metricValues[0].value||0)
+    })).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+
+    const totalClics = porDia.reduce((s,r)=>s+r.clics,0);
+    const hoyStr = new Date().toISOString().split('T')[0].replace(/-/g,'');
+    const clicsHoy = (respTotal.rows||[]).find(r=>r.dimensionValues[0].value===hoyStr);
+
+    const clicsPorVariante = {};
+    (respVar.rows||[]).forEach(r=>{
+      const k = r.dimensionValues[0].value;
+      if (/^v\d$/.test(k)) clicsPorVariante[k] = parseInt(r.metricValues[0].value||0);
+    });
+
+    const datos = cargarDatos();
+    const totalVal = Object.values(datos.enviados||{}).filter(e=>e.val).length;
+    const tasaConversion = totalVal > 0 ? Math.round(totalClics/totalVal*100)+'%' : '—';
+
+    res.json({ ok:true, totalClics, clicsHoy: clicsHoy?parseInt(clicsHoy.metricValues[0].value):0, tasaConversion, porDia, clicsPorVariante });
+  } catch(e) {
+    console.error('❌ GA4:', e.message);
+    res.json({ error: e.message });
+  }
+});
+
+app.post('/api/analytics/config', (req, res) => {
+  const { propertyId, credentialsPath } = req.body;
+  if (!propertyId || !credentialsPath) return res.status(400).json({ error: 'Faltan datos' });
+  const credPath = path.isAbsolute(credentialsPath) ? credentialsPath : path.join(__dirname, credentialsPath);
+  if (!fs.existsSync(credPath)) return res.status(400).json({ error: `Archivo no encontrado: ${credPath}` });
+  config.ga4PropertyId      = String(propertyId).replace('properties/','').trim();
+  config.ga4CredentialsPath = credentialsPath.trim();
+  guardarConfigDisco(config);
+  console.log(`📡 GA4 configurado — Property: ${config.ga4PropertyId}`);
+  res.json({ ok: true });
+});
+
 // ── ARRANQUE ──────────────────────────────────────────────────────────────────
 app.listen(PORT,()=>{
   console.log(`\n╔══════════════════════════════════════╗`);
   console.log(`║  Avance Dental — WhatsApp v4         ║`);
   console.log(`║  http://localhost:${PORT}               ║`);
+  console.log(`║  Backups automáticos: cada hora      ║`);
   console.log(`╚══════════════════════════════════════╝\n`);
   programarCrons();
   conectar().catch(console.error);
