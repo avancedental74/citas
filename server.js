@@ -48,7 +48,9 @@ const CONFIG_DEFAULT = {
   bloquearFinde:  true,
 
   numResenias:    127,   // se muestra en el mensaje ("ya somos X familias")
-  flujoSiNo:      false,  // true = pide SÍ/NO y manda enlace automático
+  flujoSiNo:      false,  // legacy — se mantiene por compatibilidad
+  flujoSiNo_cita: false,  // true = flujo SÍ/NO en recordatorios de cita
+  flujoSiNo_val:  false,  // true = flujo SÍ/NO en mensajes de valoración
   abTracking:     false,  // registra variante enviada + clics por UTM
 
   // Aviso al operador cuando paciente dice NO a cita
@@ -143,7 +145,15 @@ function horaSegunDia() {
 }
 
 function resetarContadoresSiNuevoDia() {
-  if (fechaConteo!==hoy()) { enviosHoyVal=0; enviosHoyCita=0; fechaConteo=hoy(); }
+  if (fechaConteo !== hoy()) {
+    enviosHoyVal  = 0;
+    enviosHoyCita = 0;
+    fechaConteo   = hoy();
+    // Resetear flags de disparo diario para que el cron vuelva a disparar mañana
+    yaEnviadoHoy.val  = null;
+    yaEnviadoHoy.cita = null;
+    console.log('🔄 Nuevo día — contadores y flags de cron reseteados');
+  }
 }
 
 // ── MENSAJES ──────────────────────────────────────────────────────────────────
@@ -211,10 +221,11 @@ Tu valoración nos importa de verdad — es lo que nos ayuda a seguir dando el m
 Somos *${n} familias* que confían en nosotros — y la opinión de cada una hace que sigamos mejorando 🙏`,
   ];
 
-  // CTA fijo — neutro, sin presuponer experiencia negativa, instrucción clarísima
-  const cta = `👇 ¿Nos cuentas? Responde *SÍ* o *NO* y en un momento te escribimos`;
+  // CTA de alta conversión — emojis en SÍ/NO, brevedad, beneficio inmediato
+  const cta = `¿Nos dedicas 30 segundos?\n\n✅ *SÍ* — Te enviamos el enlace ahora mismo\n❌ *NO* — Sin problema, gracias igualmente 🙏`;
 
-  if (config.flujoSiNo) {
+  const flujoVal = config.flujoSiNo_val ?? config.flujoSiNo; // compatibilidad con flag legacy
+  if (flujoVal) {
     return [`Hola ${nombre} 🦷`, ``, cuerpos[variante % cuerpos.length], ``, cta].join('\n');
   } else {
     const url = urlConUtm(variante, 'val');
@@ -322,7 +333,8 @@ function construirMsgCita(p) {
     `❌ Responde *NO* si necesitas cambiarla`
   );
 
-  if (!config.flujoSiNo) {
+  const flujoCita = config.flujoSiNo_cita ?? config.flujoSiNo; // compatibilidad legacy
+  if (!flujoCita) {
     lineas.push(``, `Si prefieres llamarnos, con gusto te buscamos otro hueco 😊`);
   }
 
@@ -400,7 +412,7 @@ async function procesarRespuesta(remitente, texto) {
 // ── PROCESAR COLA ─────────────────────────────────────────────────────────────
 let colaActiva = false;
 
-async function procesarCola(modFiltro = null) {
+async function procesarCola(modFiltro = null, forzarTodos = false) {
   if (colaActiva) return;
   if (config.bloquearFinde && esFinde()) {
     console.log(`🚫 Fin de semana — envíos bloqueados`); return;
@@ -432,11 +444,20 @@ async function procesarCola(modFiltro = null) {
 
   let cV=0, cC=0;
   const aEnviar = pendientes.filter(p=>{
-    if (p.mod==='val'  && cV<(config.val_maxPorDia -enviosHoyVal )) { cV++;  return true; }
-    if (p.mod==='cita' && cC<(config.cita_maxPorDia-enviosHoyCita)) { cC++;  return true; }
+    // Citas: si forzarTodos=true se envían TODAS las pendientes sin límite diario
+    if (p.mod==='cita') {
+      if (forzarTodos) { cC++; return true; }
+      if (cC < (config.cita_maxPorDia - enviosHoyCita)) { cC++; return true; }
+      return false;
+    }
+    // Valoraciones: siempre respetan el límite diario configurado
+    if (p.mod==='val' && cV < (config.val_maxPorDia - enviosHoyVal)) { cV++; return true; }
     return false;
   });
-  if (!aEnviar.length) { console.log(`⛔ Límite diario alcanzado`); colaActiva=false; return; }
+  if (!aEnviar.length) {
+    console.log(`⛔ Sin pendientes o límite diario alcanzado (val:${enviosHoyVal}/${config.val_maxPorDia} cita:${enviosHoyCita}/${config.cita_maxPorDia})`);
+    colaActiva=false; return;
+  }
 
   console.log(`📤 Enviando ${aEnviar.length} mensajes...`);
 
@@ -466,12 +487,12 @@ async function procesarCola(modFiltro = null) {
       if (p.mod==='val') registrarAbEnvio(varianteIdx);
 
       // SÍ/NO: guardar para respuesta automática
-      if (config.flujoSiNo) {
-        if (p.mod==='val') {
-          esperandoRespuesta.set(p.tel, { mod:'val', nombre:p.nombre, variante:varianteIdx, ts:Date.now() });
-        } else if (p.mod==='cita') {
-          esperandoRespuesta.set(p.tel, { mod:'cita', nombre:p.nombre, fecha:p.fecha||null, hora:p.hora||'', trat:p.trat||'', ts:Date.now() });
-        }
+      const flujoActivoCita = config.flujoSiNo_cita ?? config.flujoSiNo;
+      const flujoActivoVal  = config.flujoSiNo_val  ?? config.flujoSiNo;
+      if (p.mod === 'val'  && flujoActivoVal) {
+        esperandoRespuesta.set(p.tel, { mod:'val', nombre:p.nombre, variante:varianteIdx, ts:Date.now() });
+      } else if (p.mod === 'cita' && flujoActivoCita) {
+        esperandoRespuesta.set(p.tel, { mod:'cita', nombre:p.nombre, fecha:p.fecha||null, hora:p.hora||'', trat:p.trat||'', ts:Date.now() });
       }
 
       p.enviado=true; p.fechaEnvio=new Date().toISOString(); p.variante=varianteIdx;
@@ -534,30 +555,105 @@ function sincronizarLeadsACola() {
 }
 
 // ── CRON ──────────────────────────────────────────────────────────────────────
-function programarCrons() {
-  if (cronJobVal)  { cronJobVal.destroy();  cronJobVal=null; }
-  if (cronJobCita) { cronJobCita.destroy(); cronJobCita=null; }
-  const opts = { timezone:'Europe/Madrid' };
+// Registra qué módulos ya se dispararon hoy para no enviar dos veces
+const yaEnviadoHoy = { val: null, cita: null }; // valor = fecha 'YYYY-MM-DD' del último disparo
 
-  if (config.val_activo) {
-    cronJobVal = cron.schedule('*/5 8-13 * * 1-5', async () => {
-      const ahora  = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Europe/Madrid'});
-      if (ahora !== horaSegunDia()) return;
-      console.log(`\n🕐 CRON VALORACIÓN (${ahora})`);
+// Convierte "HH:MM" en minutos totales desde medianoche
+function horaAMinutos(hhmm) {
+  const [h, m] = String(hhmm || '00:00').split(':').map(Number);
+  return h * 60 + m;
+}
+
+// Devuelve hora actual en Madrid como minutos totales
+function ahoraEnMinutos() {
+  const s = new Date().toLocaleTimeString('es-ES', {
+    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Madrid'
+  });
+  return horaAMinutos(s);
+}
+
+// Ventana de tolerancia: dispara si estamos dentro de los 30 min posteriores a la hora programada
+// Cubre arranques tardíos, reinicios, desfases del SO y colas grandes con delay entre mensajes
+const VENTANA_MIN = 30;
+
+function programarCrons() {
+  if (cronJobVal)  { cronJobVal.destroy();  cronJobVal  = null; }
+  if (cronJobCita) { cronJobCita.destroy(); cronJobCita = null; }
+  const opts = { timezone: 'Europe/Madrid' };
+
+  // Cron unificado — revisa cada minuto L-V entre 7:00 y 14:00
+  // Es más fiable que crons de hora exacta: si el servidor arranca tarde, recupera
+  cronJobVal = cron.schedule('* 7-14 * * 1-5', async () => {
+    const fechaHoy   = hoy();
+    const ahoraMin   = ahoraEnMinutos();
+
+    // ── VALORACIONES ──────────────────────────────────────────────────────
+    if (config.val_activo && yaEnviadoHoy.val !== fechaHoy) {
+      const horaObjetivo = horaAMinutos(horaSegunDia());
+      const diff         = ahoraMin - horaObjetivo;
+      if (diff >= 0 && diff < VENTANA_MIN) {
+        console.log(`\n🕐 CRON VALORACIÓN — hora programada: ${horaSegunDia()}, ahora +${diff}min`);
+        yaEnviadoHoy.val = fechaHoy;
+        sincronizarLeadsACola();
+        if (estadoWA === 'conectado') await procesarCola('val', false).catch(console.error);
+        else console.log('⚠️  WhatsApp no conectado — cola de valoraciones pendiente, usa "Enviar ahora"');
+      }
+    }
+
+    // ── RECORDATORIOS CITA ────────────────────────────────────────────────
+    if (config.cita_activo && yaEnviadoHoy.cita !== fechaHoy) {
+      const horaObjetivo = horaAMinutos(config.cita_horaEnvio);
+      const diff         = ahoraMin - horaObjetivo;
+      if (diff >= 0 && diff < VENTANA_MIN) {
+        console.log(`\n🕐 CRON CITA — hora programada: ${config.cita_horaEnvio}, ahora +${diff}min`);
+        yaEnviadoHoy.cita = fechaHoy;
+        sincronizarLeadsACola();
+        // forzarTodos=true: envía TODAS las citas pendientes del día sin límite
+        if (estadoWA === 'conectado') await procesarCola('cita', true).catch(console.error);
+        else console.log('⚠️  WhatsApp no conectado — cola de citas pendiente, usa "Enviar ahora"');
+      }
+    }
+  }, opts);
+
+  console.log(`⏰ Cron activo (cada minuto, L-V 7-14h)`);
+  console.log(`⏰ Valoraciones: ${horaSegunDia()} (+${VENTANA_MIN}min ventana)`);
+  console.log(`⏰ Recordatorios: ${config.cita_horaEnvio} (+${VENTANA_MIN}min ventana)`);
+}
+
+// Al arrancar el servidor: si ya pasó la hora de envío de hoy y hay cola pendiente → enviar
+// Cubre el caso más común: "reinicié el servidor después de la hora programada"
+async function verificarEnviosPendientesAlArrancar() {
+  await sleep(8000); // esperar a que Baileys conecte
+  if (esFinde() && config.bloquearFinde) return;
+
+  const fechaHoy = hoy();
+  const ahoraMin = ahoraEnMinutos();
+  const cola     = cargarCola();
+  const datos    = cargarDatos();
+  const lb       = new Set((datos.listaNegra || []).map(e => e.tel || e));
+
+  const hayValPendiente  = cola.some(p => p.mod === 'val'  && !p.enviado && !lb.has(p.tel) && !datos.enviados[p.tel]?.val);
+  const hayCitaPendiente = cola.some(p => p.mod === 'cita' && !p.enviado && !lb.has(p.tel) && !datos.enviados[p.tel]?.cita);
+
+  if (config.val_activo && hayValPendiente && yaEnviadoHoy.val !== fechaHoy) {
+    const horaObjetivo = horaAMinutos(horaSegunDia());
+    if (ahoraMin >= horaObjetivo) {
+      console.log(`\n🔄 Arranque tardío — lanzando valoraciones pendientes (hora programada: ${horaSegunDia()})`);
+      yaEnviadoHoy.val = fechaHoy;
       sincronizarLeadsACola();
-      if (estadoWA==='conectado') await procesarCola('val');
-    }, opts);
-    console.log(`⏰ Valoraciones: L/X:10:30 M/J:11:00 V:10:00`);
+      if (estadoWA === 'conectado') procesarCola('val', false).catch(console.error);
+    }
   }
 
-  if (config.cita_activo) {
-    const [h,m] = config.cita_horaEnvio.split(':').map(Number);
-    cronJobCita = cron.schedule(`${m} ${h} * * 1-5`, async () => {
-      console.log(`\n🕐 CRON CITA (${config.cita_horaEnvio})`);
+  if (config.cita_activo && hayCitaPendiente && yaEnviadoHoy.cita !== fechaHoy) {
+    const horaObjetivo = horaAMinutos(config.cita_horaEnvio);
+    if (ahoraMin >= horaObjetivo) {
+      console.log(`\n🔄 Arranque tardío — lanzando recordatorios pendientes (hora programada: ${config.cita_horaEnvio})`);
+      yaEnviadoHoy.cita = fechaHoy;
       sincronizarLeadsACola();
-      if (estadoWA==='conectado') await procesarCola('cita');
-    }, opts);
-    console.log(`⏰ Recordatorios: L-V a las ${config.cita_horaEnvio}`);
+      // forzarTodos=true: envía TODAS las citas pendientes sin límite
+      if (estadoWA === 'conectado') procesarCola('cita', true).catch(console.error);
+    }
   }
 }
 
@@ -620,12 +716,12 @@ app.get('/api/status', (req,res)=>{
 app.get('/api/config',(req,res)=>res.json(config));
 app.post('/api/config',(req,res)=>{
   ['val_activo','val_maxPorDia','horariosVal','cita_activo','cita_maxPorDia','cita_horaEnvio',
-   'delayMinSeg','delayMaxSeg','bloquearFinde','numResenias','flujoSiNo','abTracking',
+   'delayMinSeg','delayMaxSeg','bloquearFinde','numResenias','flujoSiNo','flujoSiNo_cita','flujoSiNo_val','abTracking',
    'avisoMetodo','avisoEmail','avisoEmailUser','avisoEmailPass','avisoWhatsapp',
    'msgConfirmado','msgRechazado','ga4PropertyId','ga4CredentialsPath'
   ].forEach(k=>{if(req.body[k]!==undefined)config[k]=req.body[k];});
   ['val_maxPorDia','cita_maxPorDia','delayMinSeg','delayMaxSeg','numResenias'].forEach(k=>config[k]=parseInt(config[k]));
-  ['val_activo','cita_activo','bloquearFinde','flujoSiNo','abTracking'].forEach(k=>config[k]=Boolean(config[k]));
+  ['val_activo','cita_activo','bloquearFinde','flujoSiNo','flujoSiNo_cita','flujoSiNo_val','abTracking'].forEach(k=>config[k]=Boolean(config[k]));
   programarCrons();
   // Persistir en disco para sobrevivir reinicios
   guardarConfigDisco(config);
@@ -968,6 +1064,7 @@ app.listen(PORT,()=>{
   console.log(`╚══════════════════════════════════════╝\n`);
   programarCrons();
   conectar().catch(console.error);
+  verificarEnviosPendientesAlArrancar().catch(console.error);
 });
 
 process.on('uncaughtException', e=>console.error('💥',e));
