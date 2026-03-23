@@ -80,18 +80,24 @@ function urlConUtm(variante, tipo = 'val') {
   return `${LANDING_BASE}?utm_source=whatsapp&utm_medium=directo&utm_campaign=${tipo}&utm_content=v${variante}`;
 }
 
+// ── UTILS BÁSICOS (deben declararse antes que el estado) ──────────────────────
+function hoy() { return new Date().toISOString().split('T')[0]; }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function jid(tel) { return `${tel}@s.whatsapp.net`; }
+function telLimpio(t) { return String(t).replace(/\D/g, '').replace(/^34/, '').slice(-9); }
+
 // ── ESTADO ────────────────────────────────────────────────────────────────────
 let sockGlobal    = null;
 let estadoWA      = 'desconectado';
 let qrActual      = null;
-let config        = { ...CONFIG_DEFAULT };
-// Cargar config guardada en disco (sobreescribe defaults)
+let config = { ...CONFIG_DEFAULT };
+// Cargar config guardada en disco (sobreescribe defaults) — función declarada más abajo, se llama tras el arranque
 (function() {
-  const saved = cargarConfigDisco ? (() => {
-    if (!fs.existsSync(CONFIG_FILE)) return {};
-    try { return JSON.parse(fs.readFileSync(CONFIG_FILE,'utf8')); } catch { return {}; }
-  })() : {};
-  Object.assign(config, saved);
+  if (!fs.existsSync(CONFIG_FILE)) return;
+  try {
+    const saved = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+    Object.assign(config, saved);
+  } catch { /* archivo corrupto — usar defaults */ }
 })();
 let cronJobVal    = null;
 let cronJobCita   = null;
@@ -148,10 +154,6 @@ function cargarConfigDisco() {
 function guardarConfigDisco(obj) { fs.writeFileSync(CONFIG_FILE, JSON.stringify(obj,null,2)); }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
-function hoy() { return new Date().toISOString().split('T')[0]; }
-function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
-function jid(tel) { return `${tel}@s.whatsapp.net`; }
-function telLimpio(t) { return String(t).replace(/\D/g,'').replace(/^34/,'').slice(-9); }
 
 function esFinde() {
   const d = new Date().toLocaleString('es-ES',{weekday:'long',timeZone:'Europe/Madrid'}).toLowerCase();
@@ -577,9 +579,13 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
     }
   }
 
-  // Limpiar esperandoRespuesta > 48h
-  const lim = Date.now()-48*3600000;
-  for (const [tel,d] of esperandoRespuesta.entries()) if(d.ts<lim) esperandoRespuesta.delete(tel);
+  // Limpiar esperandoRespuesta > 48h y persistir
+  const lim = Date.now() - 48 * 3600000;
+  let limpiados = 0;
+  for (const [tel, d] of esperandoRespuesta.entries()) {
+    if (d.ts < lim) { esperandoRespuesta.delete(tel); limpiados++; }
+  }
+  if (limpiados) guardarEsperando();
 
   colaActiva=false;
   console.log(`🏁 val:${enviosHoyVal}/${config.val_maxPorDia} | cita:${enviosHoyCita}/${config.cita_maxPorDia}`);
@@ -811,8 +817,9 @@ app.post('/api/config',(req,res)=>{
 // A/B stats — muestra envíos internos. Clics reales → GA4
 app.get('/api/ab-stats',(req,res)=>{
   const d=cargarDatos();
+  const labels = ['Importancia+comunidad','Gratitud+mejora','Cercanía+impacto','Confianza+pertenencia'];
   const stats=Object.entries(d.abStats||{}).map(([k,v])=>({
-    variante:k, gancho:ganchos('Paciente','esta mañana')[parseInt(k.replace('v',''))],
+    variante:k, gancho: labels[parseInt(k.replace('v',''))] || k,
     enviados:v.enviados||0, clics:v.clics||0,
     ctr:v.enviados?((v.clics/v.enviados)*100).toFixed(1)+'%':'—',
   }));
@@ -896,7 +903,8 @@ app.post('/api/cola/enviar-ahora',async(req,res)=>{
   const mod=req.body?.mod||null;
   sincronizarLeadsACola();
   res.json({ok:true,mensaje:`Procesando cola${mod?' ('+mod+')':''}...`});
-  procesarCola(mod).catch(console.error);
+  // forzarTodos=true para citas: enviar todas sin límite diario
+  procesarCola(mod, mod==='cita').catch(console.error);
 });
 
 app.post('/api/enviar',async(req,res)=>{
