@@ -26,10 +26,11 @@ try { BetaAnalyticsDataClient = require('@google-analytics/data').BetaAnalyticsD
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const PORT      = 3001;
-const DATA_FILE   = path.join(__dirname, 'data.json');
-const COLA_FILE   = path.join(__dirname, 'cola.json');
-const CONFIG_FILE = path.join(__dirname, 'config.json');
-const LEADS_FILE  = path.join(__dirname, 'leads.json');
+const DATA_FILE      = path.join(__dirname, 'data.json');
+const COLA_FILE      = path.join(__dirname, 'cola.json');
+const CONFIG_FILE    = path.join(__dirname, 'config.json');
+const LEADS_FILE     = path.join(__dirname, 'leads.json');
+const ESPERANDO_FILE = path.join(__dirname, 'esperando.json');
 const BACKUP_DIR  = path.join(__dirname, 'backups');
 if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
@@ -100,6 +101,25 @@ let fechaConteo   = hoy();
 
 // Pendientes SÍ/NO: tel → { nombre, variante, ts }
 const esperandoRespuesta = new Map();
+
+// Persistir esperandoRespuesta en disco para sobrevivir reinicios
+function guardarEsperando() {
+  const obj = {};
+  esperandoRespuesta.forEach((v, k) => { obj[k] = v; });
+  fs.writeFileSync(ESPERANDO_FILE, JSON.stringify(obj, null, 2));
+}
+function cargarEsperando() {
+  if (!fs.existsSync(ESPERANDO_FILE)) return;
+  try {
+    const obj = JSON.parse(fs.readFileSync(ESPERANDO_FILE, 'utf8'));
+    const lim  = Date.now() - 48 * 3600000; // descartar > 48h
+    Object.entries(obj).forEach(([tel, v]) => {
+      if (v.ts > lim) esperandoRespuesta.set(tel, v);
+    });
+    if (esperandoRespuesta.size) console.log(`🔄 ${esperandoRespuesta.size} respuestas pendientes recuperadas del disco`);
+  } catch { /* archivo corrupto — ignorar */ }
+}
+cargarEsperando();
 
 // ── PERSISTENCIA ──────────────────────────────────────────────────────────────
 function cargarDatos() {
@@ -375,36 +395,79 @@ async function enviarMensaje(telefono, texto) {
 
 // ── PROCESAR RESPUESTAS SÍ/NO ─────────────────────────────────────────────────
 async function procesarRespuesta(remitente, texto) {
-  const tel = remitente.replace('@s.whatsapp.net','').replace(/^34/,'');
+  const tel = remitente.replace('@s.whatsapp.net', '').replace(/^34/, '');
+
+  // LOG — ver en consola cada mensaje entrante y si el tel está esperando respuesta
+  console.log(`📩 Entrante de ${tel}: "${texto.trim()}" | en mapa: ${esperandoRespuesta.has(tel)}`);
+
   if (!esperandoRespuesta.has(tel)) return;
 
-  const t = texto.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  const { nombre, variante, mod, fecha, hora, trat } = esperandoRespuesta.get(tel);
+  // Normalizar: minúsculas + sin tildes + sin puntuación
+  const t = texto.trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[¿?¡!.,;:]/g, '')
+    .trim();
 
-  const esSi = ['si','yes','s','1','ok','dale','bueno','claro','por supuesto','adelante','confirmo','confirmar','alli estare','allí estaré'].some(w=>t===w||t.startsWith(w+' '));
-  const esNo = ['no','nope','n','0','cancelar','cancelo','cancelo','no puedo','no voy'].some(w=>t===w||t.startsWith(w+' '));
+  const { nombre, variante, mod, fecha, hora, trat } = esperandoRespuesta.get(tel);
+  const nombre1 = nombre.split(' ')[0];
+
+  console.log(`🔍 mod=${mod} texto_norm="${t}"`);
+
+  // Palabras SÍ — variaciones reales de pacientes españoles
+  const palabrasSi = [
+    'si','sí','yes','s','1','ok','vale','venga','dale','bueno','claro',
+    'por supuesto','adelante','confirmo','confirmar','confirmado',
+    'de acuerdo','perfecto','genial','estupendo','fenomenal',
+    'alli estare','alli estaré','allí estare','allí estaré',
+    'ahi estare','ahí estaré','voy','ire','iré','alla voy','allá voy',
+  ];
+  // Palabras NO
+  const palabrasNo = [
+    'no','nope','n','0','cancelar','cancelo','cancele',
+    'no puedo','no voy','no ire','no iré',
+    'no asistire','no asistiré','imposible',
+    'no me va','no me viene bien','no llegare','no llegaré',
+  ];
+
+  const match = (lista) => lista.some(w => t === w || t.startsWith(w + ' ') || t.startsWith(w + ','));
+  const esSi = match(palabrasSi);
+  const esNo = match(palabrasNo);
+
+  console.log(`🔍 esSi=${esSi} esNo=${esNo}`);
 
   if (mod === 'cita') {
     if (esSi) {
       await enviarMensaje(tel, msgCitaConfirmado(nombre, fecha, hora)).catch(console.error);
-      esperandoRespuesta.delete(tel);
+      esperandoRespuesta.delete(tel); guardarEsperando();
+      const datos = cargarDatos();
+      if (datos.enviados[tel]) { datos.enviados[tel].confirmado = true; guardarDatos(datos); }
       console.log(`✅ CITA CONFIRMADA — ${nombre} (${tel})`);
     } else if (esNo) {
       await enviarMensaje(tel, msgCitaRechazado(nombre)).catch(console.error);
-      esperandoRespuesta.delete(tel);
+      esperandoRespuesta.delete(tel); guardarEsperando();
+      const datos = cargarDatos();
+      if (datos.enviados[tel]) { datos.enviados[tel].cancelado = true; guardarDatos(datos); }
       console.log(`❌ CITA CANCELADA — ${nombre} (${tel})`);
       await avisarOperador(nombre, tel, fecha, hora, trat);
+    } else {
+      // Respuesta no reconocida — pedir aclaración una vez
+      console.log(`❓ No reconocida de ${nombre} (${tel}): "${t}"`);
+      await enviarMensaje(tel, `Perdona ${nombre1}, no te he entendido bien 😅\n\nResponde simplemente *SÍ* para confirmar tu cita o *NO* si necesitas cambiarla.`).catch(console.error);
     }
   } else {
-    // flujo valoración (original)
+    // Valoración
     if (esSi) {
-      enviarMensaje(tel, construirMsgEnlace(nombre, variante)).catch(console.error);
-      esperandoRespuesta.delete(tel);
+      await enviarMensaje(tel, construirMsgEnlace(nombre, variante)).catch(console.error);
+      esperandoRespuesta.delete(tel); guardarEsperando();
       console.log(`✅ SÍ de ${nombre} (${tel}) — enlace V${variante} enviado`);
     } else if (esNo) {
-      enviarMensaje(tel, construirMsgRespuestaNo(nombre)).catch(console.error);
-      esperandoRespuesta.delete(tel);
+      await enviarMensaje(tel, construirMsgRespuestaNo(nombre)).catch(console.error);
+      esperandoRespuesta.delete(tel); guardarEsperando();
       console.log(`🚫 NO de ${nombre} (${tel})`);
+    } else {
+      // Respuesta no reconocida — pedir aclaración una vez
+      console.log(`❓ No reconocida de ${nombre} (${tel}): "${t}"`);
+      await enviarMensaje(tel, `Perdona ${nombre1} 😅\n\nResponde *SÍ* si quieres dejarnos tu opinión o *NO* si prefieres no hacerlo. ¡Sin problema en cualquier caso! 🙏`).catch(console.error);
     }
   }
 }
@@ -491,8 +554,10 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
       const flujoActivoVal  = config.flujoSiNo_val  ?? config.flujoSiNo;
       if (p.mod === 'val'  && flujoActivoVal) {
         esperandoRespuesta.set(p.tel, { mod:'val', nombre:p.nombre, variante:varianteIdx, ts:Date.now() });
+        guardarEsperando();
       } else if (p.mod === 'cita' && flujoActivoCita) {
         esperandoRespuesta.set(p.tel, { mod:'cita', nombre:p.nombre, fecha:p.fecha||null, hora:p.hora||'', trat:p.trat||'', ts:Date.now() });
+        guardarEsperando();
       }
 
       p.enviado=true; p.fechaEnvio=new Date().toISOString(); p.variante=varianteIdx;
@@ -685,15 +750,30 @@ async function conectar() {
     }
   });
 
-  // Escuchar SÍ/NO
-  sock.ev.on('messages.upsert', async ({messages,type})=>{
-    if(type!=='notify')return;
-    const msg=messages[0];
-    if(msg.key.fromMe||!msg.message)return;
-    const rem=msg.key.remoteJid;
-    if(!rem.endsWith('@s.whatsapp.net'))return;
-    const txt=msg.message?.conversation||msg.message?.extendedTextMessage?.text||'';
-    if(txt.trim()) procesarRespuesta(rem,txt);
+  // Escuchar respuestas SÍ/NO
+  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    if (type !== 'notify') return;
+    const msg = messages[0];
+    if (!msg || msg.key.fromMe || !msg.message) return;
+    const rem = msg.key.remoteJid;
+    if (!rem || !rem.endsWith('@s.whatsapp.net')) return;
+
+    // Extraer texto de todos los tipos posibles de mensaje
+    const m = msg.message;
+    const txt =
+      m.conversation ||                                          // texto simple
+      m.extendedTextMessage?.text ||                            // texto con preview/link
+      m.buttonsResponseMessage?.selectedDisplayText ||          // respuesta a botones
+      m.listResponseMessage?.singleSelectReply?.selectedRowId || // respuesta a lista
+      m.templateButtonReplyMessage?.selectedDisplayText ||      // template button
+      m.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson || // interactive
+      '';
+
+    const txtLimpio = String(txt).trim();
+    if (txtLimpio) {
+      console.log(`📨 [Baileys] rem=${rem} tipo=${Object.keys(m)[0]} txt="${txtLimpio}"`);
+      procesarRespuesta(rem, txtLimpio);
+    }
   });
 
   sock.ev.on('creds.update',saveCreds);
