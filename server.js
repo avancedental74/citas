@@ -406,9 +406,22 @@ async function procesarCola(modFiltro = null) {
   const datos = cargarDatos();
   const lb    = new Set((datos.listaNegra||[]).map(e=>e.tel||e));
 
-  let pendientes = cola.filter(p=>!p.enviado&&!lb.has(p.tel)&&!datos.enviados[p.tel]?.[p.mod]);
+  let pendientes = cola.filter(p => {
+    if (p.enviado) return false;
+    if (lb.has(p.tel)) return false;
+    if (datos.enviados[p.tel]?.[p.mod]) return false;
+    // Para citas: solo enviar si la cita es hoy o mañana
+    if (p.mod === 'cita' && p.fecha) {
+      const hoyD   = new Date(); hoyD.setHours(0,0,0,0);
+      const manana = new Date(hoyD); manana.setDate(manana.getDate()+1);
+      const fCita  = new Date(p.fecha); fCita.setHours(0,0,0,0);
+      if (fCita > manana) return false; // cita aún lejana — esperar
+      if (fCita < hoyD)  return false; // cita ya pasada — descartar
+    }
+    return true;
+  });
   if (modFiltro) pendientes = pendientes.filter(p=>p.mod===modFiltro);
-  if (!pendientes.length) { console.log(`✅ Cola vacía`); colaActiva=false; return; }
+  if (!pendientes.length) { console.log(`✅ Cola vacía o sin citas para hoy/mañana`); colaActiva=false; return; }
 
   let cV=0, cC=0;
   const aEnviar = pendientes.filter(p=>{
