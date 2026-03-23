@@ -176,6 +176,7 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
 
 /* Aviso futuros */
 .aviso-fut{padding:10px 14px;border-radius:9px;font-size:12px;font-weight:500;background:var(--amber-c);color:var(--amber);border:1px solid #fcd34d;margin-bottom:12px;display:none}
+.aviso-fut.info{background:var(--azul-c);color:var(--azul-m);border-color:var(--borde)}
 
 /* ── HISTORIAL ── */
 .hist-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
@@ -1613,11 +1614,14 @@ function renderLeads(mod) {
     if (mod === 'cita') {
       const estadoOk = eNorm.includes('no confirmada') || eNorm === '';
       if (!estadoOk) return false;
+      // Mostrar todos (hoy, mañana y días futuros) — el servidor decide cuándo enviar
+      // Solo excluir citas del pasado
       if (p.fecha) {
         const hoyD = new Date(); hoyD.setHours(0,0,0,0);
-        const manana = new Date(hoyD); manana.setDate(manana.getDate()+1);
         const f = new Date(p.fecha); f.setHours(0,0,0,0);
-        return f >= hoyD && f <= manana;
+        if (f < hoyD) return false; // pasado — ignorar
+        const manana = new Date(hoyD); manana.setDate(manana.getDate()+1);
+        if (f > manana) descFuturos++; // futuro más allá de mañana — contar para aviso
       }
       return true;
     }
@@ -1633,9 +1637,15 @@ function renderLeads(mod) {
 
   // Aviso futuros
   const aviso = document.getElementById('aviso-futuros-'+mod);
-  if (mod === 'val' && descFuturos > 0) {
+  if (descFuturos > 0) {
     aviso.style.display = 'flex';
-    aviso.textContent = `⚠️  ${descFuturos} registro${descFuturos>1?'s':''} descartado${descFuturos>1?'s':''} — fecha futura (aún no han venido).`;
+    if (mod === 'val') {
+      aviso.className = 'aviso-fut';
+      aviso.textContent = `⚠️  ${descFuturos} registro${descFuturos>1?'s':''} descartado${descFuturos>1?'s':''} — fecha futura (aún no han venido).`;
+    } else {
+      aviso.className = 'aviso-fut info';
+      aviso.textContent = `📅  ${descFuturos} cita${descFuturos>1?'s':''} programada${descFuturos>1?'s':''} para días siguientes — visible${descFuturos>1?'s':''} aquí, se enviará${descFuturos>1?'n':''} en su día.`;
+    }
   } else { aviso.style.display = 'none'; }
 
   const pendientes = filtrados.filter(p => !enviados[p.tel]?.[mod]);
@@ -1663,10 +1673,8 @@ function renderLeads(mod) {
     return;
   }
 
-  // Actualizar cola bar (solo para val)
-  if (mod === 'val') {
-    actualizarColaBar();
-  }
+  // Actualizar cola bar para ambos módulos
+  actualizarColaBar();
 
   // Renderizar tarjetas: pendientes primero, luego enviados
   const orden = [...filtrados.filter(p=>!enviados[p.tel]?.[mod]&&!lb.has(p.tel)), ...filtrados.filter(p=>lb.has(p.tel)), ...filtrados.filter(p=>enviados[p.tel]?.[mod]&&!lb.has(p.tel))];
