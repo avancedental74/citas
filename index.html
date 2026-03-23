@@ -1217,6 +1217,8 @@ async function pingSrvr() {
     }
     // Cola por módulo
     cargarEstadoCola();
+    // Recuperar leads persistidos si es la primera conexión
+    recuperarLeads();
   } catch {
     MODO_BAILEYS = false;
     actualizarEstadoWA('sin_servidor');
@@ -1257,6 +1259,32 @@ function actualizarEstadoWA(estado) {
     esched.textContent = '🔴 Desconectado';
     ssub.textContent   = 'Inicia el servidor y escanea QR';
   }
+}
+
+// ═══════════════════════════════════════════════════
+// RECUPERAR LEADS DESDE SERVIDOR AL ARRANCAR
+// ═══════════════════════════════════════════════════
+let _leadsRecuperados = false;
+async function recuperarLeads() {
+  if (_leadsRecuperados) return;
+  try {
+    const r = await fetch(API_BASE+'/api/leads');
+    const d = await r.json();
+    ['cita','val'].forEach(mod => {
+      const lista = (d[mod]||[]).map(p => ({
+        ...p,
+        fecha: p.fecha ? new Date(p.fecha) : null
+      }));
+      if (!lista.length) return;
+      const previos = window['datos_'+mod] || [];
+      const nuevos  = lista.filter(p => !previos.some(e => e.tel === p.tel));
+      if (nuevos.length) {
+        window['datos_'+mod] = [...previos, ...nuevos];
+        renderLeads(mod);
+      }
+    });
+    _leadsRecuperados = true;
+  } catch {}
 }
 
 setInterval(pingSrvr, 5000);
@@ -1447,6 +1475,15 @@ async function analizarImagen(mod){
     window['datos_'+mod]=[...existing,...nuevos];
     statusEl.textContent=`✓ ${nuevos.length} paciente${nuevos.length!==1?'s':''} extraído${nuevos.length!==1?'s':''} de la imagen.`;
     area.classList.remove('procesando');
+
+    // Persistir en servidor
+    if (MODO_BAILEYS && nuevos.length) {
+      fetch(API_BASE+'/api/leads/guardar', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ pacientes: nuevos.map(p=>({...p, fecha:p.fecha?.toISOString()||null})), mod })
+      }).catch(()=>{});
+    }
+
     renderLeads(mod);
     toast(`✓ ${nuevos.length} pacientes añadidos desde la imagen`);
   }catch(err){
@@ -1501,6 +1538,15 @@ function addManual(mod){
   if(!tel||!/^\d{9}$/.test(tel)){alert('Introduce un teléfono válido de 9 dígitos.');return;}
   const p={nombre:cap(nombre),tel,estado:mod==='cita'?'no confirmada':'en gabinete',hora,trat:trat.replace(/\.+$/,'').trim(),prof:null,fecha:fecha?new Date(fecha):(mod==='val'?new Date(Date.now()-86400000):null),fuente:'manual'};
   window['datos_'+mod]=[...(window['datos_'+mod]||[]),p];
+
+  // Persistir en servidor
+  if (MODO_BAILEYS) {
+    fetch(API_BASE+'/api/leads/guardar', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ pacientes:[{...p, fecha:p.fecha?.toISOString()||null}], mod })
+    }).catch(()=>{});
+  }
+
   renderLeads(mod);
   toast(`✓ ${p.nombre} añadido`);
   document.getElementById(`m-${mod}-nombre`).value='';
@@ -1589,6 +1635,15 @@ function procesarFilas(filas,mod){
   const nuevos=pacientes.filter(p=>!previos.some(e=>e.tel===p.tel));
   window['datos_'+mod]=[...previos,...nuevos];
   if(previos.length&&nuevos.length)toast(`✓ ${nuevos.length} nuevos añadidos (${previos.length} ya existentes conservados)`);
+
+  // Persistir en servidor
+  if (MODO_BAILEYS && nuevos.length) {
+    fetch(API_BASE+'/api/leads/guardar', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ pacientes: nuevos.map(p=>({...p, fecha:p.fecha?.toISOString()||null})), mod })
+    }).catch(()=>{});
+  }
+
   renderLeads(mod);
   const zona=document.getElementById('zona-'+mod);
   if(zona){zona.classList.add('ok');zona.querySelector('.zona-txt').textContent=`✓ ${(window['datos_'+mod]||[]).length} registros cargados`;zona.querySelector('.zona-sub').textContent='Haz clic para cargar otro archivo';}
@@ -1747,6 +1802,8 @@ function vaciarLista(mod) {
   const cnt = (window['datos_'+mod]||[]).length;
   if (!confirm(`¿Vaciar la lista? Se eliminarán ${cnt} paciente${cnt!==1?'s':''} de la pantalla (no afecta al historial ni a lo ya enviado).`)) return;
   window['datos_'+mod] = [];
+  // Borrar del servidor también
+  if (MODO_BAILEYS) fetch(API_BASE+'/api/leads/'+mod, {method:'DELETE'}).catch(()=>{});
   document.getElementById('leads-wrap-'+mod).style.display = 'none';
   document.getElementById('badge-'+mod).textContent = '0';
   document.getElementById(`badge-${mod}-2`).textContent = '0 pendientes';

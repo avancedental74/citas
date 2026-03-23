@@ -41,6 +41,7 @@ descargar_repo() {
     [ -f "$INSTALL_DIR/data.json" ]         && cp "$INSTALL_DIR/data.json"            "/tmp/data_backup.json"
     [ -f "$INSTALL_DIR/cola.json" ]         && cp "$INSTALL_DIR/cola.json"            "/tmp/cola_backup.json"
     [ -f "$INSTALL_DIR/config.json" ]       && cp "$INSTALL_DIR/config.json"          "/tmp/config_backup.json"
+    [ -f "$INSTALL_DIR/leads.json" ]        && cp "$INSTALL_DIR/leads.json"           "/tmp/leads_backup.json"
     [ -d "$INSTALL_DIR/backups" ]           && cp -r "$INSTALL_DIR/backups"           "/tmp/backups_backup"
 
     cp -r "$TMP_DIR/$EXTRACTED/." "$INSTALL_DIR/"
@@ -50,8 +51,9 @@ descargar_repo() {
     [ -f "/tmp/data_backup.json" ]   && cp "/tmp/data_backup.json" "$INSTALL_DIR/data.json"
     [ -f "/tmp/cola_backup.json" ]   && cp "/tmp/cola_backup.json" "$INSTALL_DIR/cola.json"
     [ -f "/tmp/config_backup.json" ] && cp "/tmp/config_backup.json" "$INSTALL_DIR/config.json"
+    [ -f "/tmp/leads_backup.json" ]  && cp "/tmp/leads_backup.json" "$INSTALL_DIR/leads.json"
     [ -d "/tmp/backups_backup" ]     && cp -r "/tmp/backups_backup/." "$INSTALL_DIR/backups/"
-    rm -rf /tmp/auth_backup /tmp/data_backup.json /tmp/cola_backup.json /tmp/config_backup.json /tmp/backups_backup
+    rm -rf /tmp/auth_backup /tmp/data_backup.json /tmp/cola_backup.json /tmp/config_backup.json /tmp/leads_backup.json /tmp/backups_backup
 }
 
 # ── DESCARGAR REPO ────────────────────────────────────────────────────────────
@@ -125,6 +127,7 @@ echo "[$(date '+%Y-%m-%d %H:%M')] Cambios detectados — actualizando..." >> "$L
 [ -f "$INSTALL_DIR/data.json" ]         && cp "$INSTALL_DIR/data.json"            "/tmp/data_backup.json"
 [ -f "$INSTALL_DIR/cola.json" ]         && cp "$INSTALL_DIR/cola.json"            "/tmp/cola_backup.json"
 [ -f "$INSTALL_DIR/config.json" ]       && cp "$INSTALL_DIR/config.json"          "/tmp/config_backup.json"
+[ -f "$INSTALL_DIR/leads.json" ]        && cp "$INSTALL_DIR/leads.json"           "/tmp/leads_backup.json"
 [ -d "$INSTALL_DIR/backups" ]           && cp -r "$INSTALL_DIR/backups"           "/tmp/backups_backup"
 
 cp -r "$TMP_DIR/$EXTRACTED/." "$INSTALL_DIR/"
@@ -134,8 +137,9 @@ rm -rf "$TMP_DIR"
 [ -f "/tmp/data_backup.json" ]   && cp "/tmp/data_backup.json" "$INSTALL_DIR/data.json"
 [ -f "/tmp/cola_backup.json" ]   && cp "/tmp/cola_backup.json" "$INSTALL_DIR/cola.json"
 [ -f "/tmp/config_backup.json" ] && cp "/tmp/config_backup.json" "$INSTALL_DIR/config.json"
+[ -f "/tmp/leads_backup.json" ]  && cp "/tmp/leads_backup.json" "$INSTALL_DIR/leads.json"
 [ -d "/tmp/backups_backup" ]     && cp -r "/tmp/backups_backup/." "$INSTALL_DIR/backups/"
-rm -rf /tmp/auth_backup /tmp/data_backup.json /tmp/cola_backup.json /tmp/config_backup.json /tmp/backups_backup
+rm -rf /tmp/auth_backup /tmp/data_backup.json /tmp/cola_backup.json /tmp/config_backup.json /tmp/leads_backup.json /tmp/backups_backup
 
 launchctl unload "$PLIST" 2>/dev/null
 sleep 2

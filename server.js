@@ -29,6 +29,7 @@ const PORT      = 3001;
 const DATA_FILE   = path.join(__dirname, 'data.json');
 const COLA_FILE   = path.join(__dirname, 'cola.json');
 const CONFIG_FILE = path.join(__dirname, 'config.json');
+const LEADS_FILE  = path.join(__dirname, 'leads.json');
 const BACKUP_DIR  = path.join(__dirname, 'backups');
 if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
@@ -110,6 +111,12 @@ function cargarCola() {
   try { return JSON.parse(fs.readFileSync(COLA_FILE,'utf8')); } catch { return []; }
 }
 function guardarCola(c) { fs.writeFileSync(COLA_FILE, JSON.stringify(c,null,2)); }
+
+function cargarLeads() {
+  if (!fs.existsSync(LEADS_FILE)) return { cita:[], val:[] };
+  try { return JSON.parse(fs.readFileSync(LEADS_FILE,'utf8')); } catch { return { cita:[], val:[] }; }
+}
+function guardarLeads(l) { fs.writeFileSync(LEADS_FILE, JSON.stringify(l,null,2)); }
 
 // ── CONFIG EN DISCO ───────────────────────────────────────────────────────────
 function cargarConfigDisco() {
@@ -492,6 +499,40 @@ async function procesarCola(modFiltro = null) {
   console.log(`🏁 val:${enviosHoyVal}/${config.val_maxPorDia} | cita:${enviosHoyCita}/${config.cita_maxPorDia}`);
 }
 
+// ── SINCRONIZAR LEADS → COLA ──────────────────────────────────────────────────
+// Antes de procesar la cola, vuelca los leads persistidos que toca enviar hoy
+function sincronizarLeadsACola() {
+  const leads = cargarLeads();
+  const cola  = cargarCola();
+  const datos = cargarDatos();
+  const lb    = new Set((datos.listaNegra||[]).map(e=>e.tel||e));
+  let añadidos = 0;
+
+  ['cita','val'].forEach(mod => {
+    (leads[mod]||[]).forEach(p => {
+      const tel = telLimpio(p.tel); if (!tel) return;
+      if (lb.has(tel)) return;
+      if (datos.enviados[tel]?.[mod]) return;
+      if (cola.some(c=>c.tel===tel&&c.mod===mod&&!c.enviado)) return;
+      // Para citas: solo encolar si la cita es hoy o mañana
+      if (mod === 'cita' && p.fecha) {
+        const hoyD   = new Date(); hoyD.setHours(0,0,0,0);
+        const manana = new Date(hoyD); manana.setDate(manana.getDate()+1);
+        const fCita  = new Date(p.fecha); fCita.setHours(0,0,0,0);
+        if (fCita > manana) return;
+        if (fCita < hoyD)  return;
+      }
+      cola.push({ nombre:p.nombre, tel, fecha:p.fecha||null, hora:p.hora||'', trat:p.trat||'', mod, enviado:false, añadido:new Date().toISOString() });
+      añadidos++;
+    });
+  });
+
+  if (añadidos) {
+    guardarCola(cola);
+    console.log(`📋 ${añadidos} leads añadidos a la cola automáticamente`);
+  }
+}
+
 // ── CRON ──────────────────────────────────────────────────────────────────────
 function programarCrons() {
   if (cronJobVal)  { cronJobVal.destroy();  cronJobVal=null; }
@@ -499,11 +540,11 @@ function programarCrons() {
   const opts = { timezone:'Europe/Madrid' };
 
   if (config.val_activo) {
-    // Cada 5 min en horario de oficina — comprueba si es la hora exacta del día
     cronJobVal = cron.schedule('*/5 8-13 * * 1-5', async () => {
       const ahora  = new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Europe/Madrid'});
       if (ahora !== horaSegunDia()) return;
       console.log(`\n🕐 CRON VALORACIÓN (${ahora})`);
+      sincronizarLeadsACola();
       if (estadoWA==='conectado') await procesarCola('val');
     }, opts);
     console.log(`⏰ Valoraciones: L/X:10:30 M/J:11:00 V:10:00`);
@@ -513,6 +554,7 @@ function programarCrons() {
     const [h,m] = config.cita_horaEnvio.split(':').map(Number);
     cronJobCita = cron.schedule(`${m} ${h} * * 1-5`, async () => {
       console.log(`\n🕐 CRON CITA (${config.cita_horaEnvio})`);
+      sincronizarLeadsACola();
       if (estadoWA==='conectado') await procesarCola('cita');
     }, opts);
     console.log(`⏰ Recordatorios: L-V a las ${config.cita_horaEnvio}`);
@@ -630,10 +672,53 @@ app.delete('/api/cola/limpiar',(req,res)=>{
   res.json({ok:true});
 });
 
+// ── LEADS PERSISTENTES ────────────────────────────────────────────────────────
+app.get('/api/leads', (req, res) => {
+  res.json(cargarLeads());
+});
+
+app.post('/api/leads/guardar', (req, res) => {
+  const { pacientes, mod } = req.body;
+  if (!Array.isArray(pacientes) || !['cita','val'].includes(mod)) {
+    return res.status(400).json({ error: 'Datos inválidos' });
+  }
+  const leads = cargarLeads();
+  const datos = cargarDatos();
+  let nuevos = 0;
+  pacientes.forEach(p => {
+    const tel = telLimpio(p.tel); if (!tel || !/^\d{9}$/.test(tel)) return;
+    if (leads[mod].some(e => e.tel === tel)) return; // ya existe
+    leads[mod].push({ nombre: p.nombre, tel, fecha: p.fecha||null, hora: p.hora||'', trat: p.trat||'', estado: p.estado||'', añadido: new Date().toISOString() });
+    nuevos++;
+  });
+  guardarLeads(leads);
+  res.json({ ok: true, añadidos: nuevos, total: leads[mod].length });
+});
+
+app.delete('/api/leads/:mod/:tel', (req, res) => {
+  const { mod, tel } = req.params;
+  if (!['cita','val'].includes(mod)) return res.status(400).json({ error: 'Módulo inválido' });
+  const leads = cargarLeads();
+  const antes = leads[mod].length;
+  leads[mod] = leads[mod].filter(p => p.tel !== tel);
+  guardarLeads(leads);
+  res.json({ ok: true, eliminados: antes - leads[mod].length });
+});
+
+app.delete('/api/leads/:mod', (req, res) => {
+  const { mod } = req.params;
+  if (!['cita','val'].includes(mod)) return res.status(400).json({ error: 'Módulo inválido' });
+  const leads = cargarLeads();
+  leads[mod] = [];
+  guardarLeads(leads);
+  res.json({ ok: true });
+});
+
 app.post('/api/cola/enviar-ahora',async(req,res)=>{
   if(estadoWA!=='conectado')return res.status(503).json({error:'WhatsApp no conectado'});
   if(config.bloquearFinde&&esFinde())return res.status(403).json({error:'Fin de semana bloqueado'});
   const mod=req.body?.mod||null;
+  sincronizarLeadsACola();
   res.json({ok:true,mensaje:`Procesando cola${mod?' ('+mod+')':''}...`});
   procesarCola(mod).catch(console.error);
 });
@@ -695,7 +780,8 @@ function datosParaBackup() {
   const datos  = fs.existsSync(DATA_FILE)   ? fs.readFileSync(DATA_FILE,  'utf8') : '{}';
   const cola   = fs.existsSync(COLA_FILE)   ? fs.readFileSync(COLA_FILE,  'utf8') : '[]';
   const cfg    = fs.existsSync(CONFIG_FILE) ? fs.readFileSync(CONFIG_FILE,'utf8') : '{}';
-  return { datos, cola, config: cfg };
+  const leads  = fs.existsSync(LEADS_FILE)  ? fs.readFileSync(LEADS_FILE, 'utf8') : '{"cita":[],"val":[]}';
+  return { datos, cola, config: cfg, leads };
 }
 
 async function crearZipBackup(nombre) {
@@ -710,6 +796,7 @@ async function crearZipBackup(nombre) {
     if (fs.existsSync(DATA_FILE))   archive.file(DATA_FILE,   { name: 'data.json'   });
     if (fs.existsSync(COLA_FILE))   archive.file(COLA_FILE,   { name: 'cola.json'   });
     if (fs.existsSync(CONFIG_FILE)) archive.file(CONFIG_FILE, { name: 'config.json' });
+    if (fs.existsSync(LEADS_FILE))  archive.file(LEADS_FILE,  { name: 'leads.json'  });
     const authDir = path.join(__dirname, 'auth_avancedental');
     if (fs.existsSync(authDir)) archive.directory(authDir, 'auth_avancedental');
     archive.finalize();
@@ -733,6 +820,7 @@ function restaurarDesdeJSON(jsonStr) {
     if (obj.datos)  fs.writeFileSync(DATA_FILE,   JSON.stringify(JSON.parse(obj.datos),  null, 2));
     if (obj.cola)   fs.writeFileSync(COLA_FILE,   JSON.stringify(JSON.parse(obj.cola),   null, 2));
     if (obj.config) fs.writeFileSync(CONFIG_FILE, JSON.stringify(JSON.parse(obj.config), null, 2));
+    if (obj.leads)  fs.writeFileSync(LEADS_FILE,  JSON.stringify(JSON.parse(obj.leads),  null, 2));
   } else if (obj.enviados || obj.listaNegra) {
     fs.writeFileSync(DATA_FILE, JSON.stringify(obj, null, 2));
   } else {
