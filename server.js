@@ -906,7 +906,7 @@ async function conectar() {
 
 // ── API REST ──────────────────────────────────────────────────────────────────
 const app = express();
-app.use(cors()); app.use(express.json({limit:'2mb'})); app.use(express.static(__dirname));
+app.use(cors()); app.use(express.json({limit:'2mb'}));
 
 app.get('/api/status', (req,res)=>{
   const dia=new Date().toLocaleString('es-ES',{weekday:'long',timeZone:'Europe/Madrid'}).toLowerCase();
@@ -1313,6 +1313,9 @@ app.post('/api/analytics/config', (req, res) => {
 });
 
 // ── ARRANQUE ──────────────────────────────────────────────────────────────────
+// Servir estáticos DESPUÉS de todas las rutas API para que no intercepten
+app.use(express.static(__dirname));
+
 app.listen(PORT,()=>{
   console.log(`\n╔══════════════════════════════════════╗`);
   console.log(`║  Avance Dental — WhatsApp v4         ║`);
