@@ -160,6 +160,14 @@ function esFinde() {
   return d==='sábado'||d==='domingo';
 }
 
+// Devuelve true si la fecha dada (string ISO o Date) cayó en martes
+function eraMartes(fecha) {
+  if (!fecha) return false;
+  const d = new Date(fecha);
+  if (isNaN(d)) return false;
+  return d.getDay() === 2; // 0=dom, 1=lun, 2=mar ...
+}
+
 function horaSegunDia() {
   const s = new Date().toLocaleString('en-US',{weekday:'short',timeZone:'Europe/Madrid'});
   const m = {Mon:1,Tue:2,Wed:3,Thu:4,Fri:5};
@@ -432,8 +440,30 @@ async function procesarRespuesta(remitente, texto) {
   ];
 
   const match = (lista) => lista.some(w => t === w || t.startsWith(w + ' ') || t.startsWith(w + ','));
-  const esSi = match(palabrasSi);
-  const esNo = match(palabrasNo);
+
+  // Detección por palabras clave dentro de frases más largas
+  // Ej: "si muchas gracias", "no quiero", "claro que sí"
+  function contieneIntencion(texto, listaSi, listaNo) {
+    // Si ya hay match exacto con la lista, no hacer nada aquí
+    const palabrasSi2 = ['si','sí','yes','claro','dale','vale','confirmo','perfecto','genial','alli','allí','ahi','ahí','voy','ire','iré'];
+    const palabrasNo2 = ['no','nope','cancelar','imposible','no puedo','no voy'];
+    // Buscar si el texto contiene una palabra clave de SI o NO
+    const tieneSi = palabrasSi2.some(w => {
+      const re = new RegExp('(?:^|\\s|,|\\.)' + w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '(?:\\s|,|\\.|$|!|\\?)', 'i');
+      return re.test(texto);
+    });
+    const tieneNo = palabrasNo2.some(w => {
+      const re = new RegExp('(?:^|\\s|,|\\.)' + w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '(?:\\s|,|\\.|$|!|\\?)', 'i');
+      return re.test(texto);
+    });
+    // Solo usamos detección contextual si el mensaje tiene más de 4 palabras
+    const palabras = texto.trim().split(/\s+/).length;
+    if (palabras <= 2) return { si: false, no: false }; // dejar al match exacto
+    return { si: tieneSi && !tieneNo, no: tieneNo && !tieneSi };
+  }
+
+  const esSi = match(palabrasSi) || contieneIntencion(t, palabrasSi, palabrasNo).si;
+  const esNo = match(palabrasNo) || contieneIntencion(t, palabrasSi, palabrasNo).no;
 
   console.log(`🔍 esSi=${esSi} esNo=${esNo}`);
 
@@ -606,6 +636,11 @@ function sincronizarLeadsACola() {
       if (lb.has(tel)) return;
       if (datos.enviados[tel]?.[mod]) return;
       if (cola.some(c=>c.tel===tel&&c.mod===mod&&!c.enviado)) return;
+      // Valoraciones: no enviar si la visita fue un martes
+      if (mod === 'val' && eraMartes(p.fecha)) {
+        console.log(`📅 Omitido (visita en martes): ${p.nombre} (${tel})`);
+        return;
+      }
       // Para citas: solo encolar si la cita es hoy o mañana
       if (mod === 'cita' && p.fecha) {
         const hoyD   = new Date(); hoyD.setHours(0,0,0,0);
@@ -836,17 +871,19 @@ app.get('/api/cola',(req,res)=>{
 app.post('/api/cola/anadir',(req,res)=>{
   const pacientes=req.body.pacientes;
   if(!Array.isArray(pacientes)||!pacientes.length) return res.status(400).json({error:'Array requerido'});
-  const cola=cargarCola(); const d=cargarDatos(); let nuevos=0;
+  const cola=cargarCola(); const d=cargarDatos(); let nuevos=0; let omitidosMartes=0;
   pacientes.forEach(p=>{
     const tel=telLimpio(p.tel); if(!tel||!/^\d{9}$/.test(tel))return;
     const mod=p.mod||'val';
+    // Valoraciones: no encolar si la visita fue un martes
+    if(mod==='val' && eraMartes(p.fecha)){ omitidosMartes++; return; }
     if(cola.some(c=>c.tel===tel&&c.mod===mod&&!c.enviado))return;
     if(d.enviados[tel]?.[mod])return;
     cola.push({nombre:p.nombre,tel,fecha:p.fecha||null,hora:p.hora||'',trat:p.trat||'',mod,enviado:false,añadido:new Date().toISOString()});
     nuevos++;
   });
   guardarCola(cola);
-  res.json({ok:true,añadidos:nuevos});
+  res.json({ok:true,añadidos:nuevos,omitidosMartes});
 });
 
 app.delete('/api/cola/limpiar',(req,res)=>{

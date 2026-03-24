@@ -974,6 +974,15 @@ Nuestros operadores se pondrán en contacto contigo lo antes posible para agenda
         <button class="hist-filter-btn on" onclick="filtroHist('todos',this)">Todos</button>
         <button class="hist-filter-btn" onclick="filtroHist('cita',this)">Solo citas</button>
         <button class="hist-filter-btn" onclick="filtroHist('val',this)">Solo valoraciones</button>
+        <button class="hist-filter-btn" onclick="filtroHist('confirmado',this)">✅ Confirmaron</button>
+        <button class="hist-filter-btn" onclick="filtroHist('cancelado',this)">❌ Cancelaron</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+        <label style="font-size:12px;color:var(--gris-m);white-space:nowrap">Desde:</label>
+        <input type="date" id="hist-fecha-desde" class="hist-search" style="flex:0 0 auto;width:150px;padding:7px 10px;font-size:12px" oninput="renderHistorial()">
+        <label style="font-size:12px;color:var(--gris-m);white-space:nowrap">Hasta:</label>
+        <input type="date" id="hist-fecha-hasta" class="hist-search" style="flex:0 0 auto;width:150px;padding:7px 10px;font-size:12px" oninput="renderHistorial()">
+        <button class="hist-filter-btn" onclick="document.getElementById('hist-fecha-desde').value='';document.getElementById('hist-fecha-hasta').value='';renderHistorial()">✕ Limpiar fechas</button>
       </div>
       <div class="hist-table-wrap">
         <table class="hist-table">
@@ -1869,7 +1878,9 @@ async function añadirTodosACola(mod) {
       body: JSON.stringify({ pacientes: pendientes.map(p=>({...p, fecha:p.fecha?.toISOString()||null, mod})) })
     });
     const d = await r.json();
-    toast(`✅ ${d.añadidos} pacientes añadidos a la cola de envío`,'ok');
+    let msg = `✅ ${d.añadidos} pacientes añadidos a la cola de envío`;
+    if (d.omitidosMartes > 0) msg += ` · ℹ️ ${d.omitidosMartes} omitidos (visita en martes)`;
+    toast(msg,'ok');
     actualizarColaBar();
     actualizarWorkflow(mod, 2);
   } catch(err) {
@@ -1889,6 +1900,7 @@ async function añadirUnoACola(tel, mod) {
     });
     const d = await r.json();
     if (d.añadidos) { toast(`✅ ${p.nombre} añadido a la cola`,'ok'); actualizarWorkflow(mod, 2); }
+    else if (d.omitidosMartes > 0) toast(`ℹ️ ${p.nombre} omitido — su visita fue un martes`);
     else toast(`ℹ️ ${p.nombre} ya está en la cola`);
     actualizarColaBar();
   } catch(err) { toast('❌ '+err.message,'err'); }
@@ -1949,16 +1961,24 @@ function filtroHist(tipo, btn) {
 
 function renderHistorial() {
   renderHistorialResumen();
-  const busq = (document.getElementById('hist-search')?.value || '').toLowerCase();
+  const busq      = (document.getElementById('hist-search')?.value || '').toLowerCase();
+  const fechaDesde = document.getElementById('hist-fecha-desde')?.value || '';
+  const fechaHasta = document.getElementById('hist-fecha-hasta')?.value || '';
   const lista = Object.entries(enviados);
 
   const filtrada = lista.filter(([tel, d]) => {
-    if (historialFiltro === 'cita' && !d.cita) return false;
-    if (historialFiltro === 'val'  && !d.val)  return false;
+    if (historialFiltro === 'cita'       && !d.cita)            return false;
+    if (historialFiltro === 'val'        && !d.val)             return false;
+    if (historialFiltro === 'confirmado' && !d.confirmado)      return false;
+    if (historialFiltro === 'cancelado'  && !d.cancelado)       return false;
     if (busq) {
       const nom = (d.nombre||'').toLowerCase();
       if (!nom.includes(busq) && !tel.includes(busq)) return false;
     }
+    // Filtro por rango de fechas (compara con la fecha de envío más reciente)
+    const fechaRef = d.val || d.cita || '';
+    if (fechaDesde && fechaRef && fechaRef < fechaDesde) return false;
+    if (fechaHasta && fechaRef && fechaRef > fechaHasta) return false;
     return true;
   });
 
