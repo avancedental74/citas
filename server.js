@@ -773,7 +773,7 @@ function programarCrons() {
 
   // Cron unificado — revisa cada minuto L-V entre 7:00 y 14:00
   // Es más fiable que crons de hora exacta: si el servidor arranca tarde, recupera
-  cronJobVal = cron.schedule('* * * * 1-5', async () => {
+  cronJobVal = cron.schedule('* 7-14 * * 1-5', async () => {
     const fechaHoy   = hoy();
     const ahoraMin   = ahoraEnMinutos();
 
@@ -805,7 +805,7 @@ function programarCrons() {
     }
   }, opts);
 
-  console.log(`⏰ Cron activo (cada minuto, L-V todo el día)`);
+  console.log(`⏰ Cron activo (cada minuto, L-V 7-14h)`);
   console.log(`⏰ Valoraciones: ${horaSegunDia()} (+${VENTANA_MIN}min ventana)`);
   console.log(`⏰ Recordatorios: ${config.cita_horaEnvio} (+${VENTANA_MIN}min ventana)`);
 }
@@ -1033,6 +1033,32 @@ app.post('/api/enviar',async(req,res)=>{
   if(!telefono||!mensaje)return res.status(400).json({error:'Faltan datos'});
   try{await enviarMensaje(telLimpio(telefono),mensaje);res.json({ok:true});}
   catch(e){res.status(500).json({error:e.message});}
+});
+
+// Endpoint de prueba: envía el mensaje Y activa el flujo SÍ/NO real para ese número
+app.post('/api/prueba',async(req,res)=>{
+  const { telefono, mensaje, mod, nombre, variante, fecha, hora, trat } = req.body;
+  if (!telefono || !mensaje || !mod) return res.status(400).json({ error: 'Faltan datos' });
+  const tel = telLimpio(telefono);
+  try {
+    await enviarMensaje(tel, mensaje);
+    const flujoActivoCita = config.flujoSiNo_cita ?? config.flujoSiNo;
+    const flujoActivoVal  = config.flujoSiNo_val  ?? config.flujoSiNo;
+    if (mod === 'val' && flujoActivoVal) {
+      esperandoRespuesta.set(tel, { mod: 'val', nombre: nombre || 'Prueba', variante: variante ?? 0, ts: Date.now() });
+      guardarEsperando();
+      console.log(`🧪 PRUEBA val — flujo SÍ/NO activo para ${tel}`);
+    } else if (mod === 'cita' && flujoActivoCita) {
+      esperandoRespuesta.set(tel, { mod: 'cita', nombre: nombre || 'Prueba', fecha: fecha || null, hora: hora || '', trat: trat || '', ts: Date.now() });
+      guardarEsperando();
+      console.log(`🧪 PRUEBA cita — flujo SÍ/NO activo para ${tel}`);
+    } else {
+      console.log(`🧪 PRUEBA ${mod} — flujo SÍ/NO desactivado en config, mensaje enviado sin flujo`);
+    }
+    res.json({ ok: true, flujoActivado: mod === 'val' ? flujoActivoVal : flujoActivoCita });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/api/historial',(req,res)=>{

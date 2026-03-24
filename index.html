@@ -792,7 +792,7 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
         <div style="grid-column:1/-1;display:flex;flex-direction:column;gap:12px">
           <div class="toggle-wrap">
             <label class="toggle">
-              <input type="checkbox" id="cfg-bloquear-finde" checked>
+              <input type="checkbox" id="cfg-bloquear-finde" checked onchange="guardarConfig()">
               <span class="toggle-slider"></span>
             </label>
             <div>
@@ -2305,17 +2305,17 @@ function _marcarEditando() {
   window._editTimer = setTimeout(() => { _editandoConfig = false; }, 8000);
 }
 (function() {
-  const campos = ['cfg-val-hora','cfg-val-max','cfg-cita-hora','cfg-cita-max','cfg-delay-min','cfg-delay-max','cfg-num-resenias','cfg-tel-operador','cfg-msg-confirmado','cfg-msg-rechazado'];
+  const campos = ['cfg-val-hora','cfg-val-max','cfg-cita-hora','cfg-cita-max','cfg-delay-min','cfg-delay-max','cfg-num-resenias','cfg-tel-operador','cfg-msg-confirmado','cfg-msg-rechazado','cfg-flujo-sino-val','cfg-flujo-sino-cita','cfg-val-activo','cfg-cita-activo','cfg-bloquear-finde'];
   document.addEventListener('DOMContentLoaded', () => {
     campos.forEach(id => {
       const el = document.getElementById(id);
-      if (el) { el.addEventListener('input', _marcarEditando); el.addEventListener('focus', _marcarEditando); }
+      if (el) { el.addEventListener('input', _marcarEditando); el.addEventListener('focus', _marcarEditando); el.addEventListener('change', _marcarEditando); }
     });
   });
   // Inicializar también de forma inmediata por si el DOM ya está listo
   campos.forEach(id => {
     const el = document.getElementById(id);
-    if (el) { el.addEventListener('input', _marcarEditando); el.addEventListener('focus', _marcarEditando); }
+    if (el) { el.addEventListener('input', _marcarEditando); el.addEventListener('focus', _marcarEditando); el.addEventListener('change', _marcarEditando); }
   });
 })();
 
@@ -2358,13 +2358,13 @@ async function guardarConfig() {
   const cfg = {
     horariosVal:    { 1: horaVal, 2: horaVal, 3: horaVal, 4: horaVal, 5: horaVal },
     val_maxPorDia:  parseInt(g('cfg-val-max')?.value  || 30),
-    val_activo:     g('cfg-val-activo')?.checked !== false,
+    val_activo:     g('cfg-val-activo')?.checked === true,
     cita_horaEnvio: g('cfg-cita-hora')?.value || '09:00',
     cita_maxPorDia: parseInt(g('cfg-cita-max')?.value || 50),
-    cita_activo:    g('cfg-cita-activo')?.checked !== false,
+    cita_activo:    g('cfg-cita-activo')?.checked === true,
     delayMinSeg:    parseInt(g('cfg-delay-min')?.value || 8),
     delayMaxSeg:    parseInt(g('cfg-delay-max')?.value || 20),
-    bloquearFinde:  g('cfg-bloquear-finde')?.checked !== false,
+    bloquearFinde:  g('cfg-bloquear-finde')?.checked === true,
     numResenias:    parseInt(g('cfg-num-resenias')?.value || 127),
     flujoSiNo_cita: g('cfg-flujo-sino-cita')?.checked || false,
     flujoSiNo_val:  g('cfg-flujo-sino-val')?.checked  || false,
@@ -2391,31 +2391,54 @@ async function guardarConfig() {
 const waMsgMap={};
 
 function enviarPrueba(via) {
-  const tel  = limTel(document.getElementById('prueba-tel').value.trim());
-  const tipo = document.getElementById('prueba-tipo').value;
-  const nombre= document.getElementById('prueba-nombre').value.trim()||'Prueba';
-  const fecha = document.getElementById('prueba-fecha').value;
-  const hora  = document.getElementById('prueba-hora').value;
-  const trat  = document.getElementById('prueba-trat').value.trim();
-  if (!tel||!/^\d{9}$/.test(tel)){alert('Introduce un teléfono válido de 9 dígitos.');return;}
-  const p={nombre:cap(nombre),tel,estado:tipo==='cita'?'no confirmada':'en gabinete',hora,trat:trat.replace(/\.+$/,'').trim(),prof:null,fecha:fecha?new Date(fecha):(tipo==='val'?new Date(Date.now()-86400000):new Date()),fuente:'prueba'};
-  const msg=tipo==='cita'?msgCita(p):msgVal(p);
-  const log=document.getElementById('prueba-log');
-  log.style.display='block';
-  const item=document.createElement('div');
-  item.className='pruebas-log-item ok';
-  item.textContent=`[${new Date().toLocaleTimeString('es-ES')}] ${tipo==='cita'?'📅 Recordatorio':'⭐ Valoración'} → ${tel} (${cap(nombre)}) — vía ${via==='baileys'?'Baileys':'WhatsApp Web'}`;
+  const tel    = limTel(document.getElementById('prueba-tel').value.trim());
+  const tipo   = document.getElementById('prueba-tipo').value;
+  const nombre = document.getElementById('prueba-nombre').value.trim() || 'Prueba';
+  const fecha  = document.getElementById('prueba-fecha').value;
+  const hora   = document.getElementById('prueba-hora').value;
+  const trat   = document.getElementById('prueba-trat').value.trim();
+  if (!tel || !/^\d{9}$/.test(tel)) { alert('Introduce un teléfono válido de 9 dígitos.'); return; }
+  const p = { nombre: cap(nombre), tel, estado: tipo === 'cita' ? 'no confirmada' : 'en gabinete', hora, trat: trat.replace(/\.+$/, '').trim(), prof: null, fecha: fecha ? new Date(fecha) : (tipo === 'val' ? new Date(Date.now() - 86400000) : new Date()), fuente: 'prueba' };
+  const msg = tipo === 'cita' ? msgCita(p) : msgVal(p);
+  const log  = document.getElementById('prueba-log');
+  log.style.display = 'block';
+  const item = document.createElement('div');
+  item.className = 'pruebas-log-item ok';
+  item.textContent = `[${new Date().toLocaleTimeString('es-ES')}] ${tipo === 'cita' ? '📅 Recordatorio' : '⭐ Valoración'} → ${tel} (${cap(nombre)}) — vía ${via === 'baileys' ? 'Baileys' : 'WhatsApp Web'}`;
   log.prepend(item);
-  if (via==='baileys') {
-    if (!MODO_BAILEYS){toast('⚠️ Servidor offline — usando WhatsApp Web','err');via='wa';}
+  if (via === 'baileys') {
+    if (!MODO_BAILEYS) { toast('⚠️ Servidor offline — usando WhatsApp Web', 'err'); via = 'wa'; }
     else {
-      fetch(API_BASE+'/api/enviar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telefono:tel,mensaje:msg})})
-        .then(r=>r.json()).then(d=>{if(d.ok)toast(`✅ Enviado a ${tel} con Baileys`,'ok');else toast('❌ '+d.error,'err');})
-        .catch(err=>toast('❌ '+err.message,'err'));
+      fetch(API_BASE + '/api/prueba', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telefono: tel, mensaje: msg, mod: tipo, nombre: cap(nombre), variante: 0, fecha: fecha || null, hora: hora || '', trat: trat || '' })
+      })
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) {
+          if (d.flujoActivado) {
+            toast('✅ Enviado — flujo SÍ/NO activo, responde desde tu móvil', 'ok');
+            const info = document.createElement('div');
+            info.className = 'pruebas-log-item ok';
+            info.textContent = `[${new Date().toLocaleTimeString('es-ES')}] 🔄 Flujo SÍ/NO activado — el servidor procesará tu respuesta automáticamente`;
+            log.prepend(info);
+          } else {
+            toast(`✅ Enviado a ${tel} — flujo SÍ/NO desactivado en config`, 'ok');
+            const info = document.createElement('div');
+            info.className = 'pruebas-log-item';
+            info.textContent = `[${new Date().toLocaleTimeString('es-ES')}] ℹ️ Activa el flujo SÍ/NO en Configuración para probar respuestas automáticas`;
+            log.prepend(info);
+          }
+        } else {
+          toast('❌ ' + d.error, 'err');
+        }
+      })
+      .catch(err => toast('❌ ' + err.message, 'err'));
       return;
     }
   }
-  waMsgMap[tel]=msg;
+  waMsgMap[tel] = msg;
   abrirWA(tel);
   toast(`🧪 Mensaje de prueba abierto → ${tel}`);
 }
