@@ -51,8 +51,8 @@ const CONFIG_DEFAULT = {
 
   numResenias:    127,   // se muestra en el mensaje ("ya somos X familias")
   flujoSiNo:      false,  // legacy — se mantiene por compatibilidad
-  flujoSiNo_cita: false,  // true = flujo SÍ/NO en recordatorios de cita
-  flujoSiNo_val:  false,  // true = flujo SÍ/NO en mensajes de valoración
+  flujoSiNo_cita: true,   // true = flujo SÍ/NO en recordatorios de cita
+  flujoSiNo_val:  true,   // true = flujo SÍ/NO en mensajes de valoración
   abTracking:     false,  // registra variante enviada + clics por UTM
 
   // Aviso al operador cuando paciente dice NO a cita
@@ -74,6 +74,7 @@ const CONFIG_DEFAULT = {
 const CLINICA         = 'Avance Dental';
 const LANDING_BASE    = 'https://avancedental74.github.io/citas/opinion.html';
 const GOOGLE_REVIEW   = 'https://g.page/r/CRkkiSExZLnnEAE/review';
+const YAENVIADO_FILE  = path.join(__dirname, 'yaenviados.json');
 
 // UTM base — GA4 los recoge automáticamente sin tocar nada en opinion.html
 // utm_content = v0/v1/v2/v3 → identifica la variante del A/B en Analytics
@@ -85,7 +86,11 @@ function urlConUtm(variante, tipo = 'val') {
 function hoy() { return new Date().toISOString().split('T')[0]; }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 function jid(tel) { return `${tel}@s.whatsapp.net`; }
-function telLimpio(t) { return String(t).replace(/\D/g, '').replace(/^34/, '').slice(-9); }
+function telLimpio(t) {
+  const limpio = String(t).replace(/\D/g, '').replace(/^34/, '').slice(-9);
+  // Validar que sea móvil español (empieza por 6, 7 o 8)
+  return /^[67]\d{8}$/.test(limpio) ? limpio : '';
+}
 
 // ── ESTADO ────────────────────────────────────────────────────────────────────
 let sockGlobal    = null;
@@ -218,23 +223,24 @@ function guardarConfigDisco(obj) { fs.writeFileSync(CONFIG_FILE, JSON.stringify(
 // ── UTILS ─────────────────────────────────────────────────────────────────────
 
 function esFinde() {
-  const d = new Date().toLocaleString('es-ES',{weekday:'long',timeZone:'Europe/Madrid'}).toLowerCase();
-  return d==='sábado'||d==='domingo';
+  // Intl.DateTimeFormat es más fiable que toLocaleString para obtener solo el día
+  const dia = new Intl.DateTimeFormat('es-ES', { weekday: 'long', timeZone: TIMEZONE }).format(new Date()).toLowerCase();
+  return dia === 'sábado' || dia === 'domingo';
 }
 
-// Devuelve true si la fecha dada (string ISO o Date) cayó en martes (zona Madrid)
+// Devuelve true si la fecha dada (string ISO o Date) cayó en martes (zona configurada)
 function eraMartes(fecha) {
   if (!fecha) return false;
   const d = new Date(fecha);
   if (isNaN(d)) return false;
-  // Usamos el día de la semana en zona Madrid para evitar desfases UTC
-  const diaMadrid = d.toLocaleString('es-ES', { weekday: 'long', timeZone: 'Europe/Madrid' }).toLowerCase();
-  return diaMadrid === 'martes';
+  const dia = new Intl.DateTimeFormat('es-ES', { weekday: 'long', timeZone: TIMEZONE }).format(d).toLowerCase();
+  return dia === 'martes';
 }
 
 function horaSegunDia() {
-  const s = new Date().toLocaleString('en-US',{weekday:'short',timeZone:'Europe/Madrid'});
-  const m = {Mon:1,Tue:2,Wed:3,Thu:4,Fri:5};
+  // Intl.DateTimeFormat devuelve solo el nombre corto del día sin el resto de la fecha
+  const s = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: TIMEZONE }).format(new Date());
+  const m = { Mon:1, Tue:2, Wed:3, Thu:4, Fri:5 };
   return (config.horariosVal?.[m[s]]) || '10:30';
 }
 
@@ -246,6 +252,7 @@ function resetarContadoresSiNuevoDia() {
     // Resetear flags de disparo diario para que el cron vuelva a disparar mañana
     yaEnviadoHoy.val  = null;
     yaEnviadoHoy.cita = null;
+    guardarYaEnviado();
     console.log('🔄 Nuevo día — contadores y flags de cron reseteados');
   }
 }
@@ -744,9 +751,32 @@ function sincronizarLeadsACola() {
   }
 }
 
+// ── CONFIGURACIÓN DE ZONA HORARIA ─────────────────────────────────────────────
+const TIMEZONE = process.env.TZ || 'Europe/Madrid';
+
 // ── CRON ──────────────────────────────────────────────────────────────────────
 // Registra qué módulos ya se dispararon hoy para no enviar dos veces
 const yaEnviadoHoy = { val: null, cita: null }; // valor = fecha 'YYYY-MM-DD' del último disparo
+
+// Persistir yaEnviadoHoy en disco para sobrevivir reinicios
+function guardarYaEnviado() {
+  try {
+    fs.writeFileSync(YAENVIADO_FILE, JSON.stringify(yaEnviadoHoy, null, 2));
+  } catch (e) { /* ignorar errores de escritura */ }
+}
+function cargarYaEnviado() {
+  try {
+    if (fs.existsSync(YAENVIADO_FILE)) {
+      const datos = JSON.parse(fs.readFileSync(YAENVIADO_FILE, 'utf8'));
+      // Solo restaurar si es del día de hoy
+      const hoyStr = hoy();
+      if (datos.val === hoyStr || datos.cita === hoyStr) {
+        Object.assign(yaEnviadoHoy, datos);
+      }
+    }
+  } catch (e) { /* ignorar */ }
+}
+cargarYaEnviado();
 
 // Convierte "HH:MM" en minutos totales desde medianoche
 function horaAMinutos(hhmm) {
@@ -754,10 +784,10 @@ function horaAMinutos(hhmm) {
   return h * 60 + m;
 }
 
-// Devuelve hora actual en Madrid como minutos totales
+// Devuelve hora actual en la zona configurada como minutos totales
 function ahoraEnMinutos() {
   const s = new Date().toLocaleTimeString('es-ES', {
-    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Madrid'
+    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TIMEZONE
   });
   return horaAMinutos(s);
 }
@@ -769,58 +799,90 @@ const VENTANA_MIN = 30;
 function programarCrons() {
   if (cronJobVal)  { cronJobVal.destroy();  cronJobVal  = null; }
   if (cronJobCita) { cronJobCita.destroy(); cronJobCita = null; }
-  const opts = { timezone: 'Europe/Madrid' };
+  const opts = { timezone: TIMEZONE };
 
-  // Cron unificado — revisa cada minuto L-V entre 7:00 y 14:00
-  // Es más fiable que crons de hora exacta: si el servidor arranca tarde, recupera
-  cronJobVal = cron.schedule('* 7-14 * * 1-5', async () => {
-    const fechaHoy   = hoy();
-    const ahoraMin   = ahoraEnMinutos();
+  // Cron unificado — revisa cada minuto L-V entre 6:00 y 20:00
+  // Lógica: si ya pasó la hora programada Y no se ha enviado hoy → enviar
+  // El flag yaEnviadoHoy evita dobles envíos; no se necesita ventana de tiempo
+  cronJobVal = cron.schedule('* 6-20 * * 1-5', async () => {
+    if (config.bloquearFinde && esFinde()) return;
+    resetarContadoresSiNuevoDia();
+    const fechaHoy = hoy();
+    const ahoraMin = ahoraEnMinutos();
 
     // ── VALORACIONES ──────────────────────────────────────────────────────
     if (config.val_activo && yaEnviadoHoy.val !== fechaHoy) {
       const horaObjetivo = horaAMinutos(horaSegunDia());
-      const diff         = ahoraMin - horaObjetivo;
-      if (diff >= 0 && diff < VENTANA_MIN) {
-        console.log(`\n🕐 CRON VALORACIÓN — hora programada: ${horaSegunDia()}, ahora +${diff}min`);
+      if (ahoraMin >= horaObjetivo) {   // basta con haber llegado a la hora → sin ventana
+        console.log(`\n🕐 CRON VALORACIÓN — hora programada: ${horaSegunDia()}, hora actual: ${ahoraMin}min`);
         yaEnviadoHoy.val = fechaHoy;
+        guardarYaEnviado();
         sincronizarLeadsACola();
-        if (estadoWA === 'conectado') await procesarCola('val', false).catch(console.error);
-        else console.log('⚠️  WhatsApp no conectado — cola de valoraciones pendiente, usa "Enviar ahora"');
+        if (estadoWA === 'conectado') {
+          await procesarCola('val', false).catch(console.error);
+        } else {
+          console.log('⚠️  WhatsApp no conectado — valoraciones en cola, reintentará en el próximo minuto si conecta');
+          // Revertir para que reintente el siguiente minuto cuando WA conecte
+          yaEnviadoHoy.val = null;
+          guardarYaEnviado();
+        }
       }
     }
 
     // ── RECORDATORIOS CITA ────────────────────────────────────────────────
     if (config.cita_activo && yaEnviadoHoy.cita !== fechaHoy) {
       const horaObjetivo = horaAMinutos(config.cita_horaEnvio);
-      const diff         = ahoraMin - horaObjetivo;
-      if (diff >= 0 && diff < VENTANA_MIN) {
-        console.log(`\n🕐 CRON CITA — hora programada: ${config.cita_horaEnvio}, ahora +${diff}min`);
+      if (ahoraMin >= horaObjetivo) {   // basta con haber llegado a la hora → sin ventana
+        console.log(`\n🕐 CRON CITA — hora programada: ${config.cita_horaEnvio}, hora actual: ${ahoraMin}min`);
         yaEnviadoHoy.cita = fechaHoy;
+        guardarYaEnviado();
         sincronizarLeadsACola();
-        // forzarTodos=true: envía TODAS las citas pendientes del día sin límite
-        if (estadoWA === 'conectado') await procesarCola('cita', true).catch(console.error);
-        else console.log('⚠️  WhatsApp no conectado — cola de citas pendiente, usa "Enviar ahora"');
+        if (estadoWA === 'conectado') {
+          // forzarTodos=true: envía TODAS las citas pendientes del día sin límite
+          await procesarCola('cita', true).catch(console.error);
+        } else {
+          console.log('⚠️  WhatsApp no conectado — recordatorios en cola, reintentará en el próximo minuto si conecta');
+          // Revertir para que reintente el siguiente minuto cuando WA conecte
+          yaEnviadoHoy.cita = null;
+          guardarYaEnviado();
+        }
       }
     }
   }, opts);
 
-  console.log(`⏰ Cron activo (cada minuto, L-V 7-14h)`);
-  console.log(`⏰ Valoraciones: ${horaSegunDia()} (+${VENTANA_MIN}min ventana)`);
-  console.log(`⏰ Recordatorios: ${config.cita_horaEnvio} (+${VENTANA_MIN}min ventana)`);
+  console.log(`⏰ Cron activo (cada minuto, L-V 6-20h)`);
+  console.log(`⏰ Zona horaria: ${TIMEZONE}`);
+  console.log(`⏰ Valoraciones: ${horaSegunDia()}`);
+  console.log(`⏰ Recordatorios: ${config.cita_horaEnvio}`);
 }
 
 // Al arrancar el servidor: si ya pasó la hora de envío de hoy y hay cola pendiente → enviar
 // Cubre el caso más común: "reinicié el servidor después de la hora programada"
 async function verificarEnviosPendientesAlArrancar() {
-  await sleep(8000); // esperar a que Baileys conecte
+  // Esperar activamente hasta que Baileys conecte (máx 120s) en lugar de un sleep fijo
+  const MAX_ESPERA_MS = 120000;
+  const INTERVALO_MS  = 2000;
+  let esperado = 0;
+  while (estadoWA !== 'conectado' && esperado < MAX_ESPERA_MS) {
+    await sleep(INTERVALO_MS);
+    esperado += INTERVALO_MS;
+  }
+  if (estadoWA !== 'conectado') {
+    console.log('⚠️ [Arranque] WhatsApp no conectó en 120s — envíos pendientes diferidos al cron');
+    return;
+  }
+
   if (esFinde() && config.bloquearFinde) return;
 
   const fechaHoy = hoy();
   const ahoraMin = ahoraEnMinutos();
-  const cola     = cargarCola();
-  const datos    = cargarDatos();
-  const lb       = new Set((datos.listaNegra || []).map(e => e.tel || e));
+
+  // Sincronizar leads antes de comprobar cola
+  sincronizarLeadsACola();
+
+  const cola  = cargarCola();
+  const datos = cargarDatos();
+  const lb    = new Set((datos.listaNegra || []).map(e => e.tel || e));
 
   const hayValPendiente  = cola.some(p => p.mod === 'val'  && !p.enviado && !lb.has(p.tel) && !datos.enviados[p.tel]?.val);
   const hayCitaPendiente = cola.some(p => p.mod === 'cita' && !p.enviado && !lb.has(p.tel) && !datos.enviados[p.tel]?.cita);
@@ -830,8 +892,8 @@ async function verificarEnviosPendientesAlArrancar() {
     if (ahoraMin >= horaObjetivo) {
       console.log(`\n🔄 Arranque tardío — lanzando valoraciones pendientes (hora programada: ${horaSegunDia()})`);
       yaEnviadoHoy.val = fechaHoy;
-      sincronizarLeadsACola();
-      if (estadoWA === 'conectado') procesarCola('val', false).catch(console.error);
+      guardarYaEnviado();
+      procesarCola('val', false).catch(console.error);
     }
   }
 
@@ -840,9 +902,8 @@ async function verificarEnviosPendientesAlArrancar() {
     if (ahoraMin >= horaObjetivo) {
       console.log(`\n🔄 Arranque tardío — lanzando recordatorios pendientes (hora programada: ${config.cita_horaEnvio})`);
       yaEnviadoHoy.cita = fechaHoy;
-      sincronizarLeadsACola();
-      // forzarTodos=true: envía TODAS las citas pendientes sin límite
-      if (estadoWA === 'conectado') procesarCola('cita', true).catch(console.error);
+      guardarYaEnviado();
+      procesarCola('cita', true).catch(console.error);
     }
   }
 }
@@ -897,7 +958,7 @@ async function conectar() {
     const txtLimpio = String(txt).trim();
     if (txtLimpio) {
       console.log(`📨 [Baileys] rem=${rem} tipo=${Object.keys(m)[0]} txt="${txtLimpio}"`);
-      procesarRespuesta(rem, txtLimpio);
+      procesarRespuesta(rem, txtLimpio).catch(e => console.error('❌ procesarRespuesta:', e.message));
     }
   });
 
@@ -909,7 +970,7 @@ const app = express();
 app.use(cors()); app.use(express.json({limit:'2mb'}));
 
 app.get('/api/status', (req,res)=>{
-  const dia=new Date().toLocaleString('es-ES',{weekday:'long',timeZone:'Europe/Madrid'}).toLowerCase();
+  const dia = new Intl.DateTimeFormat('es-ES', { weekday: 'long', timeZone: TIMEZONE }).format(new Date()).toLowerCase();
   res.json({
     estado:estadoWA, qr:estadoWA==='qr'?qrActual:null,
     enviosHoyVal, enviosHoyCita, config,

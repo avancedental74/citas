@@ -431,7 +431,7 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
 
 <main>
 
-<div id="banner-offline" style="display:none;margin-bottom:16px;padding:13px 18px;background:#fff1f2;border:1.5px solid #fca5a5;border-radius:10px;display:flex;align-items:center;gap:12px;font-size:13px;font-weight:500;color:var(--coral)">
+<div id="banner-offline" style="display:none;margin-bottom:16px;padding:13px 18px;background:#fff1f2;border:1.5px solid #fca5a5;border-radius:10px;align-items:center;gap:12px;font-size:13px;font-weight:500;color:var(--coral)">
   <span style="font-size:20px">⚠️</span>
   <div>
     <strong>WhatsApp desconectado</strong> — Los mensajes no se enviarán hasta que el servidor esté conectado.
@@ -821,7 +821,7 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
         <div style="font-size:12px;color:var(--gris-m);margin-top:2px">Si el paciente responde SÍ → mensaje de confirmación automático · Si responde NO → se pasa al operador</div>
       </div>
       <label class="toggle">
-        <input type="checkbox" id="cfg-flujo-sino-cita" onchange="guardarConfig()">
+        <input type="checkbox" id="cfg-flujo-sino-cita" checked onchange="guardarConfig()">
         <span class="toggle-slider"></span>
       </label>
     </div>
@@ -901,7 +901,7 @@ Nuestros operadores se pondrán en contacto contigo lo antes posible para agenda
         <div style="font-size:12px;color:var(--gris-m);margin-top:2px">Si el paciente responde SÍ → se le envía el enlace de Google Reviews automáticamente · Si responde NO → mensaje de agradecimiento</div>
       </div>
       <label class="toggle">
-        <input type="checkbox" id="cfg-flujo-sino-val" onchange="guardarConfig()">
+        <input type="checkbox" id="cfg-flujo-sino-val" checked onchange="guardarConfig()">
         <span class="toggle-slider"></span>
       </label>
     </div>
@@ -2534,17 +2534,30 @@ function cuandoTemporal(fecha, hora) {
   return 'el ' + dias[f.getDay()];
 }
 
-// 4 GANCHOS A/B — "¿Cómo fue tu experiencia?" es V0 (elegido por ti)
+// Helper: lee el estado actual del toggle flujo SI/NO para valoraciones
+function isFlujoSiNoVal() {
+  const chk = document.getElementById('cfg-flujo-sino-val');
+  return chk ? chk.checked : false;
+}
+
+// Construye el mensaje de valoración respetando la configuración de flujo SI/NO
 function msgVal(p) {
-  const nombre  = p.nombre.split(' ')[0];
+  const nombre   = p.nombre.split(' ')[0];
   const fechaTxt = p.fecha ? fmtFecha(p.fecha) : null;
-  const cuandoF = fechaTxt ? 'el *' + fechaTxt + '*' : 'el otro día';
+  const cuandoF  = fechaTxt ? 'el *' + fechaTxt + '*' : 'el otro día';
 
-  const cuerpo = 'Gracias por visitarnos ' + cuandoF + ' en *' + CLINICA + '*.\n\nTu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a que otras familias encuentren un dentista de confianza 🙏';
+  const cuerpo = 'Gracias por visitarnos ' + cuandoF + ' en *' + CLINICA + '*.\n\nTu opinión es muy importante para nosotros \u2014 nos ayuda a seguir mejorando y a que otras familias encuentren un dentista de confianza \ud83d\ude4f';
 
-  const url = urlConUtm(0);
-  const cta = '👇 Si tienes un momento, aquí puedes dejarnos tu opinión:\n' + url;
-  return 'Hola ' + nombre + ' 🦷\n\n' + cuerpo + '\n\n' + cta;
+  if (isFlujoSiNoVal()) {
+    // Flujo SI/NO: el servidor enviará el enlace automáticamente si responde SI
+    const cta = '\u00bfNos dedicas 30 segundos?\n\n\u2705 *SÍ* \u2014 Te enviamos el enlace ahora mismo\n\u274c *NO* \u2014 Sin problema, gracias igualmente \ud83d\ude4f';
+    return 'Hola ' + nombre + ' \ud83e\uddb7\n\n' + cuerpo + '\n\n' + cta;
+  } else {
+    // Sin flujo: enlace directo en el propio mensaje
+    const url = urlConUtm(0);
+    const cta = '\ud83d\udc47 Si tienes un momento, aquí puedes dejarnos tu opinión:\n' + url;
+    return 'Hola ' + nombre + ' \ud83e\uddb7\n\n' + cuerpo + '\n\n' + cta;
+  }
 }
 
 // ═══════════════════════════════════════════════════
