@@ -363,6 +363,44 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
 .backup-status.ok{background:var(--verde-c);color:var(--verde);display:block}
 .backup-status.err{background:var(--coral-c);color:var(--coral);display:block}
 
+/* ── RESPUESTAS ── */
+.resp-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.resp-filter-btn{padding:7px 14px;border:1.5px solid var(--borde);border-radius:9px;font-size:12px;font-weight:500;background:#fff;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--gris-m);transition:all .15s}
+.resp-filter-btn.on{background:var(--azul);color:#fff;border-color:var(--azul)}
+.resp-search{flex:1;min-width:180px;padding:8px 12px;border:1.5px solid var(--borde);border-radius:9px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;background:#fff}
+.resp-search:focus{border-color:var(--azul-m)}
+.resp-list{display:flex;flex-direction:column;gap:10px}
+.resp-card{background:var(--blanco);border:1.5px solid var(--borde);border-radius:var(--r);padding:15px 18px;display:flex;gap:14px;align-items:flex-start;transition:border-color .15s}
+.resp-card:hover{border-color:var(--azul-m)}
+.resp-card.resultado-si{border-left:4px solid var(--verde)}
+.resp-card.resultado-no{border-left:4px solid var(--coral)}
+.resp-card.resultado-no_reconocido{border-left:4px solid var(--amber)}
+.resp-card.resultado-sin_contexto{border-left:4px solid #94a3b8}
+.resp-ico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.resp-ico.si{background:var(--verde-c)}
+.resp-ico.no{background:var(--coral-c)}
+.resp-ico.no_reconocido{background:var(--amber-c)}
+.resp-ico.sin_contexto{background:var(--gris-c)}
+.resp-body{flex:1;min-width:0}
+.resp-nombre{font-size:14px;font-weight:600;color:var(--azul)}
+.resp-tel{font-size:12px;color:var(--gris-m);margin-top:1px;font-variant-numeric:tabular-nums}
+.resp-texto{font-size:13px;color:var(--gris-o);margin-top:8px;background:var(--gris-c);padding:8px 12px;border-radius:8px;font-style:italic;word-break:break-word}
+.resp-meta{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.resp-tag{font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px}
+.resp-tag.cita{background:var(--azul-c);color:var(--azul-m)}
+.resp-tag.val{background:var(--verde-c);color:var(--verde-m)}
+.resp-tag.sin_contexto{background:var(--gris-c);color:var(--gris-m)}
+.resp-tag.si{background:#dcfce7;color:#15803d}
+.resp-tag.no{background:#fee2e2;color:#dc2626}
+.resp-tag.no_reconocido{background:var(--amber-c);color:var(--amber)}
+.resp-hora{font-size:11px;color:var(--gris-m)}
+.resp-actions{display:flex;gap:5px;flex-shrink:0;margin-top:2px}
+.resp-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.resp-kpi{background:var(--blanco);border:1px solid var(--borde);border-radius:var(--r);padding:16px;text-align:center;box-shadow:var(--sombra)}
+.resp-kpi-val{font-size:26px;font-weight:300;font-family:'DM Serif Display',serif;color:var(--azul);line-height:1}
+.resp-kpi-label{font-size:11px;color:var(--gris-m);margin-top:4px;font-weight:500;text-transform:uppercase;letter-spacing:.4px}
+.resp-empty{padding:60px 20px;text-align:center;color:var(--gris-m);background:var(--blanco);border-radius:var(--r);border:2px dashed var(--borde)}
+
 </style>
 </head>
 <body>
@@ -386,6 +424,7 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
   <button class="ntab" onclick="irPagina('programar',this)">⏰ Programar envíos</button>
   <button class="ntab" onclick="irPagina('stats',this)">📊 Estadísticas</button>
   <button class="ntab" onclick="irPagina('historial',this)">📋 Historial <span class="nbadge" id="badge-hist">0</span></button>
+  <button class="ntab" onclick="irPagina('respuestas',this)">💬 Respuestas <span class="nbadge" id="badge-resp">0</span></button>
   <button class="ntab" onclick="irPagina('listanegra',this)">🚫 Lista negra <span class="nbadge coral" id="badge-lb">0</span></button>
   <button class="ntab" onclick="irPagina('pruebas',this)">🧪 Pruebas</button>
 </div>
@@ -1002,6 +1041,56 @@ Nuestros operadores se pondrán en contacto contigo lo antes posible para agenda
 </div>
 
 <!-- ═══════════════════════════════════════════════════
+     PÁGINA: RESPUESTAS
+════════════════════════════════════════════════════ -->
+<div class="page" id="page-respuestas">
+  <div class="section-card">
+    <div class="section-card-header">
+      <div>
+        <div class="section-card-title">💬 Respuestas recibidas</div>
+        <div style="font-size:12px;color:var(--gris-m);margin-top:2px">Mensajes que los pacientes han enviado en respuesta a los recordatorios y solicitudes de valoración</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="badge-count" id="badge-resp-2">0 respuestas</span>
+        <button class="btn-sm" style="background:var(--gris-c);color:var(--gris-m);border:1px solid var(--borde)" onclick="cargarRespuestas()">🔄 Actualizar</button>
+        <button class="btn-sm danger" onclick="borrarTodasRespuestas()">🗑 Borrar todo</button>
+      </div>
+    </div>
+    <div class="section-card-body">
+
+      <!-- KPIs -->
+      <div class="resp-kpis" id="resp-kpis">
+        <div class="resp-kpi"><div class="resp-kpi-val" id="rk-total">—</div><div class="resp-kpi-label">Total respuestas</div></div>
+        <div class="resp-kpi" style="border-top:3px solid var(--verde)"><div class="resp-kpi-val" id="rk-si" style="color:var(--verde)">—</div><div class="resp-kpi-label">✅ Confirmaron / SÍ</div></div>
+        <div class="resp-kpi" style="border-top:3px solid var(--coral)"><div class="resp-kpi-val" id="rk-no" style="color:var(--coral)">—</div><div class="resp-kpi-label">❌ Rechazaron / NO</div></div>
+        <div class="resp-kpi" style="border-top:3px solid var(--amber)"><div class="resp-kpi-val" id="rk-otros" style="color:var(--amber)">—</div><div class="resp-kpi-label">❓ Sin contexto / Otros</div></div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="resp-bar">
+        <input type="text" class="resp-search" id="resp-search" placeholder="🔍 Buscar por nombre o teléfono..." oninput="renderRespuestas()">
+        <button class="resp-filter-btn on" onclick="filtroResp('todos',this)">Todos</button>
+        <button class="resp-filter-btn" onclick="filtroResp('cita',this)">📅 Citas</button>
+        <button class="resp-filter-btn" onclick="filtroResp('val',this)">⭐ Valoraciones</button>
+        <button class="resp-filter-btn" onclick="filtroResp('si',this)">✅ SÍ</button>
+        <button class="resp-filter-btn" onclick="filtroResp('no',this)">❌ NO</button>
+        <button class="resp-filter-btn" onclick="filtroResp('no_reconocido',this)">❓ No reconocidos</button>
+        <button class="resp-filter-btn" onclick="filtroResp('sin_contexto',this)">📩 Fuera de flujo</button>
+      </div>
+
+      <!-- Lista -->
+      <div id="resp-list" class="resp-list"></div>
+      <div id="resp-empty" class="resp-empty" style="display:none">
+        <div style="font-size:36px;margin-bottom:10px">💬</div>
+        <h3 style="font-size:15px;font-weight:500;color:var(--azul);margin-bottom:6px">Sin respuestas todavía</h3>
+        <p style="font-size:13px;line-height:1.6">Cuando un paciente conteste a un mensaje enviado por Baileys, aparecerá aquí automáticamente.</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
      PÁGINA: LISTA NEGRA
 ════════════════════════════════════════════════════ -->
 <div class="page" id="page-listanegra">
@@ -1336,6 +1425,7 @@ function irPagina(nombre, btn) {
   if (nombre==='listanegra') { sincronizarLB(); renderListaNegra(); }
   if (nombre==='programar') { cargarEstadoCola(); cargarListaBackups(); }
   if (nombre==='stats') { cargarStats(); }
+  if (nombre==='respuestas') { cargarRespuestas(); }
 }
 
 // ═══════════════════════════════════════════════════
@@ -2998,6 +3088,170 @@ function mostrarBackupStatus(msg, tipo) {
 })();
 
 // Cargar lista al entrar en la pestaña programar
+
+// ═══════════════════════════════════════════════════
+// RESPUESTAS
+// ═══════════════════════════════════════════════════
+let respuestas = [];
+let respFiltro = 'todos';
+
+async function cargarRespuestas() {
+  if (!MODO_BAILEYS) return;
+  try {
+    const r = await fetch(API_BASE + '/api/conversaciones');
+    respuestas = await r.json();
+    renderRespuestas();
+  } catch(e) {
+    console.warn('No se pudo cargar conversaciones:', e.message);
+  }
+}
+
+function filtroResp(tipo, btn) {
+  respFiltro = tipo;
+  document.querySelectorAll('.resp-filter-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  renderRespuestas();
+}
+
+function renderRespuestas() {
+  const busq = (document.getElementById('resp-search')?.value || '').toLowerCase();
+
+  // Calcular KPIs sobre todos (sin filtro de búsqueda)
+  const total    = respuestas.length;
+  const totalSi  = respuestas.filter(r => r.resultado === 'si').length;
+  const totalNo  = respuestas.filter(r => r.resultado === 'no').length;
+  const totalOtr = respuestas.filter(r => r.resultado === 'no_reconocido' || r.resultado === 'sin_contexto').length;
+  document.getElementById('rk-total').textContent  = total;
+  document.getElementById('rk-si').textContent     = totalSi;
+  document.getElementById('rk-no').textContent     = totalNo;
+  document.getElementById('rk-otros').textContent  = totalOtr;
+  document.getElementById('badge-resp').textContent  = total;
+  document.getElementById('badge-resp-2').textContent = `${total} respuestas`;
+
+  // Filtrar
+  let filtradas = respuestas.filter(r => {
+    if (respFiltro === 'cita'          && r.mod !== 'cita')          return false;
+    if (respFiltro === 'val'           && r.mod !== 'val')           return false;
+    if (respFiltro === 'si'            && r.resultado !== 'si')      return false;
+    if (respFiltro === 'no'            && r.resultado !== 'no')      return false;
+    if (respFiltro === 'no_reconocido' && r.resultado !== 'no_reconocido') return false;
+    if (respFiltro === 'sin_contexto'  && r.resultado !== 'sin_contexto')  return false;
+    if (busq) {
+      const nom = (r.nombre || '').toLowerCase();
+      if (!nom.includes(busq) && !r.tel.includes(busq)) return false;
+    }
+    return true;
+  });
+
+  const lista  = document.getElementById('resp-list');
+  const empty  = document.getElementById('resp-empty');
+
+  if (!filtradas.length) {
+    lista.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const iconos = { si: '✅', no: '❌', no_reconocido: '❓', sin_contexto: '📩' };
+  const etiquetas = {
+    si: 'Confirmó / SÍ',
+    no: 'Rechazó / NO',
+    no_reconocido: 'No reconocido',
+    sin_contexto: 'Fuera de flujo',
+  };
+  const modLabel = { cita: '📅 Cita', val: '⭐ Valoración', sin_contexto: '—', desconocido: '—' };
+
+  lista.innerHTML = filtradas.map((r, i) => {
+    const fecha = new Date(r.fecha);
+    const fechaTxt = isNaN(fecha) ? '—' : fecha.toLocaleDateString('es-ES', { day:'numeric', month:'short', year:'numeric' });
+    const horaTxt  = isNaN(fecha) ? '' : fecha.toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
+    const ico = iconos[r.resultado] || '💬';
+    const res = r.resultado || 'sin_contexto';
+    const agrupados = r.agrupados || 1;
+
+    // Si hay varios mensajes agrupados, los mostramos numerados
+    let textoHtml;
+    if (r.textos && r.textos.length > 1) {
+      textoHtml = r.textos.map((t, n) => `<div style="margin-bottom:3px">${n+1}. "${x(t)}"</div>`).join('');
+    } else {
+      textoHtml = `"${x(r.texto || '')}"`;
+    }
+
+    const agrupBadge = agrupados > 1
+      ? `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;background:var(--azul-c);color:var(--azul-m);margin-left:4px">${agrupados} mensajes</span>`
+      : '';
+
+    return `
+    <div class="resp-card resultado-${res}">
+      <div class="resp-ico ${res}">${ico}</div>
+      <div class="resp-body">
+        <div class="resp-nombre">${x(r.nombre || 'Desconocido')}${agrupBadge}</div>
+        <div class="resp-tel">${r.tel}</div>
+        <div class="resp-texto">${textoHtml}</div>
+        <div class="resp-meta">
+          ${r.mod !== 'sin_contexto' && r.mod !== 'desconocido' ? `<span class="resp-tag ${r.mod}">${modLabel[r.mod]||r.mod}</span>` : ''}
+          <span class="resp-tag ${res}">${etiquetas[res] || res}</span>
+          <span class="resp-hora">🕐 ${fechaTxt}${horaTxt ? ' · ' + horaTxt : ''}</span>
+        </div>
+      </div>
+      <div class="resp-actions">
+        <button class="hist-btn del" onclick="borrarRespuesta(${i})" title="Eliminar este registro">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function borrarRespuesta(idxFiltrado) {
+  // Encontrar el item en el array filtrado
+  const busq = (document.getElementById('resp-search')?.value || '').toLowerCase();
+  const filtradas = respuestas.filter(r => {
+    if (respFiltro === 'cita'          && r.mod !== 'cita')          return false;
+    if (respFiltro === 'val'           && r.mod !== 'val')           return false;
+    if (respFiltro === 'si'            && r.resultado !== 'si')      return false;
+    if (respFiltro === 'no'            && r.resultado !== 'no')      return false;
+    if (respFiltro === 'no_reconocido' && r.resultado !== 'no_reconocido') return false;
+    if (respFiltro === 'sin_contexto'  && r.resultado !== 'sin_contexto')  return false;
+    if (busq) {
+      const nom = (r.nombre || '').toLowerCase();
+      if (!nom.includes(busq) && !r.tel.includes(busq)) return false;
+    }
+    return true;
+  });
+  const item = filtradas[idxFiltrado];
+  if (!item) return;
+  // El array `respuestas` está en orden inverso (más reciente primero, devuelto por el servidor)
+  // El servidor guarda en orden cronológico, así que el índice real = (total - 1 - idxEnRespuestas)
+  const idxEnRespuestas = respuestas.indexOf(item);
+  const idxServidor = respuestas.length - 1 - idxEnRespuestas;
+  respuestas.splice(idxEnRespuestas, 1);
+  if (MODO_BAILEYS) {
+    await fetch(`${API_BASE}/api/conversaciones/${idxServidor}`, { method: 'DELETE' }).catch(()=>{});
+  }
+  renderRespuestas();
+}
+
+async function borrarTodasRespuestas() {
+  const cnt = respuestas.length;
+  if (!cnt) { toast('ℹ️ No hay respuestas que borrar'); return; }
+  if (!confirm(`¿Borrar las ${cnt} respuestas registradas? Esta acción no se puede deshacer.`)) return;
+  if (MODO_BAILEYS) {
+    await fetch(API_BASE + '/api/conversaciones', { method: 'DELETE' });
+  }
+  respuestas = [];
+  renderRespuestas();
+  toast('🗑 Respuestas borradas');
+}
+
+// Polling: actualizar respuestas cada 30s si la pestaña está visible
+let respIntervalId = null;
+document.addEventListener('DOMContentLoaded', () => {
+  setInterval(() => {
+    if (document.getElementById('page-respuestas')?.classList.contains('on')) {
+      cargarRespuestas();
+    }
+  }, 30000);
+});
 
 </script>
 

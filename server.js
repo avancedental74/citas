@@ -31,6 +31,7 @@ const COLA_FILE      = path.join(__dirname, 'cola.json');
 const CONFIG_FILE    = path.join(__dirname, 'config.json');
 const LEADS_FILE     = path.join(__dirname, 'leads.json');
 const ESPERANDO_FILE = path.join(__dirname, 'esperando.json');
+const CONV_FILE      = path.join(__dirname, 'conversaciones.json');
 const BACKUP_DIR  = path.join(__dirname, 'backups');
 if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 
@@ -127,6 +128,67 @@ function cargarEsperando() {
 }
 cargarEsperando();
 
+// ── CONVERSACIONES (log de respuestas de pacientes) ───────────────────────────
+function cargarConversaciones() {
+  if (!fs.existsSync(CONV_FILE)) return [];
+  try { return JSON.parse(fs.readFileSync(CONV_FILE, 'utf8')); } catch { return []; }
+}
+function guardarConversaciones(lista) {
+  // Mantener solo las últimas 500 para no crecer indefinidamente
+  const recorte = lista.slice(-500);
+  fs.writeFileSync(CONV_FILE, JSON.stringify(recorte, null, 2));
+}
+
+// Debounce: ventana de 5 segundos para agrupar mensajes rápidos del mismo paciente
+const DEBOUNCE_MS = 5000;
+
+function registrarMensaje({ tel, nombre, mod, textoOriginal, resultado, ts }) {
+  const ahora = ts || Date.now();
+  const lista  = cargarConversaciones();
+
+  // Buscar si ya hay un registro reciente del mismo tel + mod + resultado
+  // Si existe, concatenar el texto en lugar de crear un duplicado
+  const limDebounce = ahora - DEBOUNCE_MS;
+  let idxExistente = -1;
+  for (let i = lista.length - 1; i >= 0; i--) {
+    const r = lista[i];
+    if (r.tel === tel && r.mod === mod && r.resultado === resultado && r.ts >= limDebounce) {
+      idxExistente = i;
+      break;
+    }
+  }
+
+  if (idxExistente !== -1) {
+    // Actualizar el registro existente: añadir el nuevo texto y actualizar timestamp
+    const reg = lista[idxExistente];
+    const textosYa = reg.textos || [reg.texto];
+    if (!textosYa.includes(textoOriginal)) textosYa.push(textoOriginal);
+    lista[idxExistente] = {
+      ...reg,
+      texto:  textosYa.join(' / '),   // muestra todos los mensajes agrupados
+      textos: textosYa,
+      ts:     ahora,
+      fecha:  new Date(ahora).toISOString(),
+      agrupados: textosYa.length,
+    };
+    console.log(`🔁 Mensaje agrupado con registro anterior (${tel}) — total: ${textosYa.length}`);
+  } else {
+    lista.push({
+      tel,
+      nombre:  nombre || '—',
+      mod:     mod || 'desconocido',
+      texto:   textoOriginal,
+      textos:  [textoOriginal],
+      resultado,
+      ts:      ahora,
+      fecha:   new Date(ahora).toISOString(),
+      agrupados: 1,
+    });
+  }
+
+  guardarConversaciones(lista);
+}
+
 // ── PERSISTENCIA ──────────────────────────────────────────────────────────────
 function cargarDatos() {
   if (!fs.existsSync(DATA_FILE)) return { enviados:{}, listaNegra:[], abStats:{} };
@@ -160,12 +222,14 @@ function esFinde() {
   return d==='sábado'||d==='domingo';
 }
 
-// Devuelve true si la fecha dada (string ISO o Date) cayó en martes
+// Devuelve true si la fecha dada (string ISO o Date) cayó en martes (zona Madrid)
 function eraMartes(fecha) {
   if (!fecha) return false;
   const d = new Date(fecha);
   if (isNaN(d)) return false;
-  return d.getDay() === 2; // 0=dom, 1=lun, 2=mar ...
+  // Usamos el día de la semana en zona Madrid para evitar desfases UTC
+  const diaMadrid = d.toLocaleString('es-ES', { weekday: 'long', timeZone: 'Europe/Madrid' }).toLowerCase();
+  return diaMadrid === 'martes';
 }
 
 function horaSegunDia() {
@@ -410,7 +474,15 @@ async function procesarRespuesta(remitente, texto) {
   // LOG — ver en consola cada mensaje entrante y si el tel está esperando respuesta
   console.log(`📩 Entrante de ${tel}: "${texto.trim()}" | en mapa: ${esperandoRespuesta.has(tel)}`);
 
-  if (!esperandoRespuesta.has(tel)) return;
+  if (!esperandoRespuesta.has(tel)) {
+    // Solo registrar si el número está en nuestro historial de enviados
+    // (evita registrar mensajes de conversaciones personales ajenas a la clínica)
+    const datos = cargarDatos();
+    if (datos.enviados[tel]) {
+      registrarMensaje({ tel, nombre: datos.enviados[tel].nombre || null, mod: 'sin_contexto', textoOriginal: texto.trim(), resultado: 'sin_contexto' });
+    }
+    return;
+  }
 
   // Normalizar: minúsculas + sin tildes + sin puntuación
   const t = texto.trim().toLowerCase()
@@ -441,29 +513,30 @@ async function procesarRespuesta(remitente, texto) {
 
   const match = (lista) => lista.some(w => t === w || t.startsWith(w + ' ') || t.startsWith(w + ','));
 
-  // Detección por palabras clave dentro de frases más largas
-  // Ej: "si muchas gracias", "no quiero", "claro que sí"
-  function contieneIntencion(texto, listaSi, listaNo) {
-    // Si ya hay match exacto con la lista, no hacer nada aquí
-    const palabrasSi2 = ['si','sí','yes','claro','dale','vale','confirmo','perfecto','genial','alli','allí','ahi','ahí','voy','ire','iré'];
-    const palabrasNo2 = ['no','nope','cancelar','imposible','no puedo','no voy'];
-    // Buscar si el texto contiene una palabra clave de SI o NO
-    const tieneSi = palabrasSi2.some(w => {
+  // Detección contextual para frases largas: "sí muchas gracias", "no puedo ir"
+  // Solo activa si el mensaje tiene más de 2 palabras (evita colisión con match exacto)
+  function contieneIntencion(textoNorm) {
+    const palabras = textoNorm.trim().split(/\s+/).length;
+    if (palabras <= 2) return { si: false, no: false };
+
+    const clavesSi = ['si','sí','yes','claro','dale','vale','confirmo','perfecto','genial','voy','ire','iré','alli','allí','ahi','ahí'];
+    const clavesNo = ['no','nope','cancelar','imposible'];
+
+    const tieneSi = clavesSi.some(w => {
       const re = new RegExp('(?:^|\\s|,|\\.)' + w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '(?:\\s|,|\\.|$|!|\\?)', 'i');
-      return re.test(texto);
+      return re.test(textoNorm);
     });
-    const tieneNo = palabrasNo2.some(w => {
+    const tieneNo = clavesNo.some(w => {
       const re = new RegExp('(?:^|\\s|,|\\.)' + w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '(?:\\s|,|\\.|$|!|\\?)', 'i');
-      return re.test(texto);
+      return re.test(textoNorm);
     });
-    // Solo usamos detección contextual si el mensaje tiene más de 4 palabras
-    const palabras = texto.trim().split(/\s+/).length;
-    if (palabras <= 2) return { si: false, no: false }; // dejar al match exacto
+    // Ambiguo (tiene ambas) → no decidir
     return { si: tieneSi && !tieneNo, no: tieneNo && !tieneSi };
   }
 
-  const esSi = match(palabrasSi) || contieneIntencion(t, palabrasSi, palabrasNo).si;
-  const esNo = match(palabrasNo) || contieneIntencion(t, palabrasSi, palabrasNo).no;
+  const intencion = contieneIntencion(t);
+  const esSi = match(palabrasSi) || intencion.si;
+  const esNo = match(palabrasNo) || intencion.no;
 
   console.log(`🔍 esSi=${esSi} esNo=${esNo}`);
 
@@ -473,16 +546,19 @@ async function procesarRespuesta(remitente, texto) {
       esperandoRespuesta.delete(tel); guardarEsperando();
       const datos = cargarDatos();
       if (datos.enviados[tel]) { datos.enviados[tel].confirmado = true; guardarDatos(datos); }
+      registrarMensaje({ tel, nombre, mod: 'cita', textoOriginal: texto.trim(), resultado: 'si' });
       console.log(`✅ CITA CONFIRMADA — ${nombre} (${tel})`);
     } else if (esNo) {
       await enviarMensaje(tel, msgCitaRechazado(nombre)).catch(console.error);
       esperandoRespuesta.delete(tel); guardarEsperando();
       const datos = cargarDatos();
       if (datos.enviados[tel]) { datos.enviados[tel].cancelado = true; guardarDatos(datos); }
+      registrarMensaje({ tel, nombre, mod: 'cita', textoOriginal: texto.trim(), resultado: 'no' });
       console.log(`❌ CITA CANCELADA — ${nombre} (${tel})`);
       await avisarOperador(nombre, tel, fecha, hora, trat);
     } else {
       // Respuesta no reconocida — pedir aclaración una vez
+      registrarMensaje({ tel, nombre, mod: 'cita', textoOriginal: texto.trim(), resultado: 'no_reconocido' });
       console.log(`❓ No reconocida de ${nombre} (${tel}): "${t}"`);
       await enviarMensaje(tel, `Perdona ${nombre1}, no te he entendido bien 😅\n\nResponde simplemente *SÍ* para confirmar tu cita o *NO* si necesitas cambiarla.`).catch(console.error);
     }
@@ -491,13 +567,16 @@ async function procesarRespuesta(remitente, texto) {
     if (esSi) {
       await enviarMensaje(tel, construirMsgEnlace(nombre, variante)).catch(console.error);
       esperandoRespuesta.delete(tel); guardarEsperando();
+      registrarMensaje({ tel, nombre, mod: 'val', textoOriginal: texto.trim(), resultado: 'si' });
       console.log(`✅ SÍ de ${nombre} (${tel}) — enlace V${variante} enviado`);
     } else if (esNo) {
       await enviarMensaje(tel, construirMsgRespuestaNo(nombre)).catch(console.error);
       esperandoRespuesta.delete(tel); guardarEsperando();
+      registrarMensaje({ tel, nombre, mod: 'val', textoOriginal: texto.trim(), resultado: 'no' });
       console.log(`🚫 NO de ${nombre} (${tel})`);
     } else {
       // Respuesta no reconocida — pedir aclaración una vez
+      registrarMensaje({ tel, nombre, mod: 'val', textoOriginal: texto.trim(), resultado: 'no_reconocido' });
       console.log(`❓ No reconocida de ${nombre} (${tel}): "${t}"`);
       await enviarMensaje(tel, `Perdona ${nombre1} 😅\n\nResponde *SÍ* si quieres dejarnos tu opinión o *NO* si prefieres no hacerlo. ¡Sin problema en cualquier caso! 🙏`).catch(console.error);
     }
@@ -514,6 +593,7 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
   }
 
   colaActiva = true;
+  try {
   resetarContadoresSiNuevoDia();
 
   const cola  = cargarCola();
@@ -535,7 +615,7 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
     return true;
   });
   if (modFiltro) pendientes = pendientes.filter(p=>p.mod===modFiltro);
-  if (!pendientes.length) { console.log(`✅ Cola vacía o sin citas para hoy/mañana`); colaActiva=false; return; }
+  if (!pendientes.length) { console.log(`✅ Cola vacía o sin citas para hoy/mañana`); return; }
 
   let cV=0, cC=0;
   const aEnviar = pendientes.filter(p=>{
@@ -551,7 +631,7 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
   });
   if (!aEnviar.length) {
     console.log(`⛔ Sin pendientes o límite diario alcanzado (val:${enviosHoyVal}/${config.val_maxPorDia} cita:${enviosHoyCita}/${config.cita_maxPorDia})`);
-    colaActiva=false; return;
+    return;
   }
 
   console.log(`📤 Enviando ${aEnviar.length} mensajes...`);
@@ -617,8 +697,12 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
   }
   if (limpiados) guardarEsperando();
 
-  colaActiva=false;
   console.log(`🏁 val:${enviosHoyVal}/${config.val_maxPorDia} | cita:${enviosHoyCita}/${config.cita_maxPorDia}`);
+  } catch(err) {
+    console.error('💥 Error inesperado en procesarCola:', err.message);
+  } finally {
+    colaActiva = false;
+  }
 }
 
 // ── SINCRONIZAR LEADS → COLA ──────────────────────────────────────────────────
@@ -989,6 +1073,28 @@ app.delete('/api/listanegra/:tel',(req,res)=>{
 
 app.get('/api/qr',(req,res)=>res.json({qr:estadoWA==='qr'?qrActual:null,estado:estadoWA}));
 
+
+// ── CONVERSACIONES ────────────────────────────────────────────────────────────
+
+app.get('/api/conversaciones', (req, res) => {
+  const lista = cargarConversaciones();
+  // Devolver ordenadas de más reciente a más antigua
+  res.json(lista.slice().reverse());
+});
+
+app.delete('/api/conversaciones', (req, res) => {
+  guardarConversaciones([]);
+  res.json({ ok: true });
+});
+
+app.delete('/api/conversaciones/:idx', (req, res) => {
+  const lista = cargarConversaciones();
+  const idx = parseInt(req.params.idx);
+  if (isNaN(idx) || idx < 0 || idx >= lista.length) return res.status(404).json({ error: 'No encontrado' });
+  lista.splice(idx, 1);
+  guardarConversaciones(lista);
+  res.json({ ok: true });
+});
 
 // ── BACKUP ────────────────────────────────────────────────────────────────────
 
