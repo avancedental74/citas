@@ -1328,7 +1328,7 @@ async function pingSrvr() {
     if(el('sched-enviados-cita')) el('sched-enviados-cita').textContent = eCita;
     if(el('sched-max-val'))  el('sched-max-val').textContent  = `de ${cfg.val_maxPorDia||30}`;
     if(el('sched-max-cita')) el('sched-max-cita').textContent = `de ${cfg.cita_maxPorDia||50}`;
-    if (d.config) rellenarConfig(d.config);
+    if (d.config && !window._configCargada) { rellenarConfig(d.config); window._configCargada = true; }
     // Aviso fin de semana
     const avisoFinde = el('aviso-finde');
     if (avisoFinde) {
@@ -2297,50 +2297,66 @@ document.getElementById('mfondo-qr').addEventListener('click', function(e){ if(e
 // ═══════════════════════════════════════════════════
 // CONFIG SERVIDOR
 // ═══════════════════════════════════════════════════
-// Evita que el polling cada 5s sobreescriba campos que el usuario está editando
-let _editandoConfig = false;
-function _marcarEditando() {
-  _editandoConfig = true;
-  clearTimeout(window._editTimer);
-  window._editTimer = setTimeout(() => { _editandoConfig = false; }, 8000);
-}
+// IDs de toggles/checkboxes — nunca se sobreescriben si el usuario los tocó recientemente
+const _TOGGLE_IDS = ['cfg-val-activo','cfg-cita-activo','cfg-bloquear-finde','cfg-flujo-sino-val','cfg-flujo-sino-cita'];
+const _touched = new Set(); // campos que el usuario tocó — el polling no los pisa
+
 (function() {
-  const campos = ['cfg-val-hora','cfg-val-max','cfg-cita-hora','cfg-cita-max','cfg-delay-min','cfg-delay-max','cfg-num-resenias','cfg-tel-operador','cfg-msg-confirmado','cfg-msg-rechazado','cfg-flujo-sino-val','cfg-flujo-sino-cita','cfg-val-activo','cfg-cita-activo','cfg-bloquear-finde'];
-  document.addEventListener('DOMContentLoaded', () => {
-    campos.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) { el.addEventListener('input', _marcarEditando); el.addEventListener('focus', _marcarEditando); el.addEventListener('change', _marcarEditando); }
-    });
-  });
-  // Inicializar también de forma inmediata por si el DOM ya está listo
-  campos.forEach(id => {
+  const todos = ['cfg-val-hora','cfg-val-max','cfg-cita-hora','cfg-cita-max','cfg-delay-min','cfg-delay-max','cfg-num-resenias','cfg-tel-operador','cfg-msg-confirmado','cfg-msg-rechazado',..._TOGGLE_IDS];
+  function marcarTocado(id) {
+    _touched.add(id);
+    clearTimeout(window['_t_'+id]);
+    // Para toggles: protección larga (30s) para que guardarConfig() complete el round-trip
+    // Para inputs de texto: 10s es suficiente
+    const ms = _TOGGLE_IDS.includes(id) ? 30000 : 10000;
+    window['_t_'+id] = setTimeout(() => _touched.delete(id), ms);
+  }
+  function bindEl(id) {
     const el = document.getElementById(id);
-    if (el) { el.addEventListener('input', _marcarEditando); el.addEventListener('focus', _marcarEditando); el.addEventListener('change', _marcarEditando); }
-  });
+    if (!el) return;
+    el.addEventListener('change', () => marcarTocado(id));
+    el.addEventListener('input',  () => marcarTocado(id));
+    el.addEventListener('focus',  () => marcarTocado(id));
+  }
+  document.addEventListener('DOMContentLoaded', () => todos.forEach(bindEl));
+  todos.forEach(bindEl);
 })();
 
 function rellenarConfig(cfg) {
-  if (_editandoConfig) return; // el usuario está tocando campos — no interrumpir
   const g = id => document.getElementById(id);
-  if(g('cfg-val-hora'))  g('cfg-val-hora').value   = (cfg.horariosVal && cfg.horariosVal[1]) || cfg.val_horaEnvio || '10:30';
-  if(g('cfg-val-max'))   g('cfg-val-max').value    = cfg.val_maxPorDia  || 30;
-  if(g('cfg-val-activo')) g('cfg-val-activo').checked = cfg.val_activo !== false;
-  if(g('cfg-cita-hora')) g('cfg-cita-hora').value  = cfg.cita_horaEnvio || '09:00';
-  if(g('cfg-cita-max'))  g('cfg-cita-max').value   = cfg.cita_maxPorDia || 50;
-  if(g('cfg-cita-activo')) g('cfg-cita-activo').checked = cfg.cita_activo !== false;
-  if(g('cfg-delay-min')) g('cfg-delay-min').value  = cfg.delayMinSeg    || 8;
-  if(g('cfg-delay-max')) g('cfg-delay-max').value  = cfg.delayMaxSeg    || 20;
-  if(g('cfg-bloquear-finde'))  g('cfg-bloquear-finde').checked  = cfg.bloquearFinde !== false;
-  if(g('cfg-num-resenias')) g('cfg-num-resenias').value = cfg.numResenias || 127;
-  if(g('cfg-flujo-sino-cita')) g('cfg-flujo-sino-cita').checked = cfg.flujoSiNo_cita === true || (cfg.flujoSiNo_cita === undefined && cfg.flujoSiNo === true);
-  if(g('cfg-flujo-sino-val'))  g('cfg-flujo-sino-val').checked  = cfg.flujoSiNo_val  === true || (cfg.flujoSiNo_val  === undefined && cfg.flujoSiNo === true);
-  if(g('cfg-msg-confirmado') && cfg.msgConfirmado) g('cfg-msg-confirmado').value = cfg.msgConfirmado;
-  if(g('cfg-msg-rechazado')  && cfg.msgRechazado)  g('cfg-msg-rechazado').value  = cfg.msgRechazado;
-  if(g('cfg-aviso-metodo')   && cfg.avisoMetodo)   { g('cfg-aviso-metodo').value = cfg.avisoMetodo; toggleAvisoMetodo(); }
-  if(g('cfg-aviso-email')    && cfg.avisoEmail)    g('cfg-aviso-email').value    = cfg.avisoEmail;
-  if(g('cfg-aviso-email-user') && cfg.avisoEmailUser) g('cfg-aviso-email-user').value = cfg.avisoEmailUser;
-  if(g('cfg-aviso-email-pass') && cfg.avisoEmailPass) g('cfg-aviso-email-pass').value = cfg.avisoEmailPass;
-  if(g('cfg-aviso-whatsapp') && cfg.avisoWhatsapp) g('cfg-aviso-whatsapp').value = cfg.avisoWhatsapp;
+
+  // Helper: solo actualiza un input de texto si el valor cambió y el usuario no lo está tocando
+  function setVal(id, val) {
+    if (_touched.has(id)) return;
+    const el = g(id); if (!el) return;
+    if (el.value !== String(val)) el.value = val;
+  }
+  // Helper: solo actualiza un checkbox si el valor cambió y el usuario no lo está tocando
+  function setChk(id, val) {
+    if (_touched.has(id)) return;
+    const el = g(id); if (!el) return;
+    if (el.checked !== val) el.checked = val;
+  }
+
+  setVal('cfg-val-hora',  (cfg.horariosVal && cfg.horariosVal[1]) || cfg.val_horaEnvio || '10:30');
+  setVal('cfg-val-max',   cfg.val_maxPorDia  || 30);
+  setChk('cfg-val-activo', cfg.val_activo === true);
+  setVal('cfg-cita-hora', cfg.cita_horaEnvio || '09:00');
+  setVal('cfg-cita-max',  cfg.cita_maxPorDia || 50);
+  setChk('cfg-cita-activo', cfg.cita_activo === true);
+  setVal('cfg-delay-min', cfg.delayMinSeg || 8);
+  setVal('cfg-delay-max', cfg.delayMaxSeg || 20);
+  setChk('cfg-bloquear-finde', cfg.bloquearFinde === true);
+  setVal('cfg-num-resenias', cfg.numResenias || 127);
+  setChk('cfg-flujo-sino-cita', cfg.flujoSiNo_cita === true || (cfg.flujoSiNo_cita === undefined && cfg.flujoSiNo === true));
+  setChk('cfg-flujo-sino-val',  cfg.flujoSiNo_val  === true || (cfg.flujoSiNo_val  === undefined && cfg.flujoSiNo === true));
+  if (!_touched.has('cfg-msg-confirmado') && cfg.msgConfirmado) setVal('cfg-msg-confirmado', cfg.msgConfirmado);
+  if (!_touched.has('cfg-msg-rechazado')  && cfg.msgRechazado)  setVal('cfg-msg-rechazado',  cfg.msgRechazado);
+  if (!_touched.has('cfg-aviso-metodo') && cfg.avisoMetodo) { setVal('cfg-aviso-metodo', cfg.avisoMetodo); toggleAvisoMetodo(); }
+  if (!_touched.has('cfg-aviso-email')       && cfg.avisoEmail)     setVal('cfg-aviso-email',       cfg.avisoEmail);
+  if (!_touched.has('cfg-aviso-email-user')  && cfg.avisoEmailUser)  setVal('cfg-aviso-email-user',  cfg.avisoEmailUser);
+  if (!_touched.has('cfg-aviso-email-pass')  && cfg.avisoEmailPass)  setVal('cfg-aviso-email-pass',  cfg.avisoEmailPass);
+  if (!_touched.has('cfg-aviso-whatsapp')    && cfg.avisoWhatsapp)   setVal('cfg-aviso-whatsapp',    cfg.avisoWhatsapp);
 }
 
 function toggleAvisoMetodo() {
@@ -2381,6 +2397,8 @@ async function guardarConfig() {
   try {
     await fetch(API_BASE+'/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cfg)});
     toast('✅ Configuración guardada','ok');
+    // Config guardada — limpiar protecciones para que el próximo ping pueda re-sincronizar si hace falta
+    _touched.clear();
   } catch(err) { toast('❌ Error al guardar: '+err.message,'err'); }
 }
 
