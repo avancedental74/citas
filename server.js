@@ -773,7 +773,7 @@ function programarCrons() {
 
   // Cron unificado — revisa cada minuto L-V entre 7:00 y 14:00
   // Es más fiable que crons de hora exacta: si el servidor arranca tarde, recupera
-  cronJobVal = cron.schedule('* 7-14 * * 1-5', async () => {
+  cronJobVal = cron.schedule('* * * * 1-5', async () => {
     const fechaHoy   = hoy();
     const ahoraMin   = ahoraEnMinutos();
 
@@ -805,7 +805,7 @@ function programarCrons() {
     }
   }, opts);
 
-  console.log(`⏰ Cron activo (cada minuto, L-V 7-14h)`);
+  console.log(`⏰ Cron activo (cada minuto, L-V todo el día)`);
   console.log(`⏰ Valoraciones: ${horaSegunDia()} (+${VENTANA_MIN}min ventana)`);
   console.log(`⏰ Recordatorios: ${config.cita_horaEnvio} (+${VENTANA_MIN}min ventana)`);
 }
