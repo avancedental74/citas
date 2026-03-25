@@ -895,25 +895,22 @@ Nuestros operadores se pondrán en contacto contigo lo antes posible para agenda
 
   <!-- Flujo SÍ — Valoraciones -->
   <div class="section-card">
-    <div class="section-card-header">
+    <div class="section-card-header" style="background:var(--verde-xc)">
       <div>
-        <div class="section-card-title">⭐ Respuesta automática — Pedir valoración</div>
-        <div style="font-size:12px;color:var(--gris-m);margin-top:2px">Si el paciente responde SÍ → se le envía el enlace de Google Reviews automáticamente · Si responde NO → mensaje de agradecimiento</div>
+        <div class="section-card-title">⭐ Pedir valoración — Enlace directo</div>
+        <div style="font-size:12px;color:var(--gris-m);margin-top:2px">Se envía el enlace de Google Reviews directamente personalizado con nombre y fecha de visita.</div>
       </div>
-      <label class="toggle">
-        <input type="checkbox" id="cfg-flujo-sino-val" checked onchange="guardarConfig()">
-        <span class="toggle-slider"></span>
-      </label>
+      <div class="badge-count verde">SIEMPRE ACTIVO</div>
     </div>
     <div class="section-card-body">
       <div style="background:var(--verde-c);border:1px solid #bbf7d0;border-radius:9px;padding:11px 14px;font-size:12px;color:var(--verde-m);margin-bottom:12px;line-height:1.6">
-        ℹ️ Cuando está activo, el mensaje de valoración termina con <strong>"¿Nos dedicas 30 segundos? ✅ SÍ / ❌ NO"</strong>. Si el paciente responde SÍ, Baileys le manda el enlace de Google Reviews al instante.
+        ℹ️ Este mensaje se envía de forma directa. No se pregunta SÍ/NO para maximizar la conversión y simplificar el flujo al paciente.
       </div>
       <div style="background:#f8fafc;border:1px solid var(--borde);border-radius:9px;padding:12px 14px;font-size:12px;color:var(--gris-m);line-height:1.8">
-        <strong style="color:var(--gris-o)">Vista previa del CTA que verá el paciente:</strong><br>
-        ¿Nos dedicas 30 segundos?<br>
-        ✅ <strong>SÍ</strong> — Te enviamos el enlace ahora mismo<br>
-        ❌ <strong>NO</strong> — Sin problema, gracias igualmente 🙏
+        <strong style="color:var(--gris-o)">Vista previa del mensaje personalizado:</strong><br>
+        Hola [nombre] 👋<br>
+        Gracias por visitarnos el [fecha] en Avance Dental...<br>
+        👇 <strong>Link directo a Google Reviews</strong>
       </div>
 
       <div style="border-top:1px solid var(--borde);padding-top:14px;margin-top:14px">
@@ -2382,7 +2379,7 @@ document.getElementById('mfondo-qr').addEventListener('click', function(e){ if(e
 // CONFIG SERVIDOR
 // ═══════════════════════════════════════════════════
 // IDs de toggles/checkboxes — nunca se sobreescriben si el usuario los tocó recientemente
-const _TOGGLE_IDS = ['cfg-val-activo','cfg-cita-activo','cfg-bloquear-finde','cfg-flujo-sino-val','cfg-flujo-sino-cita'];
+const _TOGGLE_IDS = ['cfg-val-activo','cfg-cita-activo','cfg-bloquear-finde','cfg-flujo-sino-cita'];
 const _touched = new Set(); // campos que el usuario tocó — el polling no los pisa
 
 (function() {
@@ -2433,7 +2430,6 @@ function rellenarConfig(cfg) {
   setChk('cfg-bloquear-finde', cfg.bloquearFinde === true);
   setVal('cfg-num-resenias', cfg.numResenias || 127);
   setChk('cfg-flujo-sino-cita', cfg.flujoSiNo_cita === true || (cfg.flujoSiNo_cita === undefined && cfg.flujoSiNo === true));
-  setChk('cfg-flujo-sino-val',  cfg.flujoSiNo_val  === true || (cfg.flujoSiNo_val  === undefined && cfg.flujoSiNo === true));
   if (!_touched.has('cfg-msg-confirmado') && cfg.msgConfirmado) setVal('cfg-msg-confirmado', cfg.msgConfirmado);
   if (!_touched.has('cfg-msg-rechazado')  && cfg.msgRechazado)  setVal('cfg-msg-rechazado',  cfg.msgRechazado);
   if (!_touched.has('cfg-msg-val-template') && cfg.msgValTemplate) setVal('cfg-msg-val-template', cfg.msgValTemplate);
@@ -2471,7 +2467,7 @@ async function guardarConfig() {
     bloquearFinde:  g('cfg-bloquear-finde')?.checked === true,
     numResenias:    parseInt(g('cfg-num-resenias')?.value || 127),
     flujoSiNo_cita: g('cfg-flujo-sino-cita')?.checked || false,
-    flujoSiNo_val:  g('cfg-flujo-sino-val')?.checked  || false,
+    flujoSiNo_val:  false, // Forzado false (flujo directo siempre activo)
     msgConfirmado:  g('cfg-msg-confirmado')?.value || '',
     msgRechazado:   g('cfg-msg-rechazado')?.value || '',
     msgValTemplate: g('cfg-msg-val-template')?.value || '',
@@ -2649,7 +2645,7 @@ function isFlujoSiNoVal() {
 function msgVal(p) {
   const nombre   = p.nombre.split(' ')[0];
   const fechaTxt = p.fecha ? fmtFecha(p.fecha) : null;
-  const cuandoF  = cuandoTemporal(p.fecha, p.hora);
+  const cuandoF  = fechaTxt ? 'el ' + fechaTxt : 'recientemente';
 
   let template = document.getElementById('cfg-msg-val-template')?.value || `Hola [nombre] 👋
 
@@ -2659,13 +2655,8 @@ Tu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a
 
 [CTA]`;
 
-  let cta = '';
-  if (isFlujoSiNoVal()) {
-    cta = '¿Nos dedicas 30 segundos?\n\n✅ *SÍ* — Te enviamos el enlace ahora mismo\n❌ *NO* — Sin problema, gracias igualmente 🙏';
-  } else {
-    const url = urlConUtm(0);
-    cta = '👇 Si tienes un momento, aquí puedes dejarnos tu opinión:\n' + url;
-  }
+  const url = urlConUtm(0);
+  let cta = '👇 Si tienes un momento, aquí puedes dejarnos tu opinión:\n' + url;
 
   return template
     .replace(/\[nombre\]/g, nombre)

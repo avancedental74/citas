@@ -329,8 +329,7 @@ function registrarAbEnvio(v) {
 
 function construirMsgVal(p, variante) {
   const nombre = p.nombre.split(' ')[0];
-  const cuando = cuandoTemporal(p.fecha, p.hora);
-  const n = config.numResenias || 127;
+  const cuando = fmtFecha(p.fecha); // Siempre la fecha exacta como pide el usuario
   const url = urlConUtm(variante, 'val');
 
   let template = config.msgValTemplate || `Hola [nombre] 👋
@@ -341,17 +340,12 @@ Tu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a
 
 [CTA]`;
 
-  let cta = '';
-  const flujoVal = config.flujoSiNo_val ?? config.flujoSiNo;
-  if (flujoVal) {
-    cta = `¿Nos dedicas 30 segundos?\n\n✅ *SÍ* — Te enviamos el enlace ahora mismo\n❌ *NO* — Sin problema, gracias igualmente 🙏`;
-  } else {
-    cta = `👇 Si tienes un momento, aquí puedes dejarnos tu opinión:\n${url}`;
-  }
+  // Siempre link directo, sin flujo SÍ/NO para valoraciones
+  const cta = `👇 Si tienes un momento, aquí puedes dejarnos tu opinión:\n${url}`;
 
   return template
     .replace(/\[nombre\]/g, nombre || '')
-    .replace(/\[cuando\]/g, cuando || '')
+    .replace(/\[cuando\]/g, cuando ? 'el ' + cuando : 'recientemente')
     .replace(/\[clinica\]/g, CLINICA || '')
     .replace(/\[CTA\]/g, cta)
     .trim();
@@ -598,23 +592,8 @@ async function procesarRespuesta(remitente, texto) {
       await enviarMensaje(tel, `Perdona ${nombre1}, no te he entendido bien 😅\n\nResponde simplemente *SÍ* para confirmar tu cita o *NO* si necesitas cambiarla.`).catch(console.error);
     }
   } else {
-    // Valoración
-    if (esSi) {
-      await enviarMensaje(tel, construirMsgEnlace(nombre, variante)).catch(console.error);
-      esperandoRespuesta.delete(tel); guardarEsperando();
-      registrarMensaje({ tel, nombre, mod: 'val', textoOriginal: texto.trim(), resultado: 'si' });
-      console.log(`✅ SÍ de ${nombre} (${tel}) — enlace V${variante} enviado`);
-    } else if (esNo) {
-      await enviarMensaje(tel, construirMsgRespuestaNo(nombre)).catch(console.error);
-      esperandoRespuesta.delete(tel); guardarEsperando();
-      registrarMensaje({ tel, nombre, mod: 'val', textoOriginal: texto.trim(), resultado: 'no' });
-      console.log(`🚫 NO de ${nombre} (${tel})`);
-    } else {
-      // Respuesta no reconocida — pedir aclaración una vez
-      registrarMensaje({ tel, nombre, mod: 'val', textoOriginal: texto.trim(), resultado: 'no_reconocido' });
-      console.log(`❓ No reconocida de ${nombre} (${tel}): "${t}"`);
-      await enviarMensaje(tel, `Perdona ${nombre1} 😅\n\nResponde *SÍ* si quieres dejarnos tu opinión o *NO* si prefieres no hacerlo. ¡Sin problema en cualquier caso! 🙏`).catch(console.error);
-    }
+    // Otros módulos (si los hubiera)
+    console.log(`ℹ️ Mensaje de ${nombre} (${tel}) en módulo ${mod} — fuera de flujo auto-respuesta`);
   }
 }
 
@@ -709,13 +688,9 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
       // A/B tracking envío
       if (p.mod==='val') registrarAbEnvio(varianteIdx);
 
-      // SÍ/NO: guardar para respuesta automática
+      // SÍ/NO: guardar para respuesta automática (solo para CITAS, nunca para VALORACIONES)
       const flujoActivoCita = config.flujoSiNo_cita ?? config.flujoSiNo;
-      const flujoActivoVal  = config.flujoSiNo_val  ?? config.flujoSiNo;
-      if (p.mod === 'val'  && flujoActivoVal) {
-        esperandoRespuesta.set(p.tel, { mod:'val', nombre:p.nombre, variante:varianteIdx, ts:Date.now() });
-        guardarEsperando();
-      } else if (p.mod === 'cita' && flujoActivoCita) {
+      if (p.mod === 'cita' && flujoActivoCita) {
         esperandoRespuesta.set(p.tel, { mod:'cita', nombre:p.nombre, fecha:p.fecha||null, hora:p.hora||'', trat:p.trat||'', ts:Date.now() });
         guardarEsperando();
       }
@@ -1182,18 +1157,14 @@ app.post('/api/prueba',async(req,res)=>{
     await enviarMensaje(tel, mensaje);
     const flujoActivoCita = config.flujoSiNo_cita ?? config.flujoSiNo;
     const flujoActivoVal  = config.flujoSiNo_val  ?? config.flujoSiNo;
-    if (mod === 'val' && flujoActivoVal) {
-      esperandoRespuesta.set(tel, { mod: 'val', nombre: nombre || 'Prueba', variante: variante ?? 0, ts: Date.now() });
-      guardarEsperando();
-      console.log(`🧪 PRUEBA val — flujo SÍ/NO activo para ${tel}`);
-    } else if (mod === 'cita' && flujoActivoCita) {
+    if (mod === 'cita' && flujoActivoCita) {
       esperandoRespuesta.set(tel, { mod: 'cita', nombre: nombre || 'Prueba', fecha: fecha || null, hora: hora || '', trat: trat || '', ts: Date.now() });
       guardarEsperando();
       console.log(`🧪 PRUEBA cita — flujo SÍ/NO activo para ${tel}`);
     } else {
-      console.log(`🧪 PRUEBA ${mod} — flujo SÍ/NO desactivado en config, mensaje enviado sin flujo`);
+      console.log(`🧪 PRUEBA ${mod} — flujo directo (sin interactividad SÍ/NO)`);
     }
-    res.json({ ok: true, flujoActivado: mod === 'val' ? flujoActivoVal : flujoActivoCita });
+    res.json({ ok: true, flujoActivado: mod === 'cita' ? flujoActivoCita : false });
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
