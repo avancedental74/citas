@@ -50,6 +50,9 @@ descargar_repo() {
     cp -r "$TMP_DIR/$EXTRACTED/." "$INSTALL_DIR/"
     rm -rf "$TMP_DIR"
 
+    # 📥 Instalar dependencias automáticamente (mejor que subirlas a GitHub)
+    cd "$INSTALL_DIR" && npm install --no-fund --no-audit 2>/dev/null
+    
     [ -d "/tmp/auth_backup" ]                  && cp -r "/tmp/auth_backup" "$INSTALL_DIR/auth_avancedental"
     [ -f "/tmp/data_backup.json" ]             && cp "/tmp/data_backup.json" "$INSTALL_DIR/data.json"
     [ -f "/tmp/cola_backup.json" ]             && cp "/tmp/cola_backup.json" "$INSTALL_DIR/cola.json"
@@ -141,6 +144,9 @@ echo "[$(date '+%Y-%m-%d %H:%M')] Cambios detectados — actualizando..." >> "$L
 
 cp -r "$TMP_DIR/$EXTRACTED/." "$INSTALL_DIR/"
 rm -rf "$TMP_DIR"
+
+# 📥 Restaurar dependencias en segundo plano
+cd "$INSTALL_DIR" && npm install --no-fund --no-audit 2>/dev/null
 
 [ -d "/tmp/auth_backup" ]                 && cp -r "/tmp/auth_backup" "$INSTALL_DIR/auth_avancedental"
 [ -f "/tmp/data_backup.json" ]            && cp "/tmp/data_backup.json" "$INSTALL_DIR/data.json"
