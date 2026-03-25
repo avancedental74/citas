@@ -1,28 +1,24 @@
-/**
- * AVANCE DENTAL — Servidor WhatsApp Baileys v4
- * Motor de conversión con A/B tracking via GA4 UTM
- */
-
-const {
-  default: makeWASocket,
+import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   Browsers
-} = require('@whiskeysockets/baileys');
-const { Boom }   = require('@hapi/boom');
-const P          = require('pino');
-const express    = require('express');
-const cors       = require('cors');
-const cron       = require('node-cron');
-const fs         = require('fs');
-const path       = require('path');
-let nodemailer;
-try { nodemailer = require('nodemailer'); } catch { nodemailer = null; }
-let archiver;
-try { archiver = require('archiver'); } catch { archiver = null; }
-let BetaAnalyticsDataClient;
-try { BetaAnalyticsDataClient = require('@google-analytics/data').BetaAnalyticsDataClient; } catch { BetaAnalyticsDataClient = null; }
+} from '@whiskeysockets/baileys';
+import { Boom }   from '@hapi/boom';
+import P          from 'pino';
+import express    from 'express';
+import cors       from 'cors';
+import cron       from 'node-cron';
+import fs         from 'fs';
+import path       from 'path';
+import { fileURLToPath } from 'url';
+import nodemailer from 'nodemailer';
+import archiver   from 'archiver';
+import googleAnalyticsData from '@google-analytics/data';
+const { BetaAnalyticsDataClient } = googleAnalyticsData;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const PORT      = 3001;
@@ -52,7 +48,7 @@ const CONFIG_DEFAULT = {
   numResenias:    127,   // se muestra en el mensaje ("ya somos X familias")
   flujoSiNo:      false,  // legacy — se mantiene por compatibilidad
   flujoSiNo_cita: true,   // true = flujo SÍ/NO en recordatorios de cita
-  flujoSiNo_val:  true,   // true = flujo SÍ/NO en mensajes de valoración
+  flujoSiNo_val:  false,  // false = link directo (pedid por el usuario)
   abTracking:     false,  // registra variante enviada + clics por UTM
 
   // Aviso al operador cuando paciente dice NO a cita
@@ -68,6 +64,22 @@ const CONFIG_DEFAULT = {
   // Google Analytics 4
   ga4PropertyId:      '',
   ga4CredentialsPath: '',
+
+  // Plantillas de mensajes
+  msgValTemplate: `Hola [nombre] 👋
+
+Gracias por visitarnos [cuando] en *[clinica]*.
+
+Tu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a que otras familias encuentren un dentista de confianza 🙏
+
+[CTA]`,
+  msgCitaTemplate: `Hola [nombre] 👋
+
+Te escribimos desde *[clinica]* para recordarte que tienes cita[tratamiento] el [fecha][hora].
+
+[nervios]
+
+[CTA]`,
 };
 
 // ── CONSTANTES ────────────────────────────────────────────────────────────────
@@ -88,8 +100,8 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 function jid(tel) { return `${tel}@s.whatsapp.net`; }
 function telLimpio(t) {
   const limpio = String(t).replace(/\D/g, '').replace(/^34/, '').slice(-9);
-  // Validar que sea móvil español (empieza por 6, 7 o 8)
-  return /^[67]\d{8}$/.test(limpio) ? limpio : '';
+  // Validar que sea móvil español o fijo (empieza por 6, 7, 8 o 9) (M1)
+  return /^[6789]\d{8}$/.test(limpio) ? limpio : '';
 }
 
 // ── ESTADO ────────────────────────────────────────────────────────────────────
@@ -297,41 +309,52 @@ function cuandoTemporal(fecha, hora) {
 // Estructura fija (elegida): Hola Nombre + fecha + cuerpo + CTA neutro
 // Las 4 variantes A/B testean distintos cuerpos — misma estructura, distinto ángulo
 // CTA fijo: "👇 ¿Nos cuentas? Responde *SÍ* o *NO* y en un momento te escribimos"
+function seleccionarVariante() {
+  const h = cargarDatos().abStats || {};
+  let m = 0, c = Infinity;
+  [0, 1, 2, 3].forEach(v => {
+    const env = h['v' + v]?.enviados || 0;
+    if (env < c) { c = env; m = v; }
+  });
+  return m;
+}
+
+function registrarAbEnvio(v) {
+  const d = cargarDatos();
+  if (!d.abStats) d.abStats = {};
+  if (!d.abStats['v' + v]) d.abStats['v' + v] = { enviados: 0, clics: 0 };
+  d.abStats['v' + v].enviados++;
+  guardarDatos(d);
+}
+
 function construirMsgVal(p, variante) {
-  const nombre  = p.nombre.split(' ')[0];
-  const cuandoF = p.fecha ? `el *${fmtFecha(p.fecha)}*` : 'el otro día';
-  const n       = config.numResenias || 127;
+  const nombre = p.nombre.split(' ')[0];
+  const cuando = cuandoTemporal(p.fecha, p.hora);
+  const n = config.numResenias || 127;
+  const url = urlConUtm(variante, 'val');
 
-  // 4 cuerpos A/B — varían en ángulo emocional, nunca en estructura ni CTA
-  const cuerpos = [
-    // V0 — Importancia + comunidad (la elegida, base D1)
-    `Gracias por visitarnos ${cuandoF} en *${CLINICA}*.
+  let template = config.msgValTemplate || `Hola [nombre] 👋
 
-Tu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a que otras familias encuentren un dentista de confianza 🙏`,
-    // V1 — Gratitud + mejora continua
-    `Gracias por confiar en *${CLINICA}* ${cuandoF}.
+Gracias por visitarnos [cuando] en *[clinica]*.
 
-Nos tomamos muy en serio cada visita — y tu opinión nos ayuda a ser mejores cada día 🙏`,
-    // V2 — Cercanía + impacto real
-    `Fue un placer tenerte con nosotros ${cuandoF} en *${CLINICA}*.
+Tu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a que otras familias encuentren un dentista de confianza 🙏
 
-Tu valoración nos importa de verdad — es lo que nos ayuda a seguir dando el mejor servicio a cada paciente 🙏`,
-    // V3 — Confianza + pertenencia
-    `Gracias por elegirnos ${cuandoF} en *${CLINICA}*.
+[CTA]`;
 
-Somos *${n} familias* que confían en nosotros — y la opinión de cada una hace que sigamos mejorando 🙏`,
-  ];
-
-  // CTA de alta conversión — emojis en SÍ/NO, brevedad, beneficio inmediato
-  const cta = `¿Nos dedicas 30 segundos?\n\n✅ *SÍ* — Te enviamos el enlace ahora mismo\n❌ *NO* — Sin problema, gracias igualmente 🙏`;
-
-  const flujoVal = config.flujoSiNo_val ?? config.flujoSiNo; // compatibilidad con flag legacy
+  let cta = '';
+  const flujoVal = config.flujoSiNo_val ?? config.flujoSiNo;
   if (flujoVal) {
-    return [`Hola ${nombre} 🦷`, ``, cuerpos[variante % cuerpos.length], ``, cta].join('\n');
+    cta = `¿Nos dedicas 30 segundos?\n\n✅ *SÍ* — Te enviamos el enlace ahora mismo\n❌ *NO* — Sin problema, gracias igualmente 🙏`;
   } else {
-    const url = urlConUtm(variante, 'val');
-    return [`Hola ${nombre} 🦷`, ``, cuerpos[variante % cuerpos.length], ``, `👉 Cuéntanos aquí:`, url, ``, `¡Gracias, ${nombre}! 🌟`].join('\n');
+    cta = `👇 Si tienes un momento, aquí puedes dejarnos tu opinión:\n${url}`;
   }
+
+  return template
+    .replace(/\[nombre\]/g, nombre || '')
+    .replace(/\[cuando\]/g, cuando || '')
+    .replace(/\[clinica\]/g, CLINICA || '')
+    .replace(/\[CTA\]/g, cta)
+    .trim();
 }
 
 // Respuesta automática al SÍ — incluye UTM de la variante para tracking GA4
@@ -409,37 +432,42 @@ const TRAT_DIFICIL = ['endodoncia','extraccion','extracción','implante','cirugi
 function esTratDificil(t) { if(!t)return false; const s=t.toLowerCase(); return TRAT_DIFICIL.some(k=>s.includes(k)); }
 
 function construirMsgCita(p) {
-  const nombre   = p.nombre.split(' ')[0];
-  const hora     = p.hora ? ` a las *${p.hora}*` : '';
-  const tratTxt  = p.trat ? ` para tu *${p.trat.toLowerCase()}*` : '';
+  const nombre = p.nombre.split(' ')[0];
+  const hora = p.hora ? ` a las *${p.hora}*` : '';
+  const tratTxt = p.trat ? ` para tu *${p.trat.toLowerCase()}*` : '';
   const fechaTxt = p.fecha ? `*${fmtFecha(p.fecha)}*` : 'próximamente';
-  const difícil  = esTratDificil(p.trat);
+  const difícil = esTratDificil(p.trat);
 
-  const lineas = [
-    `Hola ${nombre} 👋`,
-    ``,
-    `Te escribimos desde *${CLINICA}* para recordarte que tienes cita${tratTxt} el ${fechaTxt}${hora}.`,
-    ``,
-  ];
+  let template = config.msgCitaTemplate || `Hola [nombre] 👋
 
+Te escribimos desde *[clinica]* para recordarte que tienes cita[tratamiento] el [fecha][hora].
+
+[nervios]
+
+[CTA]`;
+
+  let nervios = '';
   if (difícil) {
-    lineas.push(`Sabemos que este tipo de tratamiento puede generar algo de nervios — estamos aquí para que te sientas cómodo/a en todo momento 🙌`);
-    lineas.push(``);
+    nervios = 'Sabemos que este tipo de tratamiento puede generar algo de nervios — estamos aquí para que te sientas cómodo/a en todo momento 🙌';
   }
 
-  lineas.push(
-    `¿Puedes confirmarnos la asistencia?`,
-    ``,
-    `✅ Responde *SÍ* para confirmar`,
-    `❌ Responde *NO* si necesitas cambiarla`
-  );
-
-  const flujoCita = config.flujoSiNo_cita ?? config.flujoSiNo; // compatibilidad legacy
-  if (!flujoCita) {
-    lineas.push(``, `Si prefieres llamarnos, con gusto te buscamos otro hueco 😊`);
+  let cta = '';
+  const flujoCita = config.flujoSiNo_cita ?? config.flujoSiNo;
+  if (flujoCita) {
+    cta = '¿Puedes confirmarnos la asistencia?\n\n✅ Responde *SÍ* para confirmar\n❌ Responde *NO* si necesitas cambiarla';
+  } else {
+    cta = 'Si necesitas cambiarla o tienes alguna duda, llámanos y con gusto te buscamos otro hueco 😊';
   }
 
-  return lineas.join('\n');
+  return template
+    .replace(/\[nombre\]/g, nombre || '')
+    .replace(/\[clinica\]/g, CLINICA || '')
+    .replace(/\[tratamiento\]/g, tratTxt)
+    .replace(/\[fecha\]/g, fechaTxt)
+    .replace(/\[hora\]/g, hora)
+    .replace(/\[nervios\]/g, nervios)
+    .replace(/\[CTA\]/g, cta)
+    .trim();
 }
 
 // ── A/B TRACKING ──────────────────────────────────────────────────────────────
@@ -610,19 +638,34 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
   let pendientes = cola.filter(p => {
     if (p.enviado) return false;
     if (lb.has(p.tel)) return false;
-    if (datos.enviados[p.tel]?.[p.mod]) return false;
-    // Para citas: solo enviar si la cita es hoy o mañana
-    if (p.mod === 'cita' && p.fecha) {
-      const hoyD   = new Date(); hoyD.setHours(0,0,0,0);
-      const manana = new Date(hoyD); manana.setDate(manana.getDate()+1);
-      const fCita  = new Date(p.fecha); fCita.setHours(0,0,0,0);
-      if (fCita > manana) return false; // cita aún lejana — esperar
-      if (fCita < hoyD)  return false; // cita ya pasada — descartar
+
+    const hoyStr = hoy();
+    const yaEnviado = datos.enviados[p.tel]?.[p.mod];
+
+    // Reglas inteligentes de frecuencia:
+    if (p.mod === 'cita') {
+      // Citas: No repetir el mismo día (idempotencia)
+      if (yaEnviado === hoyStr) return false;
+
+      // Solo enviar si la cita es hoy o mañana (según fecha del lead)
+      if (p.fecha) {
+        const hoyD   = new Date(); hoyD.setHours(0,0,0,0);
+        const manana = new Date(hoyD); manana.setDate(manana.getDate()+1);
+        const fCita  = new Date(p.fecha); fCita.setHours(0,0,0,0);
+        if (fCita > manana) return false; // cita aún lejana
+        if (fCita < hoyD)   return false; // cita ya pasada
+      }
+    } else {
+      // Valoraciones: REGLA ESTRICTA — Si ya se le pidió opinión una vez, no volver a enviar NUNCA
+      if (yaEnviado) return false;
     }
     return true;
   });
   if (modFiltro) pendientes = pendientes.filter(p=>p.mod===modFiltro);
-  if (!pendientes.length) { console.log(`✅ Cola vacía o sin citas para hoy/mañana`); return; }
+  if (!pendientes.length) {
+    if (modFiltro) console.log(`📋 [${modFiltro}] No hay leads procesables para enviar ahora`);
+    return;
+  }
 
   let cV=0, cC=0;
   const aEnviar = pendientes.filter(p=>{
@@ -663,8 +706,6 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
       datos.enviados[p.tel].nombre = p.nombre;
       datos.enviados[p.tel].trat   = p.trat||'';
       if (p.mod==='val') datos.enviados[p.tel].variante = varianteIdx;
-      guardarDatos(datos);
-
       // A/B tracking envío
       if (p.mod==='val') registrarAbEnvio(varianteIdx);
 
@@ -686,7 +727,7 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
       if (p.mod==='cita') enviosHoyCita++;
       console.log(`✅ [${i+1}/${aEnviar.length}] ${p.mod.toUpperCase()} V${varianteIdx} → ${p.nombre}`);
 
-      if (i<aEnviar.length-1) {
+      if (i < aEnviar.length - 1) {
         const d=(config.delayMinSeg+Math.random()*(config.delayMaxSeg-config.delayMinSeg))*1000;
         await sleep(d);
       }
@@ -695,6 +736,9 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
       p.error=err.message; guardarCola(cola);
     }
   }
+
+  // Una sola escritura al final para evitar race conditions y desgaste de disco (A1)
+  guardarDatos(datos);
 
   // Limpiar esperandoRespuesta > 48h y persistir
   const lim = Date.now() - 48 * 3600000;
@@ -725,21 +769,35 @@ function sincronizarLeadsACola() {
     (leads[mod]||[]).forEach(p => {
       const tel = telLimpio(p.tel); if (!tel) return;
       if (lb.has(tel)) return;
-      if (datos.enviados[tel]?.[mod]) return;
+
+      const hoyStr = hoy();
+      const yaEnviado = datos.enviados[tel]?.[mod];
+
+      // Sincronización inteligente:
+      if (mod === 'cita') {
+        // Citas: Volcar si es hoy/mañana y no se envió hoy
+        if (yaEnviado === hoyStr) return;
+        if (p.fecha) {
+          const hoyD   = new Date(); hoyD.setHours(0,0,0,0);
+          const manana = new Date(hoyD); manana.setDate(manana.getDate()+1);
+          const fCita  = new Date(p.fecha); fCita.setHours(0,0,0,0);
+          if (fCita > manana) return;
+          if (fCita < hoyD)  return;
+        }
+      } else {
+        // Valoraciones: REGLA ESTRICTA — No volver a pedir si ya se envió NUNCA (está en el historial)
+        if (yaEnviado) return;
+
+        // No enviar si la visita fue un martes
+        if (eraMartes(p.fecha)) {
+          console.log(`📅 Omitido (visita en martes): ${p.nombre} (${tel})`);
+          return;
+        }
+      }
+
+      // Evitar duplicados en cola pendiente
       if (cola.some(c=>c.tel===tel&&c.mod===mod&&!c.enviado)) return;
-      // Valoraciones: no enviar si la visita fue un martes
-      if (mod === 'val' && eraMartes(p.fecha)) {
-        console.log(`📅 Omitido (visita en martes): ${p.nombre} (${tel})`);
-        return;
-      }
-      // Para citas: solo encolar si la cita es hoy o mañana
-      if (mod === 'cita' && p.fecha) {
-        const hoyD   = new Date(); hoyD.setHours(0,0,0,0);
-        const manana = new Date(hoyD); manana.setDate(manana.getDate()+1);
-        const fCita  = new Date(p.fecha); fCita.setHours(0,0,0,0);
-        if (fCita > manana) return;
-        if (fCita < hoyD)  return;
-      }
+
       cola.push({ nombre:p.nombre, tel, fecha:p.fecha||null, hora:p.hora||'', trat:p.trat||'', mod, enviado:false, añadido:new Date().toISOString() });
       añadidos++;
     });
@@ -966,8 +1024,26 @@ async function conectar() {
 }
 
 // ── API REST ──────────────────────────────────────────────────────────────────
-const app = express();
-app.use(cors()); app.use(express.json({limit:'2mb'}));
+// ── SEGURIDAD — API TOKEN (C2) ───────────────────────────────────────────────
+// En entorno local, protege contra accesos no autorizados en la misma red Wi-Fi
+const API_TOKEN = process.env.API_TOKEN || 'avance-dental-2026';
+
+app.use(cors()); 
+app.use(express.json({limit:'2mb'}));
+
+// Middleware de autenticación global para la API
+app.use((req, res, next) => {
+  // Permitir acceso a archivos estáticos (el propio panel de control)
+  if (!req.path.startsWith('/api/') || req.path === '/api/status' || req.path === '/api/qr') {
+    return next();
+  }
+  
+  if (req.headers['x-api-token'] !== API_TOKEN) {
+    console.warn(`🛡️  Bloqueado acceso no autorizado de ${req.ip} a ${req.path}`);
+    return res.status(401).json({ error: 'No autorizado — Falta API Token' });
+  }
+  next();
+});
 
 app.get('/api/status', (req,res)=>{
   const dia = new Intl.DateTimeFormat('es-ES', { weekday: 'long', timeZone: TIMEZONE }).format(new Date()).toLowerCase();
@@ -984,7 +1060,7 @@ app.post('/api/config',(req,res)=>{
   ['val_activo','val_maxPorDia','horariosVal','cita_activo','cita_maxPorDia','cita_horaEnvio',
    'delayMinSeg','delayMaxSeg','bloquearFinde','numResenias','flujoSiNo','flujoSiNo_cita','flujoSiNo_val','abTracking',
    'avisoMetodo','avisoEmail','avisoEmailUser','avisoEmailPass','avisoWhatsapp',
-   'msgConfirmado','msgRechazado','ga4PropertyId','ga4CredentialsPath'
+   'msgConfirmado','msgRechazado','msgValTemplate','msgCitaTemplate','ga4PropertyId','ga4CredentialsPath'
   ].forEach(k=>{if(req.body[k]!==undefined)config[k]=req.body[k];});
   ['val_maxPorDia','cita_maxPorDia','delayMinSeg','delayMaxSeg','numResenias'].forEach(k=>config[k]=parseInt(config[k]));
   ['val_activo','cita_activo','bloquearFinde','flujoSiNo','flujoSiNo_cita','flujoSiNo_val','abTracking'].forEach(k=>config[k]=Boolean(config[k]));
@@ -1191,11 +1267,12 @@ function nombreBackup(tipo = 'manual') {
 }
 
 function datosParaBackup() {
-  const datos  = fs.existsSync(DATA_FILE)   ? fs.readFileSync(DATA_FILE,  'utf8') : '{}';
-  const cola   = fs.existsSync(COLA_FILE)   ? fs.readFileSync(COLA_FILE,  'utf8') : '[]';
-  const cfg    = fs.existsSync(CONFIG_FILE) ? fs.readFileSync(CONFIG_FILE,'utf8') : '{}';
-  const leads  = fs.existsSync(LEADS_FILE)  ? fs.readFileSync(LEADS_FILE, 'utf8') : '{"cita":[],"val":[]}';
-  return { datos, cola, config: cfg, leads };
+  const datos     = fs.existsSync(DATA_FILE)      ? fs.readFileSync(DATA_FILE,      'utf8') : '{}';
+  const cola      = fs.existsSync(COLA_FILE)      ? fs.readFileSync(COLA_FILE,      'utf8') : '[]';
+  const cfg       = fs.existsSync(CONFIG_FILE)    ? fs.readFileSync(CONFIG_FILE,    'utf8') : '{}';
+  const leads     = fs.existsSync(LEADS_FILE)     ? fs.readFileSync(LEADS_FILE,     'utf8') : '{"cita":[],"val":[]}';
+  const yaEnviado = fs.existsSync(YAENVIADO_FILE) ? fs.readFileSync(YAENVIADO_FILE, 'utf8') : '{}';
+  return { datos, cola, config: cfg, leads, yaEnviado };
 }
 
 async function crearZipBackup(nombre) {
@@ -1231,18 +1308,20 @@ function listarBackups() {
 function restaurarDesdeJSON(jsonStr) {
   const obj = JSON.parse(jsonStr);
   if (obj.datos || obj.cola || obj.config) {
-    if (obj.datos)  fs.writeFileSync(DATA_FILE,   JSON.stringify(JSON.parse(obj.datos),  null, 2));
-    if (obj.cola)   fs.writeFileSync(COLA_FILE,   JSON.stringify(JSON.parse(obj.cola),   null, 2));
-    if (obj.config) fs.writeFileSync(CONFIG_FILE, JSON.stringify(JSON.parse(obj.config), null, 2));
-    if (obj.leads)  fs.writeFileSync(LEADS_FILE,  JSON.stringify(JSON.parse(obj.leads),  null, 2));
+    if (obj.datos)      fs.writeFileSync(DATA_FILE,      JSON.stringify(JSON.parse(obj.datos),      null, 2));
+    if (obj.cola)       fs.writeFileSync(COLA_FILE,      JSON.stringify(JSON.parse(obj.cola),       null, 2));
+    if (obj.config)     fs.writeFileSync(CONFIG_FILE,    JSON.stringify(JSON.parse(obj.config),     null, 2));
+    if (obj.leads)      fs.writeFileSync(LEADS_FILE,     JSON.stringify(JSON.parse(obj.leads),      null, 2));
+    if (obj.yaEnviado)  fs.writeFileSync(YAENVIADO_FILE, JSON.stringify(JSON.parse(obj.yaEnviado),  null, 2));
   } else if (obj.enviados || obj.listaNegra) {
     fs.writeFileSync(DATA_FILE, JSON.stringify(obj, null, 2));
   } else {
     throw new Error('Formato no reconocido');
   }
-  // Recargar config en memoria
+  // Recargar config y yaEnviadoHoy en memoria
   const cfg = cargarConfigDisco();
   Object.assign(config, CONFIG_DEFAULT, cfg);
+  cargarYaEnviado(); // restaurar estado de envíos del día si el backup lo incluye
   const d = cargarDatos();
   return { enviados: Object.keys(d.enviados||{}).length, listaNegra: (d.listaNegra||[]).length };
 }
@@ -1281,9 +1360,11 @@ app.post('/api/backup/crear', async (req, res) => {
 });
 
 app.get('/api/backup/descargar/:nombre', (req, res) => {
-  const nombre   = req.params.nombre.replace(/\.\./g, '');
+  const nombre   = path.basename(req.params.nombre); // SECURITY: solo el nombre, sin ruta
   const filePath = path.join(BACKUP_DIR, nombre);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'No encontrado' });
+  // Doble verificación de seguridad (Defense in Depth)
+  if (!filePath.startsWith(BACKUP_DIR)) return res.status(403).json({ error: 'Acceso denegado' });
+  if (!fs.existsSync(filePath))         return res.status(404).json({ error: 'No encontrado' });
   res.download(filePath, nombre);
 });
 
@@ -1305,8 +1386,8 @@ app.get('/api/backup/export-json', (req, res) => {
   res.send(JSON.stringify(datosParaBackup(), null, 2));
 });
 
-// Cron backup cada hora
-cron.schedule('0 * * * *', backupAutomatico, { timezone: 'Europe/Madrid' });
+// Cron backup cada hora — usa la misma constante TIMEZONE que el resto del servidor
+cron.schedule('0 * * * *', backupAutomatico, { timezone: TIMEZONE });
 setTimeout(backupAutomatico, 5000); // Uno al arrancar
 
 // ── GOOGLE ANALYTICS 4 ────────────────────────────────────────────────────────

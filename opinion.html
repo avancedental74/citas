@@ -983,9 +983,18 @@ function show(id) {
   void target.offsetWidth; // reflow para reiniciar animación
   target.classList.add('fade-in');
 
-  // Mantener el hero visible en todas las pantallas para coherencia de marca
+  // Ocultar la foto superior en las pantallas de acción para ganar espacio y foco
   const hero = document.querySelector('.hero');
-  if (hero) hero.style.display = '';
+  const card = document.querySelector('.card');
+  if (hero) {
+    if (id === 'screen-stars') {
+      hero.style.display = '';
+      if (card) card.style.borderRadius = '0 0 28px 28px';
+    } else {
+      hero.style.display = 'none';
+      if (card) card.style.borderRadius = '28px';
+    }
+  }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }

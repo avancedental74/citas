@@ -915,6 +915,35 @@ Nuestros operadores se pondrán en contacto contigo lo antes posible para agenda
         ✅ <strong>SÍ</strong> — Te enviamos el enlace ahora mismo<br>
         ❌ <strong>NO</strong> — Sin problema, gracias igualmente 🙏
       </div>
+
+      <div style="border-top:1px solid var(--borde);padding-top:14px;margin-top:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--gris-m);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📝 Plantilla del mensaje de valoración</div>
+        <textarea id="cfg-msg-val-template" rows="6" style="width:100%;padding:10px 12px;border:1.5px solid var(--borde);border-radius:9px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;resize:vertical;background:#fff;transition:border .15s;line-height:1.6" onfocus="this.style.borderColor='var(--verde)'" onblur="this.style.borderColor='var(--borde)'">Hola [nombre] 👋
+
+Gracias por visitarnos [cuando] en *[clinica]*.
+
+Tu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a que otras familias encuentren un dentista de confianza 🙏
+
+[CTA]</textarea>
+        <div style="font-size:11px;color:var(--gris-m);margin-top:4px">Variables: <code>[nombre]</code> <code>[cuando]</code> <code>[clinica]</code> <code>[CTA]</code></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plantilla de mensaje de cita -->
+  <div class="section-card">
+    <div class="section-card-header">
+      <div class="section-card-title">📝 Plantilla del mensaje de recordatorio de cita</div>
+    </div>
+    <div class="section-card-body">
+      <textarea id="cfg-msg-cita-template" rows="8" style="width:100%;padding:10px 12px;border:1.5px solid var(--borde);border-radius:9px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;resize:vertical;background:#fff;transition:border .15s;line-height:1.6" onfocus="this.style.borderColor='var(--azul)'" onblur="this.style.borderColor='var(--borde)'">Hola [nombre] 👋
+
+Te escribimos desde *[clinica]* para recordarte que tienes cita[tratamiento] el [fecha][hora].
+
+[nervios]
+
+[CTA]</textarea>
+      <div style="font-size:11px;color:var(--gris-m);margin-top:4px">Variables: <code>[nombre]</code> <code>[clinica]</code> <code>[tratamiento]</code> <code>[fecha]</code> <code>[hora]</code> <code>[nervios]</code> <code>[CTA]</code></div>
     </div>
   </div>
 
@@ -1082,7 +1111,7 @@ Nuestros operadores se pondrán en contacto contigo lo antes posible para agenda
       <div id="resp-list" class="resp-list"></div>
       <div id="resp-empty" class="resp-empty" style="display:none">
         <div style="font-size:36px;margin-bottom:10px">💬</div>
-        <h3 style="font-size:15px;font-weight:500;color:var(--azul);margin-bottom:6px">Sin respuestas todavía</h3>
+        <h3 style="font-size:15px;font-weight:500;color:var(--azul)">Sin respuestas todavía</h3>
         <p style="font-size:13px;line-height:1.6">Cuando un paciente conteste a un mensaje enviado por Baileys, aparecerá aquí automáticamente.</p>
       </div>
 
@@ -1219,7 +1248,7 @@ Nuestros operadores se pondrán en contacto contigo lo antes posible para agenda
   <!-- GA4 Section -->
   <div class="chart-card" style="border:1.5px solid var(--azul-c)">
     <div class="chart-card-title">
-      <span style="background:linear-gradient(135deg,#e37400,#f9ab00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:700">G</span>
+      <span style="background:linear-gradient(135deg,#e37400,#f9ab00);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:700">G</span>
       Google Analytics 4 — Clics en reseña
     </div>
     <div class="chart-card-sub">Datos reales de cuántos pacientes hicieron clic en Google Reviews tras recibir el mensaje</div>
@@ -1292,7 +1321,26 @@ const GOOGLE_REVIEW = 'https://g.page/r/CRkkiSExZLnnEAE/review';
 const LANDING       = localStorage.getItem('ad_landing') || 'https://avancedental74.github.io/citas/opinion.html';
 const GEMINI_KEY_STORE = 'ad_gemini_key';
 const API_BASE = 'http://localhost:3001';
+const API_TOKEN = 'avance-dental-2026'; // Debe coincidir con server.js
 let MODO_BAILEYS = false;
+
+// ── SEGURIDAD — INTERCEPTOR PARA FETCH (C2) ─────────────────────────
+const _originalFetch = window.fetch;
+window.fetch = async (url, options = {}) => {
+  // Si la ruta es de nuestra API y NO es el ping inicial (/status o /qr), inyectamos el token
+  if (typeof url === 'string' && url.startsWith(API_BASE) && !url.includes('/status') && !url.includes('/qr')) {
+    options.headers = options.headers || {};
+    // Solo inyectar si no existe ya (para no sobreescribir headers manuales si se pasaran)
+    if (!options.headers['x-api-token']) {
+      options.headers['x-api-token'] = API_TOKEN;
+    }
+    // Si el body es un objeto, asegurarnos de que el Content-Type sea JSON
+    if (options.body && typeof options.body === 'string' && !options.headers['Content-Type']) {
+      options.headers['Content-Type'] = 'application/json';
+    }
+  }
+  return _originalFetch(url, options);
+};
 
 // ═══════════════════════════════════════════════════
 // ESTADO LOCAL (fallback sin servidor)
@@ -1463,8 +1511,21 @@ async function cargarEstadoCola() {
     if(el('sched-col-val'))  el('sched-col-val').textContent  = `${d.pendientesVal||0} en cola`;
     if(el('sched-col-cita')) el('sched-col-cita').textContent = `${d.pendientesCita||0} en cola`;
     // Cola bar valoraciones
-    const bar = el('cola-bar-val');
-    if(bar){ if((d.pendientesVal||0)>0){bar.style.display='flex';el('cola-bar-txt').textContent=`${d.pendientesVal} en la cola de valoraciones`;}else{bar.style.display='none';}}
+    const barVal = el('cola-bar-val');
+    if(barVal){ 
+      if((d.pendientesVal||0)>0){
+        barVal.style.display='flex';
+        el('cola-bar-txt').textContent=`${d.pendientesVal} en la cola de valoraciones`;
+      } else { barVal.style.display='none'; }
+    }
+    // Cola bar recordatorios (M4)
+    const barCita = el('cola-bar-cita');
+    if(barCita){
+      if((d.pendientesCita||0)>0){
+        barCita.style.display='flex';
+        el('cola-bar-cita-txt').textContent=`${d.pendientesCita} en la cola de recordatorios`;
+      } else { barCita.style.display='none'; }
+    }
   } catch {}
 }
 
@@ -1617,7 +1678,16 @@ async function analizarImagen(mod){
   }
 }
 
-function parseFechaStr(s){if(!s)return new Date();const p=s.split('/');if(p.length===3)return new Date(+p[2],+p[1]-1,+p[0]);return new Date(s)||new Date();}
+function parseFechaStr(s){
+  if(!s) return new Date();
+  const p=s.split('/');
+  if(p.length===3) {
+    const d = new Date(+p[2], +p[1]-1, +p[0]);
+    return isNaN(d) ? new Date() : d;
+  }
+  const d = new Date(s);
+  return isNaN(d) ? new Date() : d;
+}
 
 async function capturarPantalla(mod){
   const btn=document.querySelector(`#ep-${mod}-imagen .btn-captura`);
@@ -2133,7 +2203,7 @@ async function borrarHist(tel) {
   delete enviados[tel];
   localStorage.setItem('ad_enviados',JSON.stringify(enviados));
   renderHistorial();
-  renderLeads('cita'); renderLeads('val');
+  renderLeads('cita');renderLeads('val');
   toast('🗑 Registro eliminado');
 }
 
@@ -2302,7 +2372,7 @@ const _TOGGLE_IDS = ['cfg-val-activo','cfg-cita-activo','cfg-bloquear-finde','cf
 const _touched = new Set(); // campos que el usuario tocó — el polling no los pisa
 
 (function() {
-  const todos = ['cfg-val-hora','cfg-val-max','cfg-cita-hora','cfg-cita-max','cfg-delay-min','cfg-delay-max','cfg-num-resenias','cfg-tel-operador','cfg-msg-confirmado','cfg-msg-rechazado',..._TOGGLE_IDS];
+  const todos = ['cfg-val-hora','cfg-val-max','cfg-cita-hora','cfg-cita-max','cfg-delay-min','cfg-delay-max','cfg-num-resenias','cfg-tel-operador','cfg-msg-confirmado','cfg-msg-rechazado','cfg-msg-val-template','cfg-msg-cita-template','ga4-property-id','ga4-credentials-path',..._TOGGLE_IDS];
   function marcarTocado(id) {
     _touched.add(id);
     clearTimeout(window['_t_'+id]);
@@ -2352,11 +2422,15 @@ function rellenarConfig(cfg) {
   setChk('cfg-flujo-sino-val',  cfg.flujoSiNo_val  === true || (cfg.flujoSiNo_val  === undefined && cfg.flujoSiNo === true));
   if (!_touched.has('cfg-msg-confirmado') && cfg.msgConfirmado) setVal('cfg-msg-confirmado', cfg.msgConfirmado);
   if (!_touched.has('cfg-msg-rechazado')  && cfg.msgRechazado)  setVal('cfg-msg-rechazado',  cfg.msgRechazado);
+  if (!_touched.has('cfg-msg-val-template') && cfg.msgValTemplate) setVal('cfg-msg-val-template', cfg.msgValTemplate);
+  if (!_touched.has('cfg-msg-cita-template') && cfg.msgCitaTemplate) setVal('cfg-msg-cita-template', cfg.msgCitaTemplate);
   if (!_touched.has('cfg-aviso-metodo') && cfg.avisoMetodo) { setVal('cfg-aviso-metodo', cfg.avisoMetodo); toggleAvisoMetodo(); }
   if (!_touched.has('cfg-aviso-email')       && cfg.avisoEmail)     setVal('cfg-aviso-email',       cfg.avisoEmail);
   if (!_touched.has('cfg-aviso-email-user')  && cfg.avisoEmailUser)  setVal('cfg-aviso-email-user',  cfg.avisoEmailUser);
   if (!_touched.has('cfg-aviso-email-pass')  && cfg.avisoEmailPass)  setVal('cfg-aviso-email-pass',  cfg.avisoEmailPass);
   if (!_touched.has('cfg-aviso-whatsapp')    && cfg.avisoWhatsapp)   setVal('cfg-aviso-whatsapp',    cfg.avisoWhatsapp);
+  if (!_touched.has('ga4-property-id') && cfg.ga4PropertyId) setVal('ga4-property-id', cfg.ga4PropertyId);
+  if (!_touched.has('ga4-credentials-path') && cfg.ga4CredentialsPath) setVal('ga4-credentials-path', cfg.ga4CredentialsPath);
 }
 
 function toggleAvisoMetodo() {
@@ -2386,12 +2460,16 @@ async function guardarConfig() {
     flujoSiNo_val:  g('cfg-flujo-sino-val')?.checked  || false,
     msgConfirmado:  g('cfg-msg-confirmado')?.value || '',
     msgRechazado:   g('cfg-msg-rechazado')?.value || '',
+    msgValTemplate: g('cfg-msg-val-template')?.value || '',
+    msgCitaTemplate: g('cfg-msg-cita-template')?.value || '',
     avisoMetodo:    g('cfg-aviso-metodo')?.value || 'email',
     avisoEmail:     g('cfg-aviso-email')?.value || '',
     avisoEmailUser: g('cfg-aviso-email-user')?.value || '',
     avisoEmailPass: g('cfg-aviso-email-pass')?.value || '',
     avisoWhatsapp:  limTel(g('cfg-aviso-whatsapp')?.value || ''),
     abTracking:     false,
+    ga4PropertyId:  g('ga4-property-id')?.value || '',
+    ga4CredentialsPath: g('ga4-credentials-path')?.value || '',
   };
   if (!MODO_BAILEYS) { toast('⚠️ Servidor offline — ejecuta iniciar.bat primero','err'); localStorage.setItem('ad_config',JSON.stringify(cfg)); return; }
   try {
@@ -2478,6 +2556,12 @@ function ventanaTemporal(fecha){
 }
 function fmtFecha(fecha){if(!fecha)return'';const f=new Date(fecha);if(isNaN(f))return'';return f.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});}
 
+// Helper: lee el estado del toggle flujo SI/NO para citas
+function isFlujoSiNoCita() {
+  const chk = document.getElementById('cfg-flujo-sino-cita');
+  return chk ? chk.checked : false;
+}
+
 function msgCita(p){
   const nombre   = p.nombre.split(' ')[0];
   const hora     = p.hora ? ' a las *' + p.hora + '*' : '';
@@ -2485,28 +2569,35 @@ function msgCita(p){
   const fechaTxt = p.fecha ? '*' + fmtFecha(p.fecha) + '*' : 'próximamente';
   const difícil  = esTratDificil(p.trat);
 
-  const lineas = [
-    'Hola ' + nombre + ' 👋',
-    '',
-    'Te escribimos desde *' + CLINICA + '* para recordarte que tienes cita' + tratTxt + ' el ' + fechaTxt + hora + '.',
-    '',
-  ];
+  let template = document.getElementById('cfg-msg-cita-template')?.value || `Hola [nombre] 👋
 
+Te escribimos desde *[clinica]* para recordarte que tienes cita[tratamiento] el [fecha][hora].
+
+[nervios]
+
+[CTA]`;
+
+  let nervios = '';
   if (difícil) {
-    lineas.push('Sabemos que este tipo de tratamiento puede generar algo de nervios — estamos aquí para que te sientas cómodo/a en todo momento 🙌');
-    lineas.push('');
+    nervios = 'Sabemos que este tipo de tratamiento puede generar algo de nervios — estamos aquí para que te sientas cómodo/a en todo momento 🙌';
   }
 
-  lineas.push(
-    '¿Puedes confirmarnos la asistencia?',
-    '',
-    '✅ Responde *SÍ* para confirmar',
-    '❌ Responde *NO* si necesitas cambiarla',
-    '',
-    'Si prefieres llamarnos o cambiar el horario, con gusto te buscamos otro hueco 😊'
-  );
+  let cta = '';
+  if (isFlujoSiNoCita()) {
+    cta = '¿Puedes confirmarnos la asistencia?\n\n✅ Responde *SÍ* para confirmar\n❌ Responde *NO* si necesitas cambiarla';
+  } else {
+    cta = 'Si necesitas cambiarla o tienes alguna duda, llámanos y con gusto te buscamos otro hueco 😊';
+  }
 
-  return lineas.join('\n');
+  return template
+    .replace(/\[nombre\]/g, nombre)
+    .replace(/\[clinica\]/g, CLINICA)
+    .replace(/\[tratamiento\]/g, tratTxt)
+    .replace(/\[fecha\]/g, fechaTxt)
+    .replace(/\[hora\]/g, hora)
+    .replace(/\[nervios\]/g, nervios)
+    .replace(/\[CTA\]/g, cta)
+    .trim();
 }
 
 const GOOGLE_REVIEW_URL = 'https://g.page/r/CRkkiSExZLnnEAE/review';
@@ -2544,20 +2635,30 @@ function isFlujoSiNoVal() {
 function msgVal(p) {
   const nombre   = p.nombre.split(' ')[0];
   const fechaTxt = p.fecha ? fmtFecha(p.fecha) : null;
-  const cuandoF  = fechaTxt ? 'el *' + fechaTxt + '*' : 'el otro día';
+  const cuandoF  = cuandoTemporal(p.fecha, p.hora);
 
-  const cuerpo = 'Gracias por visitarnos ' + cuandoF + ' en *' + CLINICA + '*.\n\nTu opinión es muy importante para nosotros \u2014 nos ayuda a seguir mejorando y a que otras familias encuentren un dentista de confianza \ud83d\ude4f';
+  let template = document.getElementById('cfg-msg-val-template')?.value || `Hola [nombre] 👋
 
+Gracias por visitarnos [cuando] en *[clinica]*.
+
+Tu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a que otras familias encuentren un dentista de confianza 🙏
+
+[CTA]`;
+
+  let cta = '';
   if (isFlujoSiNoVal()) {
-    // Flujo SI/NO: el servidor enviará el enlace automáticamente si responde SI
-    const cta = '\u00bfNos dedicas 30 segundos?\n\n\u2705 *SÍ* \u2014 Te enviamos el enlace ahora mismo\n\u274c *NO* \u2014 Sin problema, gracias igualmente \ud83d\ude4f';
-    return 'Hola ' + nombre + ' \ud83e\uddb7\n\n' + cuerpo + '\n\n' + cta;
+    cta = '¿Nos dedicas 30 segundos?\n\n✅ *SÍ* — Te enviamos el enlace ahora mismo\n❌ *NO* — Sin problema, gracias igualmente 🙏';
   } else {
-    // Sin flujo: enlace directo en el propio mensaje
     const url = urlConUtm(0);
-    const cta = '\ud83d\udc47 Si tienes un momento, aquí puedes dejarnos tu opinión:\n' + url;
-    return 'Hola ' + nombre + ' \ud83e\uddb7\n\n' + cuerpo + '\n\n' + cta;
+    cta = '👇 Si tienes un momento, aquí puedes dejarnos tu opinión:\n' + url;
   }
+
+  return template
+    .replace(/\[nombre\]/g, nombre)
+    .replace(/\[cuando\]/g, cuandoF)
+    .replace(/\[clinica\]/g, CLINICA)
+    .replace(/\[CTA\]/g, cta)
+    .trim();
 }
 
 // ═══════════════════════════════════════════════════

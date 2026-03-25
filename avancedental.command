@@ -44,6 +44,7 @@ descargar_repo() {
     [ -f "$INSTALL_DIR/leads.json" ]          && cp "$INSTALL_DIR/leads.json"           "/tmp/leads_backup.json"
     [ -f "$INSTALL_DIR/esperando.json" ]      && cp "$INSTALL_DIR/esperando.json"       "/tmp/esperando_backup.json"
     [ -f "$INSTALL_DIR/conversaciones.json" ] && cp "$INSTALL_DIR/conversaciones.json"  "/tmp/conversaciones_backup.json"
+    [ -f "$INSTALL_DIR/yaenviados.json" ]    && cp "$INSTALL_DIR/yaenviados.json"      "/tmp/yaenviados_backup.json"
     [ -d "$INSTALL_DIR/backups" ]             && cp -r "$INSTALL_DIR/backups"           "/tmp/backups_backup"
 
     cp -r "$TMP_DIR/$EXTRACTED/." "$INSTALL_DIR/"
@@ -56,8 +57,9 @@ descargar_repo() {
     [ -f "/tmp/leads_backup.json" ]            && cp "/tmp/leads_backup.json" "$INSTALL_DIR/leads.json"
     [ -f "/tmp/esperando_backup.json" ]        && cp "/tmp/esperando_backup.json" "$INSTALL_DIR/esperando.json"
     [ -f "/tmp/conversaciones_backup.json" ]   && cp "/tmp/conversaciones_backup.json" "$INSTALL_DIR/conversaciones.json"
+    [ -f "/tmp/yaenviados_backup.json" ]       && cp "/tmp/yaenviados_backup.json" "$INSTALL_DIR/yaenviados.json"
     [ -d "/tmp/backups_backup" ]               && cp -r "/tmp/backups_backup/." "$INSTALL_DIR/backups/"
-    rm -rf /tmp/auth_backup /tmp/data_backup.json /tmp/cola_backup.json /tmp/config_backup.json /tmp/leads_backup.json /tmp/esperando_backup.json /tmp/conversaciones_backup.json /tmp/backups_backup
+    rm -rf /tmp/auth_backup /tmp/data_backup.json /tmp/cola_backup.json /tmp/config_backup.json /tmp/leads_backup.json /tmp/esperando_backup.json /tmp/conversaciones_backup.json /tmp/yaenviados_backup.json /tmp/backups_backup
 }
 
 # ── DESCARGAR REPO ────────────────────────────────────────────────────────────
@@ -134,6 +136,7 @@ echo "[$(date '+%Y-%m-%d %H:%M')] Cambios detectados — actualizando..." >> "$L
 [ -f "$INSTALL_DIR/leads.json" ]             && cp "$INSTALL_DIR/leads.json"           "/tmp/leads_backup.json"
 [ -f "$INSTALL_DIR/esperando.json" ]         && cp "$INSTALL_DIR/esperando.json"       "/tmp/esperando_backup.json"
 [ -f "$INSTALL_DIR/conversaciones.json" ]    && cp "$INSTALL_DIR/conversaciones.json"  "/tmp/conversaciones_backup.json"
+[ -f "$INSTALL_DIR/yaenviados.json" ]        && cp "$INSTALL_DIR/yaenviados.json"      "/tmp/yaenviados_backup.json"
 [ -d "$INSTALL_DIR/backups" ]                && cp -r "$INSTALL_DIR/backups"           "/tmp/backups_backup"
 
 cp -r "$TMP_DIR/$EXTRACTED/." "$INSTALL_DIR/"
@@ -146,8 +149,9 @@ rm -rf "$TMP_DIR"
 [ -f "/tmp/leads_backup.json" ]           && cp "/tmp/leads_backup.json" "$INSTALL_DIR/leads.json"
 [ -f "/tmp/esperando_backup.json" ]       && cp "/tmp/esperando_backup.json" "$INSTALL_DIR/esperando.json"
 [ -f "/tmp/conversaciones_backup.json" ]  && cp "/tmp/conversaciones_backup.json" "$INSTALL_DIR/conversaciones.json"
+[ -f "/tmp/yaenviados_backup.json" ]       && cp "/tmp/yaenviados_backup.json" "$INSTALL_DIR/yaenviados.json"
 [ -d "/tmp/backups_backup" ]              && cp -r "/tmp/backups_backup/." "$INSTALL_DIR/backups/"
-rm -rf /tmp/auth_backup /tmp/data_backup.json /tmp/cola_backup.json /tmp/config_backup.json /tmp/leads_backup.json /tmp/esperando_backup.json /tmp/conversaciones_backup.json /tmp/backups_backup
+rm -rf /tmp/auth_backup /tmp/data_backup.json /tmp/cola_backup.json /tmp/config_backup.json /tmp/leads_backup.json /tmp/esperando_backup.json /tmp/conversaciones_backup.json /tmp/yaenviados_backup.json /tmp/backups_backup
 
 launchctl unload "$PLIST" 2>/dev/null
 sleep 2
