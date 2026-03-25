@@ -34,7 +34,14 @@ if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
 const CONFIG_DEFAULT = {
   val_activo:     true,
   val_maxPorDia:  30,
-  // #7: hora por día L=1..V=5
+  // 4 franjas horarias diarias para valoraciones — cada una con su propio límite
+  val_horas: [
+    { hora: '10:00', max: 8 },
+    { hora: '13:00', max: 8 },
+    { hora: '16:00', max: 7 },
+    { hora: '19:00', max: 7 },
+  ],
+  // legacy por compatibilidad
   horariosVal: { 1:'10:30', 2:'11:00', 3:'10:30', 4:'11:00', 5:'10:00' },
 
   cita_activo:    true,
@@ -48,8 +55,12 @@ const CONFIG_DEFAULT = {
   numResenias:    127,   // se muestra en el mensaje ("ya somos X familias")
   flujoSiNo:      false,  // legacy — se mantiene por compatibilidad
   flujoSiNo_cita: true,   // true = flujo SÍ/NO en recordatorios de cita
-  flujoSiNo_val:  false,  // false = link directo (pedid por el usuario)
+  flujoSiNo_val:  true,   // true = flujo SÍ/NO en valoraciones
   abTracking:     false,  // registra variante enviada + clics por UTM
+
+  // Mensajes de respuesta valoración SÍ/NO
+  msgValSi: `¡Qué alegría, [nombre]! Nos alegra muchísimo 😍\n\nTe agradeceríamos que nos dieses 5 estrellas en Google — solo te tomará 1 minuto y nos ayuda un montón:\n👉 [CTA]\n\n¡Muchas gracias por tu confianza! 🙏`,
+  msgValNo: `Lamentamos mucho que la experiencia no haya sido la mejor, [nombre] 🙏\n\nTomamos nota para revisar qué pudimos hacer mejor. Agradecemos enormemente tu sinceridad — es lo que nos ayuda a mejorar de verdad.\n\nUn saludo, el equipo de [clinica].`,
 
   // Aviso al operador cuando paciente dice NO a cita
   // Método: 'email' (recomendado) | 'whatsapp' (requiere segundo número)
@@ -333,6 +344,9 @@ function construirMsgVal(p, variante) {
   const cuando = fmtFecha(p.fecha); // Siempre la fecha exacta como pide el usuario
   const url = urlConUtm(variante, 'val');
 
+  const flujoVal = config.flujoSiNo_val;
+
+  // Plantilla editable desde el panel
   let template = config.msgValTemplate || `Hola [nombre] 👋
 
 Gracias por visitarnos [cuando] en *[clinica]*.
@@ -341,8 +355,14 @@ Tu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a
 
 [CTA]`;
 
-  // Siempre link directo, sin flujo SÍ/NO para valoraciones
-  const cta = `👇 Si tienes un momento, aquí puedes dejarnos tu opinión:\n${url}`;
+  let cta;
+  if (flujoVal) {
+    // Flujo SÍ/NO: primer mensaje sin link (anti-baneo)
+    cta = '¿Salió todo bien? Responde *SÍ* o *NO*.';
+  } else {
+    // Link directo
+    cta = `👇 Si tienes un momento, aquí puedes dejarnos tu opinión:\n${url}`;
+  }
 
   return template
     .replace(/\[nombre\]/g, nombre || '')
@@ -355,11 +375,20 @@ Tu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a
 // Respuesta automática al SÍ — incluye UTM de la variante para tracking GA4
 function construirMsgEnlace(nombre, variante) {
   const url = urlConUtm(variante, 'val');
-  return [`¡Genial, ${nombre}! Nos alegra mucho 🌟`, ``, `Aquí tienes el enlace — tarda menos de un minuto:`, url, ``, `¡Gracias de corazón! 🙏`].join('\n');
+  const template = (config.msgValSi || `¡Qué alegría, [nombre]! Nos alegra muchísimo 😍\n\nTe agradeceríamos que nos dieses 5 estrellas en Google — solo te tomará 1 minuto y nos ayuda un montón:\n👉 [CTA]\n\n¡Muchas gracias por tu confianza! 🙏`);
+  return template
+    .replace(/\[nombre\]/g, nombre)
+    .replace(/\[nombre1\]/g, nombre)
+    .replace(/\[CTA\]/g, url)
+    .replace(/\[clinica\]/g, CLINICA);
 }
 
 function construirMsgRespuestaNo(nombre) {
-  return [`Gracias por contestar, ${nombre} 🙏`, ``, `Si en algún momento quieres comentarnos algo, estamos aquí.`].join('\n');
+  const template = (config.msgValNo || `Lamentamos mucho que la experiencia no haya sido la mejor, [nombre] 🙏\n\nTomamos nota para revisar qué pudimos hacer mejor. Agradecemos enormemente tu sinceridad — es lo que nos ayuda a mejorar de verdad.\n\nUn saludo, el equipo de [clinica].`);
+  return template
+    .replace(/\[nombre\]/g, nombre)
+    .replace(/\[nombre1\]/g, nombre)
+    .replace(/\[clinica\]/g, CLINICA);
 }
 
 // Respuestas para citas — usan config editable desde el HTML o mensajes default
@@ -574,6 +603,24 @@ async function procesarRespuesta(remitente, texto) {
       console.log(`❓ No reconocida de ${nombre} (${tel}): "${t}"`);
       await enviarMensaje(tel, `Perdona ${nombre1}, no te he entendido bien 😅\n\nResponde simplemente *SÍ* para confirmar tu cita o *NO* si necesitas cambiarla.`).catch(console.error);
     }
+  } else if (mod === 'val') {
+    if (esSi) {
+      const msgSi = construirMsgEnlace(nombre1, variante || 0);
+      await enviarMensaje(tel, msgSi).catch(console.error);
+      esperandoRespuesta.delete(tel); guardarEsperando();
+      registrarMensaje({ tel, nombre, mod: 'val', textoOriginal: texto.trim(), resultado: 'si' });
+      console.log(`✅ VAL SÍ — ${nombre} (${tel}) → enlace enviado`);
+    } else if (esNo) {
+      const msgNo = construirMsgRespuestaNo(nombre1);
+      await enviarMensaje(tel, msgNo).catch(console.error);
+      esperandoRespuesta.delete(tel); guardarEsperando();
+      registrarMensaje({ tel, nombre, mod: 'val', textoOriginal: texto.trim(), resultado: 'no' });
+      console.log(`❌ VAL NO — ${nombre} (${tel})`);
+    } else {
+      registrarMensaje({ tel, nombre, mod: 'val', textoOriginal: texto.trim(), resultado: 'no_reconocido' });
+      console.log(`❓ No reconocida (val) de ${nombre} (${tel}): "${t}"`);
+      await enviarMensaje(tel, `Perdona ${nombre1}, no te he entendido 😅\n\nResponde *SÍ* si la visita fue bien o *NO* si algo no estuvo a la altura.`).catch(console.error);
+    }
   } else {
     // Otros módulos (si los hubiera)
     console.log(`ℹ️ Mensaje de ${nombre} (${tel}) en módulo ${mod} — fuera de flujo auto-respuesta`);
@@ -581,6 +628,72 @@ async function procesarRespuesta(remitente, texto) {
 }
 
 // ── PROCESAR COLA ─────────────────────────────────────────────────────────────
+// procesarColaFranja: igual que procesarCola('val') pero con límite propio de la franja
+// Se llama desde el cron cuando llega la hora de cada franja horaria
+async function procesarColaFranja(mod, maxFranja) {
+  if (colaActiva) return;
+  if (config.bloquearFinde && esFinde()) { console.log(`🚫 Fin de semana — envíos bloqueados`); return; }
+  colaActiva = true;
+  try {
+    resetarContadoresSiNuevoDia();
+    const cola  = cargarCola();
+    const datos = cargarDatos();
+    const lb    = new Set((datos.listaNegra || []).map(e => e.tel || e));
+
+    let pendientes = cola.filter(p => {
+      if (p.enviado || p.mod !== mod) return false;
+      if (lb.has(p.tel)) return false;
+      if (datos.enviados[p.tel]?.[p.mod]) return false; // ya enviado alguna vez (valoraciones: nunca repetir)
+      return true;
+    });
+
+    if (!pendientes.length) { console.log(`📋 [${mod}/${maxFranja}] Sin pendientes para esta franja`); return; }
+
+    // Tomar solo los que caben en esta franja
+    const aEnviar = pendientes.slice(0, maxFranja);
+    console.log(`📤 [Franja] Enviando ${aEnviar.length}/${maxFranja} valoraciones...`);
+
+    for (let i = 0; i < aEnviar.length; i++) {
+      const p = aEnviar[i];
+      const varianteIdx = seleccionarVariante();
+      const msgTexto = construirMsgVal(p, varianteIdx);
+      try {
+        await enviarMensaje(p.tel, msgTexto);
+        if (!datos.enviados[p.tel]) datos.enviados[p.tel] = {};
+        datos.enviados[p.tel][p.mod] = hoy();
+        datos.enviados[p.tel].nombre  = p.nombre;
+        datos.enviados[p.tel].trat    = p.trat || '';
+        datos.enviados[p.tel].variante = varianteIdx;
+        registrarAbEnvio(varianteIdx);
+
+        // Flujo SÍ/NO valoración
+        if (config.flujoSiNo_val) {
+          esperandoRespuesta.set(p.tel, { mod: 'val', nombre: p.nombre, variante: varianteIdx, fecha: p.fecha || null, hora: p.hora || '', trat: p.trat || '', ts: Date.now() });
+          guardarEsperando();
+        }
+
+        p.enviado = true; p.fechaEnvio = new Date().toISOString(); p.variante = varianteIdx;
+        guardarCola(cola);
+        enviosHoyVal++;
+        console.log(`✅ [${i + 1}/${aEnviar.length}] VAL V${varianteIdx} → ${p.nombre}`);
+
+        if (i < aEnviar.length - 1) {
+          const d = (config.delayMinSeg + Math.random() * (config.delayMaxSeg - config.delayMinSeg)) * 1000;
+          await sleep(d);
+        }
+      } catch (err) {
+        console.error(`❌ ${p.nombre}:`, err.message);
+        p.error = err.message; guardarCola(cola);
+      }
+    }
+    guardarDatos(datos);
+    console.log(`🏁 Franja completada — val hoy: ${enviosHoyVal}`);
+  } catch (err) {
+    console.error('💥 Error en procesarColaFranja:', err.message);
+  } finally {
+    colaActiva = false;
+  }
+}
 let colaActiva = false;
 
 async function procesarCola(modFiltro = null, forzarTodos = false) {
@@ -671,10 +784,14 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
       // A/B tracking envío
       if (p.mod==='val') registrarAbEnvio(varianteIdx);
 
-      // SÍ/NO: guardar para respuesta automática (solo para CITAS, nunca para VALORACIONES)
+      // SÍ/NO: guardar para respuesta automática — CITAS y VALORACIONES (si flujo activo)
       const flujoActivoCita = config.flujoSiNo_cita ?? config.flujoSiNo;
+      const flujoActivoVal  = config.flujoSiNo_val;
       if (p.mod === 'cita' && flujoActivoCita) {
         esperandoRespuesta.set(p.tel, { mod:'cita', nombre:p.nombre, fecha:p.fecha||null, hora:p.hora||'', trat:p.trat||'', ts:Date.now() });
+        guardarEsperando();
+      } else if (p.mod === 'val' && flujoActivoVal) {
+        esperandoRespuesta.set(p.tel, { mod:'val', nombre:p.nombre, variante:varianteIdx, fecha:p.fecha||null, hora:p.hora||'', trat:p.trat||'', ts:Date.now() });
         guardarEsperando();
       }
 
@@ -812,35 +929,61 @@ function ahoraEnMinutos() {
 // Cubre arranques tardíos, reinicios, desfases del SO y colas grandes con delay entre mensajes
 const VENTANA_MIN = 30;
 
+// Devuelve las franjas configuradas para valoraciones — array de {hora, max}
+function horasVal() {
+  if (Array.isArray(config.val_horas) && config.val_horas.length) {
+    // Normalizar: acepta tanto objetos {hora, max} como strings legacy '10:00'
+    return config.val_horas.map(f =>
+      typeof f === 'string' ? { hora: f, max: 8 } : f
+    );
+  }
+  // Fallback legado: horariosVal por día de semana con max global
+  return [{ hora: horaSegunDia(), max: config.val_maxPorDia || 30 }];
+}
+
+// Suma de todos los máximos de franja — usado como límite diario total informativo
+function maxDiarioVal() {
+  return horasVal().reduce((s, f) => s + (parseInt(f.max) || 0), 0);
+}
+
 function programarCrons() {
   if (cronJobVal)  { cronJobVal.destroy();  cronJobVal  = null; }
   if (cronJobCita) { cronJobCita.destroy(); cronJobCita = null; }
   const opts = { timezone: TIMEZONE };
 
-  // Cron unificado — revisa cada minuto L-V entre 6:00 y 20:00
-  // Lógica: si ya pasó la hora programada Y no se ha enviado hoy → enviar
-  // El flag yaEnviadoHoy evita dobles envíos; no se necesita ventana de tiempo
-  cronJobVal = cron.schedule('* 6-20 * * 1-5', async () => {
+  // Cron unificado — revisa cada minuto L-V entre 6:00 y 21:00
+  // Valoraciones: hasta 4 franjas independientes con su propio límite de envíos
+  cronJobVal = cron.schedule('* 6-21 * * 1-5', async () => {
     if (config.bloquearFinde && esFinde()) return;
     resetarContadoresSiNuevoDia();
     const fechaHoy = hoy();
     const ahoraMin = ahoraEnMinutos();
 
-    // ── VALORACIONES ──────────────────────────────────────────────────────
-    if (config.val_activo && yaEnviadoHoy.val !== fechaHoy) {
-      const horaObjetivo = horaAMinutos(horaSegunDia());
-      if (ahoraMin >= horaObjetivo) {   // basta con haber llegado a la hora → sin ventana
-        console.log(`\n🕐 CRON VALORACIÓN — hora programada: ${horaSegunDia()}, hora actual: ${ahoraMin}min`);
-        yaEnviadoHoy.val = fechaHoy;
-        guardarYaEnviado();
-        sincronizarLeadsACola();
-        if (estadoWA === 'conectado') {
-          await procesarCola('val', false).catch(console.error);
-        } else {
-          console.log('⚠️  WhatsApp no conectado — valoraciones en cola, reintentará en el próximo minuto si conecta');
-          // Revertir para que reintente el siguiente minuto cuando WA conecte
-          yaEnviadoHoy.val = null;
+    // ── VALORACIONES — franjas con límite propio ──────────────────────────
+    if (config.val_activo) {
+      const franjas = horasVal();
+      if (!yaEnviadoHoy._valFranjas) yaEnviadoHoy._valFranjas = {};
+
+      for (const franja of franjas) {
+        const clave = `${fechaHoy}-${franja.hora}`;
+        if (yaEnviadoHoy._valFranjas[clave]) continue; // ya disparada hoy
+
+        const horaObjetivo = horaAMinutos(franja.hora);
+        if (ahoraMin >= horaObjetivo) {
+          const maxFranja = parseInt(franja.max) || 8;
+          console.log(`\n🕐 CRON VALORACIÓN [${franja.hora}] — max franja: ${maxFranja}`);
+          yaEnviadoHoy._valFranjas[clave] = true;
+          yaEnviadoHoy.val = fechaHoy; // compatibilidad legacy
           guardarYaEnviado();
+          sincronizarLeadsACola();
+          if (estadoWA === 'conectado') {
+            await procesarColaFranja('val', maxFranja).catch(console.error);
+          } else {
+            console.log('⚠️  WhatsApp no conectado — valoraciones en cola, reintentará en el próximo minuto si conecta');
+            yaEnviadoHoy._valFranjas[clave] = false;
+            guardarYaEnviado();
+          }
+          break; // una franja por tick
         }
       }
     }
@@ -848,17 +991,15 @@ function programarCrons() {
     // ── RECORDATORIOS CITA ────────────────────────────────────────────────
     if (config.cita_activo && yaEnviadoHoy.cita !== fechaHoy) {
       const horaObjetivo = horaAMinutos(config.cita_horaEnvio);
-      if (ahoraMin >= horaObjetivo) {   // basta con haber llegado a la hora → sin ventana
+      if (ahoraMin >= horaObjetivo) {
         console.log(`\n🕐 CRON CITA — hora programada: ${config.cita_horaEnvio}, hora actual: ${ahoraMin}min`);
         yaEnviadoHoy.cita = fechaHoy;
         guardarYaEnviado();
         sincronizarLeadsACola();
         if (estadoWA === 'conectado') {
-          // forzarTodos=true: envía TODAS las citas pendientes del día sin límite
           await procesarCola('cita', true).catch(console.error);
         } else {
           console.log('⚠️  WhatsApp no conectado — recordatorios en cola, reintentará en el próximo minuto si conecta');
-          // Revertir para que reintente el siguiente minuto cuando WA conecte
           yaEnviadoHoy.cita = null;
           guardarYaEnviado();
         }
@@ -866,9 +1007,11 @@ function programarCrons() {
     }
   }, opts);
 
-  console.log(`⏰ Cron activo (cada minuto, L-V 6-20h)`);
+  const franjas = horasVal();
+  const totalMax = maxDiarioVal();
+  console.log(`⏰ Cron activo (cada minuto, L-V 6-21h)`);
   console.log(`⏰ Zona horaria: ${TIMEZONE}`);
-  console.log(`⏰ Valoraciones: ${horaSegunDia()}`);
+  console.log(`⏰ Valoraciones: ${franjas.map(f => `${f.hora}(max:${f.max})`).join(', ')} → total/día: ${totalMax}`);
   console.log(`⏰ Recordatorios: ${config.cita_horaEnvio}`);
 }
 
@@ -903,13 +1046,21 @@ async function verificarEnviosPendientesAlArrancar() {
   const hayValPendiente  = cola.some(p => p.mod === 'val'  && !p.enviado && !lb.has(p.tel) && !datos.enviados[p.tel]?.val);
   const hayCitaPendiente = cola.some(p => p.mod === 'cita' && !p.enviado && !lb.has(p.tel) && !datos.enviados[p.tel]?.cita);
 
-  if (config.val_activo && hayValPendiente && yaEnviadoHoy.val !== fechaHoy) {
-    const horaObjetivo = horaAMinutos(horaSegunDia());
-    if (ahoraMin >= horaObjetivo) {
-      console.log(`\n🔄 Arranque tardío — lanzando valoraciones pendientes (hora programada: ${horaSegunDia()})`);
-      yaEnviadoHoy.val = fechaHoy;
-      guardarYaEnviado();
-      procesarCola('val', false).catch(console.error);
+  if (config.val_activo && hayValPendiente) {
+    if (!yaEnviadoHoy._valFranjas) yaEnviadoHoy._valFranjas = {};
+    const franjas = horasVal();
+    for (const franja of franjas) {
+      const clave = `${fechaHoy}-${franja.hora}`;
+      if (yaEnviadoHoy._valFranjas[clave]) continue; // ya se ejecutó esta franja hoy
+      const horaObjetivo = horaAMinutos(franja.hora);
+      if (ahoraMin >= horaObjetivo) {
+        console.log(`\n🔄 Arranque tardío — lanzando valoraciones franja ${franja.hora} (max: ${franja.max})`);
+        yaEnviadoHoy._valFranjas[clave] = true;
+        yaEnviadoHoy.val = fechaHoy;
+        guardarYaEnviado();
+        procesarColaFranja('val', parseInt(franja.max) || 8).catch(console.error);
+        await sleep(2000); // pequeña pausa entre franjas si hay varias pendientes
+      }
     }
   }
 
@@ -946,9 +1097,19 @@ async function conectar() {
     if (connection==='open') { estadoWA='conectado'; qrActual=null; sockGlobal=sock; console.log('✅ WhatsApp conectado'); }
     if (connection==='close') {
       estadoWA='desconectado'; sockGlobal=null;
-      const r=(lastDisconnect?.error instanceof Boom)?lastDisconnect.error.output?.statusCode!==DisconnectReason.loggedOut:true;
-      if(r){console.log('🔄 Reconectando...');setTimeout(conectar,5000);}
-      else console.log('🚪 Sesión cerrada. Borra auth_avancedental y reinicia.');
+      const statusCode = (lastDisconnect?.error instanceof Boom) ? lastDisconnect.error.output?.statusCode : 0;
+      // 401 = loggedOut / cerrado desde móvil, 403 = baneado, 405 = conflict/taken over
+      const reLoginStatusCodes = [DisconnectReason.loggedOut, 401, 403, 405];
+      const necesitaReLogin = reLoginStatusCodes.includes(statusCode);
+
+      if (!necesitaReLogin) {
+        console.log(`🔄 Reconectando... (Error: ${statusCode})`);
+        setTimeout(conectar,5000);
+      } else {
+        console.log(`🚪 Sesión inválida o baneada (Código ${statusCode}). Borrando auth_avancedental y reiniciando para sacar nuevo QR...`);
+        try { fs.rmSync(path.join(__dirname, 'auth_avancedental'), { recursive: true, force: true }); } catch (e) {}
+        setTimeout(conectar, 2000); // Intenta conectar de nuevo para arrojar un QR nuevo
+      }
     }
   });
 
@@ -1017,15 +1178,24 @@ app.get('/api/status', (req,res)=>{
 
 app.get('/api/config',(req,res)=>res.json(config));
 app.post('/api/config',(req,res)=>{
-  ['val_activo','val_maxPorDia','horariosVal','cita_activo','cita_maxPorDia','cita_horaEnvio',
+  ['val_activo','val_maxPorDia','val_horas','horariosVal','cita_activo','cita_maxPorDia','cita_horaEnvio',
    'delayMinSeg','delayMaxSeg','bloquearFinde','numResenias','flujoSiNo','flujoSiNo_cita','flujoSiNo_val','abTracking',
    'avisoMetodo','avisoEmail','avisoEmailUser','avisoEmailPass','avisoWhatsapp',
-   'msgConfirmado','msgRechazado','msgValTemplate','msgCitaTemplate','ga4PropertyId','ga4CredentialsPath'
+   'msgConfirmado','msgRechazado','msgValTemplate','msgCitaTemplate','msgValSi','msgValNo','ga4PropertyId','ga4CredentialsPath'
   ].forEach(k=>{if(req.body[k]!==undefined)config[k]=req.body[k];});
-  ['val_maxPorDia','cita_maxPorDia','delayMinSeg','delayMaxSeg','numResenias'].forEach(k=>config[k]=parseInt(config[k]));
+  // Normalizar max de cada franja como entero
+  if (Array.isArray(config.val_horas)) {
+    config.val_horas = config.val_horas.map(f =>
+      typeof f === 'string' ? { hora: f, max: 8 } : { hora: f.hora, max: parseInt(f.max) || 8 }
+    );
+    // val_maxPorDia = suma de los max individuales (informativo)
+    config.val_maxPorDia = config.val_horas.reduce((s, f) => s + f.max, 0);
+  } else {
+    ['val_maxPorDia'].forEach(k=>config[k]=parseInt(config[k]));
+  }
+  ['cita_maxPorDia','delayMinSeg','delayMaxSeg','numResenias'].forEach(k=>config[k]=parseInt(config[k]));
   ['val_activo','cita_activo','bloquearFinde','flujoSiNo','flujoSiNo_cita','flujoSiNo_val','abTracking'].forEach(k=>config[k]=Boolean(config[k]));
   programarCrons();
-  // Persistir en disco para sobrevivir reinicios
   guardarConfigDisco(config);
   res.json({ok:true,config});
 });
@@ -1140,15 +1310,19 @@ app.post('/api/prueba',async(req,res)=>{
   try {
     await enviarMensaje(tel, mensaje);
     const flujoActivoCita = config.flujoSiNo_cita ?? config.flujoSiNo;
-    const flujoActivoVal  = config.flujoSiNo_val  ?? config.flujoSiNo;
+    const flujoActivoVal  = config.flujoSiNo_val;
     if (mod === 'cita' && flujoActivoCita) {
       esperandoRespuesta.set(tel, { mod: 'cita', nombre: nombre || 'Prueba', fecha: fecha || null, hora: hora || '', trat: trat || '', ts: Date.now() });
       guardarEsperando();
       console.log(`🧪 PRUEBA cita — flujo SÍ/NO activo para ${tel}`);
+    } else if (mod === 'val' && flujoActivoVal) {
+      esperandoRespuesta.set(tel, { mod: 'val', nombre: nombre || 'Prueba', variante: variante || 0, fecha: fecha || null, hora: hora || '', trat: trat || '', ts: Date.now() });
+      guardarEsperando();
+      console.log(`🧪 PRUEBA val — flujo SÍ/NO activo para ${tel}`);
     } else {
       console.log(`🧪 PRUEBA ${mod} — flujo directo (sin interactividad SÍ/NO)`);
     }
-    res.json({ ok: true, flujoActivado: mod === 'cita' ? flujoActivoCita : false });
+    res.json({ ok: true, flujoActivado: (mod === 'cita' && flujoActivoCita) || (mod === 'val' && flujoActivoVal) });
   } catch(e) {
     res.status(500).json({ error: e.message });
   }
