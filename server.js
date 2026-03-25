@@ -986,6 +986,7 @@ async function conectar() {
 // En entorno local, protege contra accesos no autorizados en la misma red Wi-Fi
 const API_TOKEN = process.env.API_TOKEN || 'avance-dental-2026';
 
+const app = express();
 app.use(cors()); 
 app.use(express.json({limit:'2mb'}));
 
