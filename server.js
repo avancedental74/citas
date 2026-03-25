@@ -320,6 +320,7 @@ function seleccionarVariante() {
 }
 
 function registrarAbEnvio(v) {
+  if (!config.abTracking) return;
   const d = cargarDatos();
   if (!d.abStats) d.abStats = {};
   if (!d.abStats['v' + v]) d.abStats['v' + v] = { enviados: 0, clics: 0 };
@@ -464,24 +465,6 @@ Te escribimos desde *[clinica]* para recordarte que tienes cita[tratamiento] el 
     .trim();
 }
 
-// ── A/B TRACKING ──────────────────────────────────────────────────────────────
-// GA4 trackea los clics vía UTM automáticamente.
-// Aquí registramos los envíos en data.json para el dashboard interno.
-function registrarAbEnvio(variante) {
-  if (!config.abTracking) return;
-  const d = cargarDatos();
-  const k = `v${variante}`;
-  if (!d.abStats[k]) d.abStats[k] = { enviados:0, clics:0 };
-  d.abStats[k].enviados++;
-  guardarDatos(d);
-}
-
-// Selecciona la variante menos usada (distribución balanceada del A/B)
-function seleccionarVariante() {
-  const d = cargarDatos();
-  const counts = [0,1,2,3].map(v => d.abStats[`v${v}`]?.enviados || 0);
-  return counts.indexOf(Math.min(...counts)); // la menos enviada
-}
 
 // ── ENVÍO ─────────────────────────────────────────────────────────────────────
 async function enviarMensaje(telefono, texto) {
