@@ -1052,6 +1052,7 @@ app.get('/api/status', (req,res)=>{
     enviosHoyVal, enviosHoyCita, config,
     esFinDeSemana:dia==='sábado'||dia==='domingo', diaActual:dia,
     esperandoRespuesta:esperandoRespuesta.size,
+    rutaServidor: __dirname
   });
 });
 

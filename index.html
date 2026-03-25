@@ -1271,6 +1271,9 @@ Te escribimos desde *[clinica]* para recordarte que tienes cita[tratamiento] el 
           <button class="btn-sched" onclick="guardarGA4Config()">💾 Guardar</button>
         </div>
         <div id="ga4-status" style="font-size:12px;color:var(--gris-m);margin-top:4px"></div>
+        <div id="ga4-server-path" style="font-size:11px;color:var(--azul);background:var(--azul-c);padding:6px 10px;border-radius:6px;margin-top:10px;display:none;word-break:break-all">
+          📍 <b>Ruta del servidor (donde copiar el JSON):</b><br><code id="ga4-path-val" style="font-family:monospace;margin-top:4px;display:block">...</code>
+        </div>
       </div>
     </div>
   </div>
@@ -1376,6 +1379,17 @@ async function pingSrvr() {
     if(el('sched-enviados-cita')) el('sched-enviados-cita').textContent = eCita;
     if(el('sched-max-val'))  el('sched-max-val').textContent  = `de ${cfg.val_maxPorDia||30}`;
     if(el('sched-max-cita')) el('sched-max-cita').textContent = `de ${cfg.cita_maxPorDia||50}`;
+
+    // Mostrar ruta del servidor si está disponible
+    if (d.rutaServidor) {
+      const elPath = el('ga4-server-path');
+      const valPath = el('ga4-path-val');
+      if (elPath && valPath) {
+        elPath.style.display = 'block';
+        valPath.textContent = d.rutaServidor;
+      }
+    }
+
     if (d.config && !window._configCargada) { rellenarConfig(d.config); window._configCargada = true; }
     // Aviso fin de semana
     const avisoFinde = el('aviso-finde');
