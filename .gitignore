@@ -1,0 +1,27 @@
+# 📦 Dependencias (NUNCA subir a GitHub)
+node_modules/
+
+# 🔐 Autenticación y Sesión de WhatsApp
+auth_avancedental/
+.wwebjs_auth/
+.wwebjs_cache/
+
+# 📂 Datos Locales (Persistencia — Se conservan en el Mac de la clínica)
+data.json
+cola.json
+config.json
+leads.json
+esperando.json
+conversaciones.json
+yaenviados.json
+historial.json
+
+# 📑 Backups y Logs
+backups/
+*.log
+
+# 🖥️ Archivos de sistema / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.env
