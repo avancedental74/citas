@@ -918,62 +918,72 @@ Nuestros operadores se pondrán en contacto contigo lo antes posible para agenda
     </div>
   </div>
 
-  <!-- Flujo SÍ — Valoraciones -->
+  <!-- Agente local — Respuestas de pacientes post-valoración -->
   <div class="section-card">
-    <div class="section-card-header" style="background:var(--verde-xc)">
+    <div class="section-card-header" style="background:var(--morado-c)">
       <div>
-        <div class="section-card-title">🤖 Respuesta automática — Pedir valoración (SÍ / NO)</div>
-        <div style="font-size:12px;color:var(--gris-m);margin-top:2px">El paciente responde SÍ o NO — el bot actúa automáticamente. Anti-baneo: el link solo se envía si dice SÍ.</div>
+        <div class="section-card-title">🤖 Agente de respuestas — sin coste</div>
+        <div style="font-size:12px;color:var(--gris-m);margin-top:2px">Edita los mensajes de cada intención · Detección local por palabras clave · Sin APIs externas</div>
       </div>
-      <label class="toggle">
-        <input type="checkbox" id="cfg-flujo-sino-val" checked onchange="guardarConfig()">
-        <span class="toggle-slider"></span>
-      </label>
+      <span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--verde-c);color:var(--verde)">✓ Siempre activo · Coste cero</span>
     </div>
     <div class="section-card-body">
-      <div style="background:var(--amber-c);border:1px solid #fcd34d;border-radius:9px;padding:11px 14px;font-size:12px;color:var(--amber);margin-bottom:14px;line-height:1.7">
-        ⚠️ <strong>Canal exclusivo — avisa siempre al paciente.</strong> Este número <em>no</em> es el habitual de la clínica. El mensaje incluye un aviso claro para que el paciente sepa que es un canal automatizado de valoraciones y no intente comunicarse por aquí para consultas.
+      <div style="background:var(--morado-c);border:1px solid #c4b5fd;border-radius:9px;padding:10px 14px;font-size:12px;color:var(--morado);margin-bottom:18px;line-height:1.6">
+        🧠 El agente detecta la intención del mensaje del paciente y responde automáticamente. Edita los mensajes de cada caso — usa <code>[nombre]</code> para personalizar. Si dejas vacío, se usa el mensaje por defecto.
       </div>
 
-      <div style="border-bottom:1px solid var(--borde);padding-bottom:14px;margin-bottom:14px">
-        <div style="font-size:11px;font-weight:700;color:var(--gris-m);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📝 Mensaje inicial (pregunta SÍ/NO) — sin link</div>
-        <textarea id="cfg-msg-val-template" rows="7" style="width:100%;padding:10px 12px;border:1.5px solid var(--borde);border-radius:9px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;resize:vertical;background:#fff;transition:border .15s;line-height:1.6" onfocus="this.style.borderColor='var(--verde)'" onblur="this.style.borderColor='var(--borde)'">Hola [nombre] 👋
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
 
-Desde *[clinica]* queremos saber cómo te fue en tu visita [cuando]. Tu opinión nos importa de verdad — nos ayuda a mejorar y a que otras familias encuentren un dentista de confianza 🙏
-
-¿Fue todo bien? Responde *SÍ* o *NO*, solo te llevará un segundo.
-
-_⚠️ Este es un canal automatizado exclusivo para valoraciones. Para cualquier consulta o cita, escríbenos en nuestro número habitual._</textarea>
-        <div style="font-size:11px;color:var(--gris-m);margin-top:4px">Variables: <code>[nombre]</code> <code>[cuando]</code> <code>[clinica]</code> · El <code>[CTA]</code> lo gestiona el bot automáticamente según respuesta.</div>
-        <button class="btn-sched" style="margin-top:10px" onclick="guardarConfig()">💾 Guardar mensaje inicial</button>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-        <!-- SÍ -->
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <div style="font-size:11px;font-weight:700;color:var(--verde);text-transform:uppercase;letter-spacing:.5px">✅ Si responde SÍ → envía el link</div>
-          <textarea id="cfg-msg-val-si" rows="7" style="width:100%;padding:10px 12px;border:1.5px solid var(--borde);border-radius:9px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;resize:vertical;background:#fff;transition:border .15s;line-height:1.6" onfocus="this.style.borderColor='var(--verde)'" onblur="this.style.borderColor='var(--borde)'">¡Qué alegría, [nombre]! Nos alegra muchísimo 😍
-
-Te agradeceríamos que nos dieses 5 estrellas en Google — solo te tomará 1 minuto y nos ayuda un montón:
-👉 [CTA]
-
-¡Muchas gracias por tu confianza! 🙏</textarea>
-          <div style="font-size:11px;color:var(--gris-m)">Variable <code>[CTA]</code> = enlace a Google automático. <code>[nombre]</code> disponible.</div>
-          <button class="btn-sched" onclick="guardarConfig()">💾 Guardar respuesta SÍ</button>
+        <!-- Positivo -->
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="font-size:11px;font-weight:700;color:var(--verde);text-transform:uppercase;letter-spacing:.5px">😊 Agradecimiento / positivo</div>
+          <textarea id="cfg-agente-msg-positivo" rows="5" placeholder="Deja vacío para usar el mensaje por defecto..." style="width:100%;padding:10px 12px;border:1.5px solid var(--borde);border-radius:9px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;resize:vertical;background:#fff;transition:border .15s;line-height:1.6" onfocus="this.style.borderColor='var(--verde)'" onblur="this.style.borderColor='var(--borde)'"></textarea>
+          <div style="font-size:11px;color:var(--gris-m)">Agradece e invita a dejar reseña si no lo ha hecho. Variable: <code>[nombre]</code></div>
         </div>
 
-        <!-- NO -->
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <div style="font-size:11px;font-weight:700;color:var(--coral);text-transform:uppercase;letter-spacing:.5px">❌ Si responde NO → agradece y cierra</div>
-          <textarea id="cfg-msg-val-no" rows="7" style="width:100%;padding:10px 12px;border:1.5px solid var(--borde);border-radius:9px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;resize:vertical;background:#fff;transition:border .15s;line-height:1.6" onfocus="this.style.borderColor='var(--coral)'" onblur="this.style.borderColor='var(--borde)'">Lamentamos que la experiencia no haya sido la mejor, [nombre] 🙏
-
-Tomamos nota para revisar qué pudimos hacer mejor. Tu sinceridad es lo que nos ayuda a crecer de verdad.
-
-Un saludo del equipo de [clinica].</textarea>
-          <div style="font-size:11px;color:var(--gris-m)">Variables: <code>[nombre]</code> <code>[clinica]</code></div>
-          <button class="btn-sched" onclick="guardarConfig()">💾 Guardar respuesta NO</button>
+        <!-- Queja -->
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="font-size:11px;font-weight:700;color:var(--coral);text-transform:uppercase;letter-spacing:.5px">😟 Queja / negativo · avisa al operador</div>
+          <textarea id="cfg-agente-msg-queja" rows="5" placeholder="Deja vacío para usar el mensaje por defecto..." style="width:100%;padding:10px 12px;border:1.5px solid var(--borde);border-radius:9px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;resize:vertical;background:#fff;transition:border .15s;line-height:1.6" onfocus="this.style.borderColor='var(--coral)'" onblur="this.style.borderColor='var(--borde)'"></textarea>
+          <div style="font-size:11px;color:var(--gris-m)">Empatiza y disculpa. El operador recibe aviso automático. Variable: <code>[nombre]</code></div>
         </div>
+
+        <!-- Pregunta -->
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="font-size:11px;font-weight:700;color:var(--azul-m);text-transform:uppercase;letter-spacing:.5px">❓ Pregunta (citas, precios…)</div>
+          <textarea id="cfg-agente-msg-pregunta" rows="5" placeholder="Deja vacío para usar el mensaje por defecto..." style="width:100%;padding:10px 12px;border:1.5px solid var(--borde);border-radius:9px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;resize:vertical;background:#fff;transition:border .15s;line-height:1.6" onfocus="this.style.borderColor='var(--azul-m)'" onblur="this.style.borderColor='var(--borde)'"></textarea>
+          <div style="font-size:11px;color:var(--gris-m)">Redirige al número habitual sin inventar datos. Variable: <code>[nombre]</code></div>
+        </div>
+
+        <!-- Defecto -->
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div style="font-size:11px;font-weight:700;color:var(--gris-m);text-transform:uppercase;letter-spacing:.5px">💬 Fuera de contexto / defecto</div>
+          <textarea id="cfg-agente-msg-defecto" rows="5" placeholder="Deja vacío para usar el mensaje por defecto..." style="width:100%;padding:10px 12px;border:1.5px solid var(--borde);border-radius:9px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;resize:vertical;background:#fff;transition:border .15s;line-height:1.6" onfocus="this.style.borderColor='var(--gris-m)'" onblur="this.style.borderColor='var(--borde)'"></textarea>
+          <div style="font-size:11px;color:var(--gris-m)">Agradece y redirige al número habitual. Variable: <code>[nombre]</code></div>
+        </div>
+
       </div>
+
+      <button class="btn-sched" style="margin-top:14px;background:var(--morado)" onclick="guardarConfig();toast('✓ Mensajes del agente guardados','ok')">💾 Guardar mensajes del agente</button>
+    </div>
+  </div>
+
+
+  <!-- Plantilla de mensaje de valoración -->
+  <div class="section-card">
+    <div class="section-card-header">
+      <div class="section-card-title">📝 Plantilla del mensaje de valoración</div>
+    </div>
+    <div class="section-card-body">
+      <textarea id="cfg-msg-val-template" rows="7" style="width:100%;padding:10px 12px;border:1.5px solid var(--borde);border-radius:9px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;resize:vertical;background:#fff;transition:border .15s;line-height:1.6" onfocus="this.style.borderColor='var(--verde)'" onblur="this.style.borderColor='var(--borde)'">Hola [nombre] 👋
+
+Gracias por visitarnos [cuando] en *[clinica]*.
+
+Tu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a que otras familias encuentren un dentista de confianza 🙏
+
+[CTA]</textarea>
+      <div style="font-size:11px;color:var(--gris-m);margin-top:4px">Variables: <code>[nombre]</code> <code>[cuando]</code> <code>[clinica]</code> <code>[CTA]</code> = link a Google automático con UTM</div>
+      <button class="btn-sched" style="margin-top:12px" onclick="guardarConfig()">💾 Guardar plantilla de valoración</button>
     </div>
   </div>
 
@@ -2465,7 +2475,7 @@ const _TOGGLE_IDS = ['cfg-val-activo','cfg-cita-activo','cfg-bloquear-finde','cf
 const _touched = new Set(); // campos que el usuario tocó — el polling no los pisa
 
 (function() {
-  const todos = ['cfg-val-h1','cfg-val-h2','cfg-val-h3','cfg-val-h4','cfg-val-m1','cfg-val-m2','cfg-val-m3','cfg-val-m4','cfg-val-max','cfg-cita-hora','cfg-cita-max','cfg-delay-min','cfg-delay-max','cfg-num-resenias','cfg-tel-operador','cfg-msg-confirmado','cfg-msg-rechazado','cfg-msg-val-template','cfg-msg-cita-template','cfg-msg-val-si','cfg-msg-val-no','ga4-property-id','ga4-credentials-path',..._TOGGLE_IDS];
+  const todos = ['cfg-val-h1','cfg-val-h2','cfg-val-h3','cfg-val-h4','cfg-val-m1','cfg-val-m2','cfg-val-m3','cfg-val-m4','cfg-val-max','cfg-cita-hora','cfg-cita-max','cfg-delay-min','cfg-delay-max','cfg-num-resenias','cfg-tel-operador','cfg-msg-confirmado','cfg-msg-rechazado','cfg-msg-val-template','cfg-msg-cita-template','cfg-agente-msg-positivo','cfg-agente-msg-queja','cfg-agente-msg-pregunta','cfg-agente-msg-defecto','ga4-property-id','ga4-credentials-path',..._TOGGLE_IDS];
   function marcarTocado(id) {
     _touched.add(id);
     clearTimeout(window['_t_'+id]);
@@ -2524,6 +2534,10 @@ function rellenarConfig(cfg) {
   if (!_touched.has('cfg-msg-rechazado')  && cfg.msgRechazado)  setVal('cfg-msg-rechazado',  cfg.msgRechazado);
   if (!_touched.has('cfg-msg-val-template') && cfg.msgValTemplate) setVal('cfg-msg-val-template', cfg.msgValTemplate);
   if (!_touched.has('cfg-msg-cita-template') && cfg.msgCitaTemplate) setVal('cfg-msg-cita-template', cfg.msgCitaTemplate);
+  if (!_touched.has('cfg-agente-msg-positivo') && cfg.msgAgentePositivo !== undefined) setVal('cfg-agente-msg-positivo', cfg.msgAgentePositivo);
+  if (!_touched.has('cfg-agente-msg-queja')    && cfg.msgAgenteQueja    !== undefined) setVal('cfg-agente-msg-queja',    cfg.msgAgenteQueja);
+  if (!_touched.has('cfg-agente-msg-pregunta') && cfg.msgAgentePregunta !== undefined) setVal('cfg-agente-msg-pregunta', cfg.msgAgentePregunta);
+  if (!_touched.has('cfg-agente-msg-defecto')  && cfg.msgAgenteDefecto  !== undefined) setVal('cfg-agente-msg-defecto',  cfg.msgAgenteDefecto);
   if (!_touched.has('cfg-aviso-metodo') && cfg.avisoMetodo) { setVal('cfg-aviso-metodo', cfg.avisoMetodo); toggleAvisoMetodo(); }
   if (!_touched.has('cfg-aviso-email')       && cfg.avisoEmail)     setVal('cfg-aviso-email',       cfg.avisoEmail);
   if (!_touched.has('cfg-aviso-email-user')  && cfg.avisoEmailUser)  setVal('cfg-aviso-email-user',  cfg.avisoEmailUser);
@@ -2532,9 +2546,6 @@ function rellenarConfig(cfg) {
   if (!_touched.has('ga4-property-id') && cfg.ga4PropertyId) setVal('ga4-property-id', cfg.ga4PropertyId);
   if (!_touched.has('ga4-credentials-path') && cfg.ga4CredentialsPath) setVal('ga4-credentials-path', cfg.ga4CredentialsPath);
 
-  setChk('cfg-flujo-sino-val', cfg.flujoSiNo_val !== false);
-  if (!_touched.has('cfg-msg-val-si') && cfg.msgValSi) setVal('cfg-msg-val-si', cfg.msgValSi);
-  if (!_touched.has('cfg-msg-val-no') && cfg.msgValNo) setVal('cfg-msg-val-no', cfg.msgValNo);
 }
 
 function toggleAvisoMetodo() {
@@ -2581,13 +2592,15 @@ async function guardarConfig() {
     bloquearFinde:  g('cfg-bloquear-finde')?.checked === true,
     numResenias:    parseInt(g('cfg-num-resenias')?.value || 127),
     flujoSiNo_cita: g('cfg-flujo-sino-cita')?.checked || false,
-    flujoSiNo_val:  g('cfg-flujo-sino-val')?.checked || false,
-    msgValSi:       g('cfg-msg-val-si')?.value || '',
-    msgValNo:       g('cfg-msg-val-no')?.value || '',
+    flujoSiNo_val:  false,
     msgConfirmado:  g('cfg-msg-confirmado')?.value || '',
     msgRechazado:   g('cfg-msg-rechazado')?.value || '',
     msgValTemplate: g('cfg-msg-val-template')?.value || '',
     msgCitaTemplate: g('cfg-msg-cita-template')?.value || '',
+    msgAgentePositivo: g('cfg-agente-msg-positivo')?.value || '',
+    msgAgenteQueja:    g('cfg-agente-msg-queja')?.value    || '',
+    msgAgentePregunta: g('cfg-agente-msg-pregunta')?.value || '',
+    msgAgenteDefecto:  g('cfg-agente-msg-defecto')?.value  || '',
     avisoMetodo:    g('cfg-aviso-metodo')?.value || 'email',
     avisoEmail:     g('cfg-aviso-email')?.value || '',
     avisoEmailUser: g('cfg-aviso-email-user')?.value || '',
@@ -2750,13 +2763,7 @@ function cuandoTemporal(fecha, hora) {
   return 'el ' + dias[f.getDay()];
 }
 
-// Helper: lee el estado actual del toggle flujo SI/NO para valoraciones
-function isFlujoSiNoVal() {
-  const chk = document.getElementById('cfg-flujo-sino-val');
-  return chk ? chk.checked : false;
-}
-
-// Construye el mensaje de valoración respetando la configuración de flujo SI/NO
+// Construye el mensaje de valoración — siempre con link directo
 function msgVal(p) {
   const nombre   = p.nombre.split(' ')[0];
   const fechaTxt = p.fecha ? fmtFecha(p.fecha) : null;
