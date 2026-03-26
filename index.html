@@ -415,6 +415,7 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
       <span class="wa-dot pulse" id="wa-dot"></span>
       <span id="wa-status-txt">Desconectado</span>
     </div>
+    <button onclick="resetearSesion()" title="Cambiar número o forzar nuevo QR tras baneo" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.7);border-radius:7px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s" onmouseover="this.style.background='rgba(255,255,255,.15)'" onmouseout="this.style.background='rgba(255,255,255,.08)'">🔄 Cambiar número</button>
   </div>
 </header>
 
@@ -1480,6 +1481,12 @@ function actualizarEstadoWA(estado) {
     txt.textContent = 'Escanear QR';
     esched.textContent = '📱 Esperando QR';
     ssub.textContent   = 'Escanea el código QR para conectar';
+  } else if (estado === 'esperando_qr' || estado === 'conectando') {
+    btn.classList.add('qr');
+    dot.classList.add('pulse');
+    txt.textContent = 'Generando QR...';
+    esched.textContent = '🔄 Generando nuevo QR';
+    ssub.textContent   = 'Sesión borrada — el código aparecerá en segundos';
   } else if (estado === 'sin_servidor') {
     btn.classList.add('disconnected');
     txt.textContent = 'Servidor offline';
@@ -2400,6 +2407,15 @@ async function cargarQR() {
         target.appendChild(txt);
       }
 
+    } else if (d.estado === 'esperando_qr') {
+      // Sesión borrada (baneo/cambio número) — QR llegará en segundos
+      if(target) target.innerHTML = '<div style="text-align:center;padding:16px">'
+        + '<div style="font-size:36px">🔄</div>'
+        + '<p style="font-size:13px;font-weight:600;color:var(--amber);margin-top:10px">Generando nuevo QR...</p>'
+        + '<p style="font-size:12px;color:var(--gris-m);margin-top:6px">Sesión anterior borrada. El código aparecerá en unos segundos.</p>'
+        + '</div>';
+      if (!_qrPollTimer) _qrPollTimer = setInterval(cargarQR, 2000);
+
     } else {
       // Baileys todavía arrancando — contar segundos y hacer polling automático cada 3s
       const prev = parseInt(target?.dataset?.qrSeg || '0');
@@ -2420,6 +2436,22 @@ async function cargarQR() {
     if(t) t.innerHTML = '<p style="color:var(--coral);font-size:13px">Error al conectar: ' + err.message + '</p>';
     _stopQrPoll();
   }
+}
+
+// Borrar sesión y forzar nuevo QR (cambio de número o tras baneo)
+async function resetearSesion() {
+  if (!confirm('¿Borrar la sesión actual y generar un nuevo QR?\n\nUsa esto si:\n• El número fue baneado\n• Quieres cambiar de número\n• El QR no aparece tras reiniciar')) return;
+  if (!MODO_BAILEYS) { toast('⚠️ Servidor offline','err'); return; }
+  try {
+    const r = await fetch(API_BASE+'/api/reset-sesion', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    const d = await r.json();
+    if (d.ok) {
+      toast('🔄 Sesión borrada — abre el QR en unos segundos', 'ok');
+      setTimeout(() => abrirQR(), 2000);
+    } else {
+      toast('❌ ' + (d.error || 'Error'), 'err');
+    }
+  } catch(e) { toast('❌ ' + e.message, 'err'); }
 }
 
 // Parar polling al cerrar el modal

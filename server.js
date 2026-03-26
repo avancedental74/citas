@@ -341,35 +341,44 @@ function registrarAbEnvio(v) {
 
 function construirMsgVal(p, variante) {
   const nombre = p.nombre.split(' ')[0];
-  const cuando = fmtFecha(p.fecha); // Siempre la fecha exacta como pide el usuario
+  const cuando = cuandoTemporal(p.fecha, p.hora);
   const url = urlConUtm(variante, 'val');
 
-  const flujoVal = config.flujoSiNo_val;
+  // 4 variantes A/B con link directo — sin flujo SÍ/NO
+  const AVISO = '_Este número es exclusivo para valoraciones. Para consultas, usa nuestro número habitual._';
 
-  // Plantilla editable desde el panel
-  let template = config.msgValTemplate || `Hola [nombre] 👋
+  const variantes = [
+    // v0 — Gratitud cercana
+    `Hola ${nombre} 👋 Fue un placer atenderte ${cuando}. Si tienes un momento, nos encantaría saber cómo te fue — tu opinión nos ayuda a seguir mejorando:\n${url}\n\n${AVISO}`,
+    // v1 — Impacto comunidad
+    `Hola ${nombre}, gracias por tu visita ${cuando} 🙏 Tu experiencia puede ayudar a otras familias a encontrar un dentista de confianza. ¿Nos cuentas cómo te fue?\n${url}\n\n${AVISO}`,
+    // v2 — Rapidez + facilidad
+    `¡Hola ${nombre}! Te vimos ${cuando} en *${CLINICA}*. Solo un momento para contarnos tu experiencia — tarda menos de un minuto:\n${url}\n\n${AVISO}`,
+    // v3 — Confianza mutua
+    `Qué bien verte ${cuando}, ${nombre} 😊 Para nosotros cada opinión cuenta de verdad. Si puedes, cuéntanos cómo fue tu visita:\n${url}\n\n${AVISO}`,
+  ];
 
-Gracias por visitarnos [cuando] en *[clinica]*.
-
-Tu opinión es muy importante para nosotros — nos ayuda a seguir mejorando y a que otras familias encuentren un dentista de confianza 🙏
-
-[CTA]`;
-
-  let cta;
-  if (flujoVal) {
-    // Flujo SÍ/NO: primer mensaje sin link (anti-baneo)
-    cta = '¿Salió todo bien? Responde *SÍ* o *NO*.';
-  } else {
-    // Link directo
-    cta = `👇 Si tienes un momento, aquí puedes dejarnos tu opinión:\n${url}`;
+  // Permitir plantilla personalizada desde panel si existe (reemplaza las variantes)
+  const template = config.msgValTemplate;
+  if (template && template.trim() && !template.includes('[CTA]')) {
+    // Plantilla sin [CTA] = template fijo para todas las variantes
+    return template
+      .replace(/\[nombre\]/g, nombre)
+      .replace(/\[cuando\]/g, cuando)
+      .replace(/\[clinica\]/g, CLINICA)
+      .replace(/\[URL\]/g, url)
+      .trim();
+  }
+  if (template && template.trim() && template.includes('[CTA]')) {
+    return template
+      .replace(/\[nombre\]/g, nombre)
+      .replace(/\[cuando\]/g, cuando)
+      .replace(/\[clinica\]/g, CLINICA)
+      .replace(/\[CTA\]/g, url)
+      .trim();
   }
 
-  return template
-    .replace(/\[nombre\]/g, nombre || '')
-    .replace(/\[cuando\]/g, cuando ? 'el ' + cuando : 'recientemente')
-    .replace(/\[clinica\]/g, CLINICA || '')
-    .replace(/\[CTA\]/g, cta)
-    .trim();
+  return variantes[variante % variantes.length];
 }
 
 // Respuesta automática al SÍ — incluye UTM de la variante para tracking GA4
@@ -495,16 +504,74 @@ Te escribimos desde *[clinica]* para recordarte que tienes cita[tratamiento] el 
 }
 
 
+// ── ANTI-BANEO: UTILIDADES DE COMPORTAMIENTO HUMANO ──────────────────────────
+
+// OPT-5 — Delay gaussiano (Box-Muller): distribución en campana centrada en la media
+// Los humanos reales tienen tiempos agrupados alrededor de un valor, no uniformes
+function delayGaussiano(minMs, maxMs) {
+  const media  = (minMs + maxMs) / 2;
+  const sigma  = (maxMs - minMs) / 6; // 99.7% de valores dentro del rango
+  let u, v, s;
+  do {
+    u = Math.random() * 2 - 1;
+    v = Math.random() * 2 - 1;
+    s = u * u + v * v;
+  } while (s >= 1 || s === 0);
+  const gauss = u * Math.sqrt(-2 * Math.log(s) / s);
+  return Math.round(Math.max(minMs, Math.min(maxMs, media + gauss * sigma)));
+}
+
+// OPT-3 — Tiempo de escritura proporcional a la longitud del mensaje
+// ~40 chars/seg (velocidad humana media en móvil) + jitter aleatorio
+function tiempoComposing(texto) {
+  const chars       = String(texto).length;
+  const msBase      = Math.round((chars / 40) * 1000); // 40 chars/seg
+  const msMinimo    = 1500;
+  const msMaximo    = 6000;
+  const jitter      = (Math.random() - 0.5) * 800; // ±400ms de variación
+  return Math.max(msMinimo, Math.min(msMaximo, msBase + jitter));
+}
+
+// OPT-4 — Caché de verificación onWhatsApp (TTL: 24h)
+// Evita consultar el servidor de WA por el mismo número repetidamente
+const _waCache = new Map(); // tel → { exists: bool, ts: timestamp }
+const WA_CACHE_TTL = 24 * 3600 * 1000; // 24 horas
+
+async function verificarNumero(sock, jidCompleto) {
+  const tel = jidCompleto.replace('@s.whatsapp.net', '');
+  const cached = _waCache.get(tel);
+  if (cached && (Date.now() - cached.ts) < WA_CACHE_TTL) {
+    return cached.exists;
+  }
+  const [info] = await sock.onWhatsApp(jidCompleto).catch(() => [null]);
+  const existe = !!info?.exists;
+  _waCache.set(tel, { exists: existe, ts: Date.now() });
+  return existe;
+}
+
 // ── ENVÍO ─────────────────────────────────────────────────────────────────────
 async function enviarMensaje(telefono, texto) {
-  if (!sockGlobal||estadoWA!=='conectado') throw new Error('WhatsApp no conectado');
-  const j = jid(telefono.startsWith('34')?telefono:'34'+telefono);
-  const [info] = await sockGlobal.onWhatsApp(j).catch(()=>[null]);
-  if (!info?.exists) throw new Error('Sin WhatsApp: '+telefono);
-  await sockGlobal.sendPresenceUpdate('composing',j);
-  await sleep(1200+Math.random()*2000);
-  await sockGlobal.sendPresenceUpdate('paused',j);
-  await sockGlobal.sendMessage(j,{text:texto});
+  if (!sockGlobal || estadoWA !== 'conectado') throw new Error('WhatsApp no conectado');
+  const j = jid(telefono.startsWith('34') ? telefono : '34' + telefono);
+
+  // OPT-4: verificación con caché — no consulta WA si ya lo verificamos hoy
+  const existe = await verificarNumero(sockGlobal, j);
+  if (!existe) throw new Error('Sin WhatsApp: ' + telefono);
+
+  // OPT-6: micro-pausa antes de composing — simula "abrir el chat" en el móvil
+  // Entre 300ms y 1200ms, distribución gaussiana
+  await sleep(delayGaussiano(300, 1200));
+
+  // OPT-3: tiempo de composing proporcional a la longitud del mensaje
+  const msComposing = tiempoComposing(texto);
+  await sockGlobal.sendPresenceUpdate('composing', j);
+  await sleep(msComposing);
+  await sockGlobal.sendPresenceUpdate('paused', j);
+
+  // Breve pausa tras "paused" antes de enviar — como el humano que revisa el texto
+  await sleep(delayGaussiano(200, 600));
+
+  await sockGlobal.sendMessage(j, { text: texto });
   return true;
 }
 
@@ -628,6 +695,8 @@ async function procesarRespuesta(remitente, texto) {
 }
 
 // ── PROCESAR COLA ─────────────────────────────────────────────────────────────
+let colaActiva = false; // declarado AQUÍ — antes de ambas funciones que lo usan
+
 // procesarColaFranja: igual que procesarCola('val') pero con límite propio de la franja
 // Se llama desde el cron cuando llega la hora de cada franja horaria
 async function procesarColaFranja(mod, maxFranja) {
@@ -673,13 +742,13 @@ async function procesarColaFranja(mod, maxFranja) {
         }
 
         p.enviado = true; p.fechaEnvio = new Date().toISOString(); p.variante = varianteIdx;
-        guardarCola(cola);
+        // NO guardarCola aquí — se guarda una sola vez al final del bucle
         enviosHoyVal++;
         console.log(`✅ [${i + 1}/${aEnviar.length}] VAL V${varianteIdx} → ${p.nombre}`);
 
         if (i < aEnviar.length - 1) {
-          const d = (config.delayMinSeg + Math.random() * (config.delayMaxSeg - config.delayMinSeg)) * 1000;
-          await sleep(d);
+          // OPT-5: delay gaussiano entre mensajes — más natural que uniforme
+          await sleep(delayGaussiano(config.delayMinSeg * 1000, config.delayMaxSeg * 1000));
         }
       } catch (err) {
         console.error(`❌ ${p.nombre}:`, err.message);
@@ -687,6 +756,7 @@ async function procesarColaFranja(mod, maxFranja) {
       }
     }
     guardarDatos(datos);
+    guardarCola(cola); // una sola escritura al final — no dentro del bucle
     console.log(`🏁 Franja completada — val hoy: ${enviosHoyVal}`);
   } catch (err) {
     console.error('💥 Error en procesarColaFranja:', err.message);
@@ -694,8 +764,6 @@ async function procesarColaFranja(mod, maxFranja) {
     colaActiva = false;
   }
 }
-let colaActiva = false;
-
 async function procesarCola(modFiltro = null, forzarTodos = false) {
   if (colaActiva) return;
   if (config.bloquearFinde && esFinde()) {
@@ -796,15 +864,15 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
       }
 
       p.enviado=true; p.fechaEnvio=new Date().toISOString(); p.variante=varianteIdx;
-      guardarCola(cola);
+      // NO guardarCola aquí — se guarda una sola vez al final del bucle
 
       if (p.mod==='val')  enviosHoyVal++;
       if (p.mod==='cita') enviosHoyCita++;
       console.log(`✅ [${i+1}/${aEnviar.length}] ${p.mod.toUpperCase()} V${varianteIdx} → ${p.nombre}`);
 
       if (i < aEnviar.length - 1) {
-        const d=(config.delayMinSeg+Math.random()*(config.delayMaxSeg-config.delayMinSeg))*1000;
-        await sleep(d);
+        // OPT-5: delay gaussiano entre mensajes — más natural que uniforme
+        await sleep(delayGaussiano(config.delayMinSeg * 1000, config.delayMaxSeg * 1000));
       }
     } catch(err) {
       console.error(`❌ ${p.nombre}:`,err.message);
@@ -812,8 +880,9 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
     }
   }
 
-  // Una sola escritura al final para evitar race conditions y desgaste de disco (A1)
+  // Una sola escritura al final para evitar race conditions y desgaste de disco
   guardarDatos(datos);
+  guardarCola(cola);
 
   // Limpiar esperandoRespuesta > 48h y persistir
   const lim = Date.now() - 48 * 3600000;
@@ -1076,42 +1145,82 @@ async function verificarEnviosPendientesAlArrancar() {
 }
 
 // ── BAILEYS ───────────────────────────────────────────────────────────────────
+// Evitar llamadas concurrentes a conectar() — solo una instancia activa a la vez
+let conectando = false;
+
+async function limpiarSesion() {
+  const authDir = path.join(__dirname, 'auth_avancedental');
+  try { fs.rmSync(authDir, { recursive: true, force: true }); } catch (e) {}
+  console.log('🗑  Sesión borrada — se generará nuevo QR');
+}
+
 async function conectar() {
-  const { version } = await fetchLatestBaileysVersion();
-  const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname, 'auth_avancedental'));
-  const sock = makeWASocket({
-    auth:state,
-    logger:P({level:'silent'}),
-    browser: Browsers.macOS('Desktop'),
-    version,
-    generateHighQualityLinkPreview:false,
-    defaultQueryTimeoutMs:60000,
-  });
+  if (conectando) { console.log('⏳ Conexión ya en curso, ignorando llamada duplicada'); return; }
+  conectando = true;
 
-  sock.ev.on('connection.update', async ({connection,lastDisconnect,qr})=>{
-    if (qr) {
-      qrActual = qr;
-      estadoWA = 'qr';
-      console.log('📱 QR generado — escanea desde la web en localhost:3001');
-    }
-    if (connection==='open') { estadoWA='conectado'; qrActual=null; sockGlobal=sock; console.log('✅ WhatsApp conectado'); }
-    if (connection==='close') {
-      estadoWA='desconectado'; sockGlobal=null;
-      const statusCode = (lastDisconnect?.error instanceof Boom) ? lastDisconnect.error.output?.statusCode : 0;
-      // 401 = loggedOut / cerrado desde móvil, 403 = baneado, 405 = conflict/taken over
-      const reLoginStatusCodes = [DisconnectReason.loggedOut, 401, 403, 405];
-      const necesitaReLogin = reLoginStatusCodes.includes(statusCode);
+  // Limpiar estado global antes de crear nuevo socket
+  sockGlobal = null;
+  estadoWA = 'conectando';
+  qrActual  = null;
 
-      if (!necesitaReLogin) {
-        console.log(`🔄 Reconectando... (Error: ${statusCode})`);
-        setTimeout(conectar,5000);
-      } else {
-        console.log(`🚪 Sesión inválida o baneada (Código ${statusCode}). Borrando auth_avancedental y reiniciando para sacar nuevo QR...`);
-        try { fs.rmSync(path.join(__dirname, 'auth_avancedental'), { recursive: true, force: true }); } catch (e) {}
-        setTimeout(conectar, 2000); // Intenta conectar de nuevo para arrojar un QR nuevo
+  let sock;
+  try {
+    const { version } = await fetchLatestBaileysVersion();
+    const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname, 'auth_avancedental'));
+    sock = makeWASocket({
+      auth: state,
+      logger: P({ level: 'silent' }),
+      browser: Browsers.macOS('Desktop'),
+      version,
+      generateHighQualityLinkPreview: false,
+      defaultQueryTimeoutMs: 60000,
+    });
+
+    sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
+      if (qr) {
+        qrActual  = qr;
+        estadoWA  = 'qr';
+        conectando = false; // ya tenemos QR, liberar para poder reconectar si hace falta
+        console.log('📱 QR generado — escanea desde la web en localhost:3001');
       }
-    }
-  });
+      if (connection === 'open') {
+        estadoWA   = 'conectado';
+        qrActual   = null;
+        sockGlobal = sock;
+        conectando = false;
+        console.log('✅ WhatsApp conectado');
+      }
+      if (connection === 'close') {
+        estadoWA   = 'desconectado';
+        sockGlobal = null;
+        conectando = false;
+
+        const statusCode = (lastDisconnect?.error instanceof Boom)
+          ? lastDisconnect.error.output?.statusCode : 0;
+
+        // Códigos que requieren nuevo QR: baneado (403), sesión cerrada (401), conflicto (405), loggedOut
+        const necesitaNuevoQR = [DisconnectReason.loggedOut, 401, 403, 405].includes(statusCode);
+
+        if (necesitaNuevoQR) {
+          console.log(`🚫 Sesión inválida (código ${statusCode}) — borrando sesión y generando nuevo QR`);
+          await limpiarSesion();
+          estadoWA = 'esperando_qr'; // estado intermedio visible en el panel
+          setTimeout(conectar, 2000);
+        } else {
+          console.log(`🔄 Reconectando en 5s... (código: ${statusCode})`);
+          setTimeout(conectar, 5000);
+        }
+      }
+    });
+
+    sock.ev.on('creds.update', saveCreds);
+  } catch (err) {
+    conectando = false;
+    estadoWA   = 'desconectado';
+    console.error('❌ Error al iniciar Baileys:', err.message);
+    setTimeout(conectar, 8000);
+    return;
+  }
 
   // Escuchar respuestas SÍ/NO
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
@@ -1168,12 +1277,30 @@ app.use((req, res, next) => {
 app.get('/api/status', (req,res)=>{
   const dia = new Intl.DateTimeFormat('es-ES', { weekday: 'long', timeZone: TIMEZONE }).format(new Date()).toLowerCase();
   res.json({
-    estado:estadoWA, qr:estadoWA==='qr'?qrActual:null,
+    estado: estadoWA, qr: estadoWA === 'qr' ? qrActual : null,
     enviosHoyVal, enviosHoyCita, config,
-    esFinDeSemana:dia==='sábado'||dia==='domingo', diaActual:dia,
-    esperandoRespuesta:esperandoRespuesta.size,
+    esFinDeSemana: dia === 'sábado' || dia === 'domingo', diaActual: dia,
+    esperandoRespuesta: esperandoRespuesta.size,
     rutaServidor: __dirname
   });
+});
+
+// Borrar sesión manualmente y forzar nuevo QR (útil tras baneo o cambio de número)
+app.post('/api/reset-sesion', async (req, res) => {
+  try {
+    if (sockGlobal) {
+      try { await sockGlobal.logout(); } catch (e) { /* ignorar si ya está desconectado */ }
+      sockGlobal = null;
+    }
+    estadoWA  = 'desconectado';
+    qrActual  = null;
+    conectando = false;
+    await limpiarSesion();
+    setTimeout(conectar, 500);
+    res.json({ ok: true, mensaje: 'Sesión borrada — nuevo QR en unos segundos' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/api/config',(req,res)=>res.json(config));
