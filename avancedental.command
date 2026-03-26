@@ -24,6 +24,19 @@ fi
 echo " ✅ Node.js $(node --version) detectado"
 echo ""
 
+# ── MENÚ DE INICIO ───────────────────────────────────────────────────────────
+echo " ┌─────────────────────────────────────────┐"
+echo " │  ¿Qué quieres hacer?                    │"
+echo " │                                         │"
+echo " │  1) Actualizar y arrancar  (normal)     │"
+echo " │  2) Resetear sesión WA + arrancar       │"
+echo " │     (úsalo si el QR no funciona)        │"
+echo " └─────────────────────────────────────────┘"
+echo ""
+read -r -p " Elige opción [1/2]: " OPCION
+OPCION="${OPCION:-1}"
+echo ""
+
 # ── FUNCIÓN: descargar y aplicar repo ────────────────────────────────────────
 descargar_repo() {
     local TMP_ZIP="/tmp/avancedental_repo.zip"
@@ -225,6 +238,20 @@ EOF
 fi
 
 echo ""
+
+# ── RESETEAR SESIÓN WHATSAPP (solo si eligió opción 2) ──────────────────────
+if [ "$OPCION" = "2" ]; then
+    AUTH_DIR="$INSTALL_DIR/auth_avancedental"
+    echo " 🗑  Borrando sesión de WhatsApp..."
+    # Parar servidor antes de borrar la sesión
+    launchctl unload "$PLIST" 2>/dev/null
+    PID=$(lsof -ti tcp:3001 2>/dev/null)
+    [ -n "$PID" ] && kill -TERM "$PID" 2>/dev/null && sleep 2
+    rm -rf "$AUTH_DIR"
+    sleep 1
+    echo " ✅ Sesión borrada — se pedirá nuevo QR al arrancar"
+    echo ""
+fi
 
 # ── ARRANCAR SERVIDOR SI NO ESTÁ CORRIENDO ────────────────────────────────────
 if curl -s --max-time 2 http://localhost:3001/api/status > /dev/null 2>&1; then

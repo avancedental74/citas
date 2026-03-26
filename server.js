@@ -55,7 +55,12 @@ const CONFIG_DEFAULT = {
   numResenias:    127,   // se muestra en el mensaje ("ya somos X familias")
   flujoSiNo:      false,  // legacy — se mantiene por compatibilidad
   flujoSiNo_cita: true,   // true = flujo SÍ/NO en recordatorios de cita
-  flujoSiNo_val:  true,   // true = flujo SÍ/NO en valoraciones
+  flujoSiNo_val:  false,  // DESACTIVADO — valoraciones siempre envían link directo, agente IA gestiona respuestas libres
+  // Mensajes del agente de respuestas (editables desde el panel) — [nombre] se sustituye automáticamente
+  msgAgentePositivo: '',  // Respuesta a agradecimientos / feedback positivo
+  msgAgenteQueja:    '',  // Respuesta a quejas / feedback negativo
+  msgAgentePregunta: '',  // Respuesta a preguntas sobre citas, precios, etc.
+  msgAgenteDefecto:  '',  // Respuesta por defecto / fuera de contexto
   abTracking:     false,  // registra variante enviada + clics por UTM
 
   // Mensajes de respuesta valoración SÍ/NO
@@ -400,6 +405,88 @@ function construirMsgRespuestaNo(nombre) {
     .replace(/\[clinica\]/g, CLINICA);
 }
 
+// ── AGENTE LOCAL — VALORACIONES ──────────────────────────────────────────────
+// Detección de intención 100% local — sin APIs externas, coste cero
+// Intenciones detectadas: positivo | queja | pregunta | defecto (fuera de contexto)
+function agenteValoracion({ nombre, texto }) {
+  const t = texto.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[¡!¿?.,;:]/g, ' ').trim();
+
+  // ── Palabras clave por intención ────────────────────────────────────────────
+  const clavesPositivo = [
+    'gracias','muchas gracias','muy bien','excelente','genial','perfecto','increible',
+    'fenomenal','encantado','encantada','satisfecho','satisfecha','contento','contenta',
+    'feliz','espectacular','maravilloso','maravillosa','10','diez','cinco estrellas',
+    'muy amable','muy amables','recomiendo','recomendare','lo recomiendo','de lujo',
+    'buenisimo','buenisima','super bien','muy profesional','muy profesionales','trato excelente',
+    'volveremos','volvere','sin dolor','sin molestias','todo perfecto','todo bien','estupendo',
+  ];
+  const clavesQueja = [
+    'mal','malo','mala','fatal','pesimo','pesima','horrible','espantoso','espantosa',
+    'molestia','molestias','dolor','me dolio','me duele','me hicieron daño','me hiciste daño',
+    'no me gusto','no me gustó','no me atendieron','mala atencion','mala experiencia',
+    'queja','reclamacion','reclamación','problema','problemas','deficiente','inaceptable',
+    'no volvere','decepcionado','decepcionada','muy caro','carísimo','no funciono','no ha funcionado',
+    'espere mucho','esperar mucho','mucha espera','tarde mucho','impuntual','no me informaron',
+  ];
+  const clavesPregunta = [
+    'cita','citas','pedir cita','solicitar cita','cancelar','cancelar cita','cambiar cita',
+    'precio','precios','presupuesto','cuanto cuesta','cuánto cuesta','cuanto vale','cuánto vale',
+    'horario','horarios','cuando abren','cuando cierran','a que hora','telefono','teléfono',
+    'numero','número','contacto','como os llamo','puedo llamar','puedo ir','donde estais',
+    'dirección','direccion','ubicacion','ubicación','donde sois','implante','implantes',
+    'ortodoncia','blanqueamiento','limpieza','empaste','extraccion','extracción','urgencia',
+    'cubre el seguro','seguro dental','mutua','tiene aparcamiento','parking',
+  ];
+
+  // Busca coincidencia en el texto normalizado
+  function detecta(lista) {
+    return lista.some(w => {
+      const wn = w.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      return t === wn || t.includes(' ' + wn + ' ') || t.startsWith(wn + ' ') || t.endsWith(' ' + wn) || t === wn || t.includes(wn);
+    });
+  }
+
+  const esPositivo  = detecta(clavesPositivo);
+  const esQueja     = detecta(clavesQueja);
+  const esPregunta  = detecta(clavesPregunta);
+
+  // Plantillas de respuesta por intención (varias para rotar y sonar más natural)
+  // Defaults si no hay mensaje personalizado en config
+  const defaultsPositivo = [
+    `¡Qué alegría saberlo, ${nombre}! 😊 Nos motiva mucho recibir mensajes como el tuyo — es lo que nos hace seguir mejorando cada día. ¡Hasta la próxima!`,
+    `¡Muchas gracias por tus palabras, ${nombre}! 🙏 Es un placer tenerte como paciente. Si aún no has podido dejarnos tu reseña en Google, ¡te lo agradecemos mucho!`,
+    `¡Qué bien, ${nombre}! 🌟 Tu opinión nos llena de energía. Si quieres compartir tu experiencia en Google, estaremos muy agradecidos. ¡Hasta pronto!`,
+  ];
+  const defaultsQueja = [
+    `Lamentamos mucho que tu experiencia no haya sido la que mereces, ${nombre} 🙏 Tomamos nota de tu comentario — nos ayuda a mejorar. Nuestro equipo lo revisará con cuidado.`,
+    `Sentimos sinceramente lo ocurrido, ${nombre}. Tu bienestar es lo primero para nosotros. El equipo tomará nota para que no vuelva a repetirse. Gracias por contárnoslo.`,
+    `Gracias por tu sinceridad, ${nombre} 🙏 Lo sentimos mucho. Nuestro equipo revisará lo que pasó y tomará las medidas necesarias. Tu opinión nos hace mejorar.`,
+  ];
+  const defaultsPregunta = [
+    `¡Hola ${nombre}! Para cualquier consulta sobre citas, precios o tratamientos, escríbenos en nuestro número habitual y te atendemos encantados 😊 Este canal es exclusivo para valoraciones.`,
+    `Hola ${nombre}, para gestionar tu cita o resolver cualquier duda, contáctanos por nuestro número habitual — te atenderemos sin problema 📞 Este canal es solo para valoraciones.`,
+  ];
+  const defaultsDefecto = [
+    `¡Gracias por escribirnos, ${nombre}! 😊 Este canal es exclusivo para valoraciones. Para cualquier consulta o cita, escríbenos en nuestro número habitual y te atendemos enseguida.`,
+    `Hola ${nombre}, gracias por tu mensaje 🙏 Para consultas o citas, usa nuestro número habitual — este canal está reservado para valoraciones de pacientes.`,
+  ];
+
+  // Helper: usa mensaje personalizado de config si existe, sino rota entre defaults
+  function resolver(cfgMsg, defaults) {
+    if (cfgMsg && cfgMsg.trim()) return cfgMsg.trim().replace(/\[nombre\]/g, nombre);
+    const idx = texto.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % defaults.length;
+    return defaults[idx];
+  }
+
+  // Prioridad: queja > positivo > pregunta > defecto
+  if (esQueja)         return resolver(config.msgAgenteQueja,    defaultsQueja);
+  if (esPositivo)      return resolver(config.msgAgentePositivo, defaultsPositivo);
+  if (esPregunta)      return resolver(config.msgAgentePregunta, defaultsPregunta);
+  return                      resolver(config.msgAgenteDefecto,  defaultsDefecto);
+}
+
 // Respuestas para citas — usan config editable desde el HTML o mensajes default
 function msgCitaConfirmado(nombre, fecha, hora) {
   if (config.msgConfirmado && config.msgConfirmado.trim()) {
@@ -671,23 +758,20 @@ async function procesarRespuesta(remitente, texto) {
       await enviarMensaje(tel, `Perdona ${nombre1}, no te he entendido bien 😅\n\nResponde simplemente *SÍ* para confirmar tu cita o *NO* si necesitas cambiarla.`).catch(console.error);
     }
   } else if (mod === 'val') {
-    if (esSi) {
-      const msgSi = construirMsgEnlace(nombre1, variante || 0);
-      await enviarMensaje(tel, msgSi).catch(console.error);
-      esperandoRespuesta.delete(tel); guardarEsperando();
-      registrarMensaje({ tel, nombre, mod: 'val', textoOriginal: texto.trim(), resultado: 'si' });
-      console.log(`✅ VAL SÍ — ${nombre} (${tel}) → enlace enviado`);
-    } else if (esNo) {
-      const msgNo = construirMsgRespuestaNo(nombre1);
-      await enviarMensaje(tel, msgNo).catch(console.error);
-      esperandoRespuesta.delete(tel); guardarEsperando();
-      registrarMensaje({ tel, nombre, mod: 'val', textoOriginal: texto.trim(), resultado: 'no' });
-      console.log(`❌ VAL NO — ${nombre} (${tel})`);
-    } else {
-      registrarMensaje({ tel, nombre, mod: 'val', textoOriginal: texto.trim(), resultado: 'no_reconocido' });
-      console.log(`❓ No reconocida (val) de ${nombre} (${tel}): "${t}"`);
-      await enviarMensaje(tel, `Perdona ${nombre1}, no te he entendido 😅\n\nResponde *SÍ* si la visita fue bien o *NO* si algo no estuvo a la altura.`).catch(console.error);
+    // ── AGENTE IA — gestiona cualquier respuesta libre del paciente ──────────
+    console.log(`🤖 AGENTE VAL — ${nombre} (${tel}): "${texto.trim()}"`);
+    try {
+      const respuestaAgente = agenteValoracion({ nombre: nombre1, texto: texto.trim(), clinica: CLINICA });
+      await enviarMensaje(tel, respuestaAgente).catch(console.error);
+      registrarMensaje({ tel, nombre, mod: 'val', textoOriginal: texto.trim(), resultado: 'agente' });
+      if (/mal|problema|queja|molest|dolor|error|defect|no me gusto|no me gustó/i.test(texto)) {
+        await avisarOperador(nombre, tel, null, null, null, `Posible queja: "${texto.trim()}"`).catch(console.error);
+      }
+    } catch(e) {
+      console.error(`❌ Agente val error para ${nombre}:`, e.message);
+      await enviarMensaje(tel, `¡Gracias por escribirnos, ${nombre1}! 🙏\n\n_Este canal es exclusivo para valoraciones. Para cualquier consulta, escríbenos en nuestro número habitual._`).catch(console.error);
     }
+    esperandoRespuesta.delete(tel); guardarEsperando();
   } else {
     // Otros módulos (si los hubiera)
     console.log(`ℹ️ Mensaje de ${nombre} (${tel}) en módulo ${mod} — fuera de flujo auto-respuesta`);
@@ -1170,10 +1254,11 @@ async function conectar() {
     sock = makeWASocket({
       auth: state,
       logger: P({ level: 'silent' }),
-      browser: Browsers.macOS('Desktop'),
+      browser: Browsers.ubuntu('Chrome'),  // macOS('Desktop') es detectado y bloqueado por WhatsApp en 2025-2026
       version,
       generateHighQualityLinkPreview: false,
       defaultQueryTimeoutMs: 60000,
+      syncFullHistory: false,              // evita timeout en el handshake inicial
     });
 
     sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
@@ -1296,6 +1381,8 @@ app.post('/api/reset-sesion', async (req, res) => {
     qrActual  = null;
     conectando = false;
     await limpiarSesion();
+    // Pequeña pausa para garantizar que el filesystem libera los archivos antes de reconectar
+    await sleep(1000);
     setTimeout(conectar, 500);
     res.json({ ok: true, mensaje: 'Sesión borrada — nuevo QR en unos segundos' });
   } catch (e) {
@@ -1308,7 +1395,7 @@ app.post('/api/config',(req,res)=>{
   ['val_activo','val_maxPorDia','val_horas','horariosVal','cita_activo','cita_maxPorDia','cita_horaEnvio',
    'delayMinSeg','delayMaxSeg','bloquearFinde','numResenias','flujoSiNo','flujoSiNo_cita','flujoSiNo_val','abTracking',
    'avisoMetodo','avisoEmail','avisoEmailUser','avisoEmailPass','avisoWhatsapp',
-   'msgConfirmado','msgRechazado','msgValTemplate','msgCitaTemplate','msgValSi','msgValNo','ga4PropertyId','ga4CredentialsPath'
+   'msgConfirmado','msgRechazado','msgValTemplate','msgCitaTemplate','msgValSi','msgValNo','msgAgentePositivo','msgAgenteQueja','msgAgentePregunta','msgAgenteDefecto','ga4PropertyId','ga4CredentialsPath'
   ].forEach(k=>{if(req.body[k]!==undefined)config[k]=req.body[k];});
   // Normalizar max de cada franja como entero
   if (Array.isArray(config.val_horas)) {
