@@ -332,6 +332,11 @@ function seleccionarVariante() {
     const env = h['v' + v]?.enviados || 0;
     if (env < c) { c = env; m = v; }
   });
+  // Jitter: 20% de probabilidad de elegir otra variante aleatoria
+  // Evita bloques de N mensajes consecutivos idénticos en envíos masivos
+  if (Math.random() < 0.20) {
+    return Math.floor(Math.random() * 4);
+  }
   return m;
 }
 
@@ -350,17 +355,26 @@ function construirMsgVal(p, variante) {
   const url = urlConUtm(variante, 'val');
 
   // 4 variantes A/B con link directo — sin flujo SÍ/NO
-  const AVISO = '_Este número es exclusivo para valoraciones. Para consultas, usa nuestro número habitual._';
+  // AVISO rotado: 4 versiones semánticamente equivalentes para evitar sufijo fijo detectado por WA
+  const AVISOS = [
+    '_Este canal es solo para valoraciones. Para cualquier consulta, escríbenos en nuestro número habitual._',
+    '_Recuerda que este número es exclusivamente para opiniones de pacientes. Para citas o dudas, usa nuestro canal habitual._',
+    '_Si necesitas pedir cita o tienes alguna pregunta, contáctanos por nuestro número de siempre — este es nuestro canal de valoraciones._',
+    '_Este es nuestro canal de valoraciones. Para gestiones o consultas, escríbenos al número habitual de la clínica._',
+  ];
+  // El índice del aviso se calcula sobre el número de teléfono (estable por paciente, distinto entre pacientes)
+  const avisoIdx = (p.tel || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0) % AVISOS.length;
+  const AVISO = AVISOS[avisoIdx];
 
   const variantes = [
     // v0 — Gratitud cercana
-    `Hola ${nombre} 👋 Fue un placer atenderte ${cuando}. Si tienes un momento, nos encantaría saber cómo te fue — tu opinión nos ayuda a seguir mejorando:\n${url}\n\n${AVISO}`,
+    `Hola ${nombre}, fue un placer verte ${cuando} 😊 Si tienes un momento, nos encantaría saber cómo te fue — tu opinión nos ayuda a seguir mejorando:\n${url}\n\n${AVISO}`,
     // v1 — Impacto comunidad
-    `Hola ${nombre}, gracias por tu visita ${cuando} 🙏 Tu experiencia puede ayudar a otras familias a encontrar un dentista de confianza. ¿Nos cuentas cómo te fue?\n${url}\n\n${AVISO}`,
+    `Hola ${nombre} 👋 Gracias por tu visita ${cuando}. Tu experiencia puede ayudar a otras familias a encontrar un dentista de confianza — ¿nos cuentas cómo te fue?\n${url}\n\n${AVISO}`,
     // v2 — Rapidez + facilidad
-    `¡Hola ${nombre}! Te vimos ${cuando} en *${CLINICA}*. Solo un momento para contarnos tu experiencia — tarda menos de un minuto:\n${url}\n\n${AVISO}`,
+    `¡Buenas ${nombre}! Te atendimos ${cuando} en *${CLINICA}*. Solo un momento para contarnos tu experiencia — tarda menos de un minuto 🙏\n${url}\n\n${AVISO}`,
     // v3 — Confianza mutua
-    `Qué bien verte ${cuando}, ${nombre} 😊 Para nosotros cada opinión cuenta de verdad. Si puedes, cuéntanos cómo fue tu visita:\n${url}\n\n${AVISO}`,
+    `Qué alegría haberte visto ${cuando}, ${nombre} 🌟 Para nosotros cada opinión cuenta de verdad. Si puedes, cuéntanos cómo fue tu visita:\n${url}\n\n${AVISO}`,
   ];
 
   // Permitir plantilla personalizada desde panel si existe (reemplaza las variantes)
@@ -558,36 +572,70 @@ function construirMsgCita(p) {
   const fechaTxt = p.fecha ? `*${fmtFecha(p.fecha)}*` : 'próximamente';
   const difícil = esTratDificil(p.trat);
 
-  let template = config.msgCitaTemplate || `Hola [nombre] 👋
-
-Te escribimos desde *[clinica]* para recordarte que tienes cita[tratamiento] el [fecha][hora].
-
-[nervios]
-
-[CTA]`;
+  // Si hay plantilla personalizada, usarla (sin variantes)
+  const templatePersonalizado = config.msgCitaTemplate;
+  const hayTemplatePersonalizado = templatePersonalizado && templatePersonalizado.trim() &&
+    templatePersonalizado !== `Hola [nombre] 👋\n\nTe escribimos desde *[clinica]* para recordarte que tienes cita[tratamiento] el [fecha][hora].\n\n[nervios]\n\n[CTA]`;
 
   let nervios = '';
   if (difícil) {
-    nervios = 'Sabemos que este tipo de tratamiento puede generar algo de nervios — estamos aquí para que te sientas cómodo/a en todo momento 🙌';
+    // 2 variantes para el texto de nervios
+    const nerviosOpts = [
+      'Sabemos que este tipo de tratamiento puede generar algo de nervios — estamos aquí para que te sientas cómodo/a en todo momento 🙌',
+      'Entendemos que estos tratamientos a veces generan cierta inquietud — nuestro equipo estará contigo en cada paso para que estés tranquilo/a 😊',
+    ];
+    const nIdx = (p.tel || '').length % nerviosOpts.length;
+    nervios = nerviosOpts[nIdx];
   }
 
   let cta = '';
   const flujoCita = config.flujoSiNo_cita ?? config.flujoSiNo;
   if (flujoCita) {
-    cta = '¿Puedes confirmarnos la asistencia?\n\n✅ Responde *SÍ* para confirmar\n❌ Responde *NO* si necesitas cambiarla';
+    // 2 variantes del CTA de confirmación
+    const ctaOpts = [
+      '¿Puedes confirmarnos la asistencia?\n\n✅ Responde *SÍ* para confirmar\n❌ Responde *NO* si necesitas cambiarla',
+      '¿Nos confirmas que podrás venir?\n\n✅ *SÍ* — confirmo mi cita\n❌ *NO* — necesito cambiarla',
+    ];
+    cta = ctaOpts[(p.tel || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0) % ctaOpts.length];
   } else {
-    cta = 'Si necesitas cambiarla o tienes alguna duda, llámanos y con gusto te buscamos otro hueco 😊';
+    const ctaOpts = [
+      'Si necesitas cambiarla o tienes alguna duda, llámanos y con gusto te buscamos otro hueco 😊',
+      'Si algo cambia o tienes cualquier duda, escríbenos sin problema y lo gestionamos enseguida 😊',
+    ];
+    cta = ctaOpts[(p.tel || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0) % ctaOpts.length];
   }
 
-  return template
-    .replace(/\[nombre\]/g, nombre || '')
-    .replace(/\[clinica\]/g, CLINICA || '')
-    .replace(/\[tratamiento\]/g, tratTxt)
-    .replace(/\[fecha\]/g, fechaTxt)
-    .replace(/\[hora\]/g, hora)
-    .replace(/\[nervios\]/g, nervios)
-    .replace(/\[CTA\]/g, cta)
-    .trim();
+  if (hayTemplatePersonalizado) {
+    return templatePersonalizado
+      .replace(/\[nombre\]/g, nombre || '')
+      .replace(/\[clinica\]/g, CLINICA || '')
+      .replace(/\[tratamiento\]/g, tratTxt)
+      .replace(/\[fecha\]/g, fechaTxt)
+      .replace(/\[hora\]/g, hora)
+      .replace(/\[nervios\]/g, nervios)
+      .replace(/\[CTA\]/g, cta)
+      .trim();
+  }
+
+  // 3 variantes de cuerpo para recordatorios — selección por teléfono (estable, distinto entre pacientes)
+  const telSum = (p.tel || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  const v = telSum % 3;
+
+  const saludos = [
+    `Hola ${nombre} 👋`,
+    `Hola ${nombre},`,
+    `¡Buenas ${nombre}!`,
+  ];
+  const cuerpos = [
+    `Te escribimos desde *${CLINICA}* para recordarte que tienes cita${tratTxt} el ${fechaTxt}${hora}.`,
+    `Desde *${CLINICA}* te avisamos de que tienes tu cita${tratTxt} el ${fechaTxt}${hora}.`,
+    `Te recordamos que tienes cita${tratTxt} en *${CLINICA}* el ${fechaTxt}${hora}.`,
+  ];
+
+  let msg = `${saludos[v]}\n\n${cuerpos[v]}`;
+  if (nervios) msg += `\n\n${nervios}`;
+  msg += `\n\n${cta}`;
+  return msg.trim();
 }
 
 
