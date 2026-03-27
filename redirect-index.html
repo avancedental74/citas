@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Avance Dental</title>
+
+  <!--
+    INSTRUCCIONES DE USO
+    ════════════════════
+    Este archivo es idéntico para los 7 repos. Súbelo a cada uno tal cual.
+
+    Repos donde crear este index.html:
+      avancedental74/op
+      avancedental74/val
+      avancedental74/opinion
+      avancedental74/resena
+      avancedental74/review
+      avancedental74/experiencia
+      avancedental74/dental
+
+    En cada repo ve a: Settings → Pages → Source → Deploy from branch → main → / (root)
+    GitHub Pages lo publicará automáticamente.
+
+    Las URLs resultantes serán:
+      https://avancedental74.github.io/op/
+      https://avancedental74.github.io/val/
+      ... etc.
+
+    El script coge todos los parámetros UTM de la URL de entrada
+    y los pasa a opinion.html para que GA4 los siga recogiendo.
+  -->
+
+  <script>
+    // Destino final — no tocar
+    var DESTINO = 'https://avancedental74.github.io/citas/opinion.html';
+
+    // Pasar todos los parámetros UTM que vengan en la URL actual
+    var params = new URLSearchParams(window.location.search);
+    var dest   = new URL(DESTINO);
+
+    params.forEach(function(val, key) {
+      dest.searchParams.set(key, val);
+    });
+
+    // Redirección instantánea — sin flash de contenido
+    window.location.replace(dest.toString());
+  </script>
+
+  <!-- Fallback por si JS está desactivado -->
+  <noscript>
+    <meta http-equiv="refresh" content="0; url=https://avancedental74.github.io/citas/opinion.html">
+  </noscript>
+
+  <style>
+    /* Pantalla de espera mínima — solo visible si la redirección tarda (raro) */
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      font-family: system-ui, sans-serif;
+    }
+    .logo {
+      font-size: 15px;
+      color: #888;
+      letter-spacing: 0.04em;
+    }
+  </style>
+</head>
+<body>
+  <span class="logo">Avance Dental</span>
+</body>
+</html>
