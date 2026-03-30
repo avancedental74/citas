@@ -14,6 +14,8 @@ import path       from 'path';
 import { fileURLToPath } from 'url';
 import nodemailer from 'nodemailer';
 import archiver   from 'archiver';
+import crypto     from 'crypto';          // ← tracking: uid hashing
+import https      from 'https';           // ← tracking: Measurement Protocol
 import googleAnalyticsData from '@google-analytics/data';
 const { BetaAnalyticsDataClient } = googleAnalyticsData;
 
@@ -80,6 +82,8 @@ const CONFIG_DEFAULT = {
   // Google Analytics 4
   ga4PropertyId:      '',
   ga4CredentialsPath: '',
+  ga4MeasurementId:   '',   // ← tracking: G-XXXXXXXX de tu stream web
+  ga4ApiSecret:       '',   // ← tracking: Measurement Protocol API Secret
 
   // Plantillas de mensajes
   // IMPORTANTE: vacío por defecto → el sistema usa las 4 variantes A/B automáticamente.
@@ -112,9 +116,24 @@ const URL_POOL = [
   'https://avancedental74.github.io/citas/dental/',
 ];
 
+// ── TRACKING: IDENTIFICADORES ÚNICOS ─────────────────────────────────────────
+// uid: hash SHA-1 truncado del teléfono — estable por paciente, anónimo (LOPD)
+// sid: ID de sesión de envío — único por mensaje enviado
+// Salt fijo en proceso — cambia entre deploys pero no entre envíos del mismo día
+const UID_SALT = process.env.UID_SALT || 'avance2024';
+function generarUid(tel) {
+  if (!tel) return 'anon';
+  return crypto.createHash('sha1').update(UID_SALT + tel).digest('hex').slice(0, 10);
+}
+function generarSid() {
+  // base36 de timestamp + 4 chars aleatorios → ~8-9 chars, URL-safe, sin ambigüedad
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
 // Selecciona URL del pool:
 // - Base: índice determinista por teléfono (mismo paciente → siempre la misma, distinto entre pacientes)
 // - Jitter: 25% de probabilidad de elegir una URL aleatoria (rompe patrones en envíos masivos)
+// - uid + sid añadidos para trazabilidad completa en GA4
 function urlConUtm(variante, tipo = 'val', tel = '') {
   const baseIdx = tel
     ? tel.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % URL_POOL.length
@@ -123,7 +142,15 @@ function urlConUtm(variante, tipo = 'val', tel = '') {
     ? Math.floor(Math.random() * URL_POOL.length)
     : baseIdx;
   const base = URL_POOL[idx];
-  return base + '?utm_source=whatsapp&utm_medium=directo&utm_campaign=' + tipo + '&utm_content=v' + variante;
+  const uid  = generarUid(tel);
+  const sid  = generarSid();
+  return base
+    + '?utm_source=whatsapp'
+    + '&utm_medium=directo'
+    + '&utm_campaign=' + tipo
+    + '&utm_content=v' + variante
+    + '&uid=' + uid
+    + '&sid=' + sid;
 }
 
 // ── UTILS BÁSICOS (deben declararse antes que el estado) ──────────────────────
@@ -134,6 +161,50 @@ function telLimpio(t) {
   const limpio = String(t).replace(/\D/g, '').replace(/^34/, '').slice(-9);
   // Validar que sea móvil español o fijo (empieza por 6, 7, 8 o 9) (M1)
   return /^[6789]\d{8}$/.test(limpio) ? limpio : '';
+}
+
+// ── MEASUREMENT PROTOCOL GA4 ──────────────────────────────────────────────────
+// Envía eventos desde el backend a GA4 sin navegador.
+// Documentación: https://developers.google.com/analytics/devguides/collection/protocol/ga4
+// Requiere: ga4MeasurementId (G-XXXXXXXX) + ga4ApiSecret en config.
+// Fire-and-forget: nunca bloquea el flujo de envío de mensajes.
+function mpSendEvent({ eventName, params = {}, uid = null }) {
+  if (!config.ga4MeasurementId || !config.ga4ApiSecret) return; // no configurado → silencioso
+  const measurementId = config.ga4MeasurementId;
+  const apiSecret     = config.ga4ApiSecret;
+
+  // client_id requerido por GA4 — usamos uid si existe, o 'backend.server' como fallback
+  // GA4 usará esto para agrupar eventos del mismo "cliente" en el servidor
+  const clientId = uid ? `uid.${uid}` : 'backend.server';
+
+  const payload = JSON.stringify({
+    client_id: clientId,
+    user_id:   uid || undefined,          // User-ID para cross-device si uid existe
+    events: [{
+      name:   eventName,
+      params: {
+        engagement_time_msec: 1,          // requerido por MP para que eventos cuenten en informes
+        session_id: params.sid || '0',    // vincula con la sesión del frontend si se conoce
+        ...params
+      }
+    }]
+  });
+
+  const options = {
+    hostname: 'www.google-analytics.com',
+    path:     `/mp/collect?measurement_id=${measurementId}&api_secret=${apiSecret}`,
+    method:   'POST',
+    headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+  };
+
+  const req = https.request(options, res => {
+    if (res.statusCode !== 204) {
+      console.warn(`⚠️  MP GA4 [${eventName}] → HTTP ${res.statusCode}`);
+    }
+  });
+  req.on('error', e => console.warn(`⚠️  MP GA4 error [${eventName}]:`, e.message));
+  req.write(payload);
+  req.end();
 }
 
 // ── ESTADO ────────────────────────────────────────────────────────────────────
@@ -308,37 +379,28 @@ function fmtFecha(f) {
   return d.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
 }
 
-// Referencia temporal — siempre incluye fecha exacta ("el jueves 14 de febrero")
-// Si hay hora, añade también la franja ("el jueves 14 de febrero por la tarde")
+// Referencia temporal relativa — la dimensión de personalización sin datos clínicos
 function cuandoTemporal(fecha, hora) {
   const hoyD = new Date(); hoyD.setHours(0,0,0,0);
+  const ayer  = new Date(hoyD); ayer.setDate(ayer.getDate()-1);
+  const dias  = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 
-  // Franja horaria opcional
+  // Con hora → franja horaria: ultra específico
   let franja = null;
   if (hora) {
     const h = parseInt(hora.split(':')[0]);
-    if      (h < 12) franja = 'por la mañana';
+    if      (h < 12) franja = 'esta mañana';
     else if (h < 15) franja = 'a mediodía';
-    else             franja = 'por la tarde';
+    else             franja = 'esta tarde';
   }
 
-  if (!fecha) return franja ? `hoy ${franja}` : 'recientemente';
-
+  if (!fecha) return franja || 'recientemente';
   const f = new Date(fecha); f.setHours(0,0,0,0);
   const diff = Math.round((hoyD - f) / 86400000);
 
-  // Fecha exacta: "jueves 14 de febrero"
-  const fechaExacta = f.toLocaleDateString('es-ES', {
-    weekday: 'long',
-    day:     'numeric',
-    month:   'long',
-    timeZone: TIMEZONE || 'Europe/Madrid',
-  });
-
-  if (diff === 0) return franja ? `hoy ${franja}` : 'hoy';
-  if (diff === 1) return franja ? `ayer ${franja}` : 'ayer';
-  // Más de 1 día: "el jueves 14 de febrero" [+ franja si existe]
-  return franja ? `el ${fechaExacta} ${franja}` : `el ${fechaExacta}`;
+  if (diff === 0) return franja || 'hoy';
+  if (diff === 1) return franja || 'ayer';
+  return 'el ' + dias[f.getDay()]; // "el martes"
 }
 
 // ── ESTRUCTURA MENSAJE (elegida por el usuario) ───────────────────────────────
@@ -371,31 +433,6 @@ function registrarAbEnvio(v) {
   guardarDatos(d);
 }
 
-// MEJORA 3 — Variantes de apertura/cierre dinámicas
-// El saludo de apertura era siempre "Hola [nombre]" → fingerprint claro
-// Ahora rota entre 5 aperturas y 4 cierres de forma determinista por teléfono
-const APERTURAS_VAL = [
-  (n) => `Hola ${n} 😊`,
-  (n) => `¡${n}! 👋`,
-  (n) => `Buenas, ${n} 🙂`,
-  (n) => `Hola de nuevo, ${n} 👋`,
-  (n) => `${n}, hola 😄`,
-];
-const CIERRES_VAL = [
-  '¡Muchas gracias! 🙏',
-  '¡Te lo agradecemos mucho! 🙏',
-  '¡Gracias por tu tiempo! 😊',
-  '¡Un saludo del equipo! 🌟',
-];
-function elegirApertura(nombre, tel) {
-  const hash = String(tel).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  return APERTURAS_VAL[hash % APERTURAS_VAL.length](nombre);
-}
-function elegirCierre(tel) {
-  const hash = String(tel).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  return CIERRES_VAL[(hash + 3) % CIERRES_VAL.length];
-}
-
 function construirMsgVal(p, variante) {
   const nombre = p.nombre.split(' ')[0];
   const cuando = cuandoTemporal(p.fecha, p.hora);
@@ -415,13 +452,13 @@ function construirMsgVal(p, variante) {
 
   const variantes = [
     // v0 — Gratitud cercana
-    `${elegirApertura(nombre, p.tel || '')} fue un placer verte ${cuando} 😊 Si tienes un momento, nos encantaría saber cómo te fue — tu opinión nos ayuda a seguir mejorando:\n${url}\n\n${elegirCierre(p.tel || '')}\n\n${AVISO}`,
+    `Hola ${nombre}, fue un placer verte ${cuando} 😊 Si tienes un momento, nos encantaría saber cómo te fue — tu opinión nos ayuda a seguir mejorando:\n${url}\n\n${AVISO}`,
     // v1 — Impacto comunidad
-    `${elegirApertura(nombre, p.tel || '')} Gracias por tu visita ${cuando}. Tu experiencia puede ayudar a otras familias a encontrar un dentista de confianza — ¿nos cuentas cómo te fue?\n${url}\n\n${elegirCierre(p.tel || '')}\n\n${AVISO}`,
+    `Hola ${nombre} 👋 Gracias por tu visita ${cuando}. Tu experiencia puede ayudar a otras familias a encontrar un dentista de confianza — ¿nos cuentas cómo te fue?\n${url}\n\n${AVISO}`,
     // v2 — Rapidez + facilidad
-    `${elegirApertura(nombre, p.tel || '')} Te atendimos ${cuando} en *${CLINICA}*. Solo un momento para contarnos tu experiencia — tarda menos de un minuto 🙏\n${url}\n\n${elegirCierre(p.tel || '')}\n\n${AVISO}`,
+    `¡Buenas ${nombre}! Te atendimos ${cuando} en *${CLINICA}*. Solo un momento para contarnos tu experiencia — tarda menos de un minuto 🙏\n${url}\n\n${AVISO}`,
     // v3 — Confianza mutua
-    `${elegirApertura(nombre, p.tel || '')} Qué alegría haberte visto ${cuando} 🌟 Para nosotros cada opinión cuenta de verdad. Si puedes, cuéntanos cómo fue tu visita:\n${url}\n\n${elegirCierre(p.tel || '')}\n\n${AVISO}`,
+    `Qué alegría haberte visto ${cuando}, ${nombre} 🌟 Para nosotros cada opinión cuenta de verdad. Si puedes, cuéntanos cómo fue tu visita:\n${url}\n\n${AVISO}`,
   ];
 
   // Permitir plantilla personalizada desde panel si existe (reemplaza las variantes)
@@ -697,55 +734,6 @@ async function verificarNumero(sock, jidCompleto) {
   return existe;
 }
 
-// ── MEJORA 6 — DETECTOR DE SHADOW BAN ────────────────────────────────────────
-// WA a veces no cierra la conexión al banar — los mensajes "se envían" en logs
-// pero no llegan. Este watchdog detecta el silencio prolongado.
-const baneDetector = {
-  ultimoEnvioExitoso:          null,
-  respuestasRecibidas:         0,
-  enviosDesdeUltimaRespuesta:  0,
-};
-function registrarRespuestaRecibida() {
-  baneDetector.respuestasRecibidas++;
-  baneDetector.enviosDesdeUltimaRespuesta = 0;
-}
-function registrarEnvioExitoso_BD() {
-  baneDetector.ultimoEnvioExitoso = Date.now();
-  baneDetector.enviosDesdeUltimaRespuesta++;
-}
-function alertaBaneSilencioso() {
-  // >30 envíos sin ninguna respuesta Y ya habíamos recibido respuestas antes → shadow ban posible
-  if (baneDetector.enviosDesdeUltimaRespuesta > 30 && baneDetector.respuestasRecibidas > 5) {
-    console.warn('⚠️  POSIBLE SHADOW BAN: >30 envíos sin respuesta. Verificar manualmente.');
-    return true;
-  }
-  return false;
-}
-
-// ── MEJORA 7 — LOG ESTRUCTURADO JSONL ────────────────────────────────────────
-// Permite diagnóstico post-mortem exacto: qué mensaje, en qué número, a qué hora
-const LOG_ENVIOS_FILE = path.join(__dirname, 'log_envios.jsonl');
-function logEnvio(tipo, datos) {
-  const linea = JSON.stringify({
-    ts: new Date().toISOString(),
-    tipo, // 'OK' | 'FALLO' | 'OMITIDO' | 'CIRCUIT_BREAK' | 'PAUSA_LOTE'
-    ...datos
-  }) + '\n';
-  try { fs.appendFileSync(LOG_ENVIOS_FILE, linea); }
-  catch (e) { console.error('⚠️ Error escribiendo log_envios:', e.message); }
-}
-function rotarLogEnvios() {
-  try {
-    if (!fs.existsSync(LOG_ENVIOS_FILE)) return;
-    const stats = fs.statSync(LOG_ENVIOS_FILE);
-    if (stats.size > 5 * 1024 * 1024) { // > 5MB → rotar
-      const fecha = new Date().toISOString().split('T')[0];
-      fs.renameSync(LOG_ENVIOS_FILE, LOG_ENVIOS_FILE.replace('.jsonl', `_${fecha}.jsonl`));
-      console.log('📦 log_envios.jsonl rotado');
-    }
-  } catch (e) { /* ignorar */ }
-}
-
 // ── ENVÍO ─────────────────────────────────────────────────────────────────────
 async function enviarMensaje(telefono, texto) {
   if (!sockGlobal || estadoWA !== 'conectado') throw new Error('WhatsApp no conectado');
@@ -755,10 +743,9 @@ async function enviarMensaje(telefono, texto) {
   const existe = await verificarNumero(sockGlobal, j);
   if (!existe) throw new Error('Sin WhatsApp: ' + telefono);
 
-  // MEJORA 4: presencia 'available' — simula "abrir el chat" en el móvil
-  // Sin esto, WA ve que alguien escribe sin haber "abierto el chat" antes → señal de bot
-  await sockGlobal.sendPresenceUpdate('available', j);
-  await sleep(delayGaussiano(600, 1800)); // pausa más larga: el humano lee la conversación
+  // OPT-6: micro-pausa antes de composing — simula "abrir el chat" en el móvil
+  // Entre 300ms y 1200ms, distribución gaussiana
+  await sleep(delayGaussiano(300, 1200));
 
   // OPT-3: tiempo de composing proporcional a la longitud del mensaje
   const msComposing = tiempoComposing(texto);
@@ -776,9 +763,6 @@ async function enviarMensaje(telefono, texto) {
 // ── PROCESAR RESPUESTAS SÍ/NO ─────────────────────────────────────────────────
 async function procesarRespuesta(remitente, texto) {
   const tel = remitente.replace('@s.whatsapp.net', '').replace(/^34/, '');
-
-  // MEJORA 6: registrar que recibimos una respuesta (para detectar shadow ban)
-  registrarRespuestaRecibida();
 
   // LOG — ver en consola cada mensaje entrante y si el tel está esperando respuesta
   console.log(`📩 Entrante de ${tel}: "${texto.trim()}" | en mapa: ${esperandoRespuesta.has(tel)}`);
@@ -895,46 +879,6 @@ async function procesarRespuesta(remitente, texto) {
 // ── PROCESAR COLA ─────────────────────────────────────────────────────────────
 let colaActiva = false; // declarado AQUÍ — antes de ambas funciones que lo usan
 
-// MEJORA 2 — Circuit breaker: para automáticamente ante restricciones de WA
-// Si >3 fallos consecutivos O tasa de error >15% → pausa 20-30 min
-const circuitBreaker = {
-  fallosConsecutivos: 0,
-  totalIntentados:    0,
-  totalFallidos:      0,
-  pausadoHasta:       null,
-};
-function registrarFalloCB() {
-  circuitBreaker.fallosConsecutivos++;
-  circuitBreaker.totalFallidos++;
-  circuitBreaker.totalIntentados++;
-}
-function registrarExitoCB() {
-  circuitBreaker.fallosConsecutivos = 0;
-  circuitBreaker.totalIntentados++;
-}
-function circuitAbierto() {
-  if (circuitBreaker.pausadoHasta && Date.now() < circuitBreaker.pausadoHasta) {
-    const mins = Math.ceil((circuitBreaker.pausadoHasta - Date.now()) / 60000);
-    console.warn(`🔴 Circuit breaker ABIERTO — cola pausada ${mins}min más`);
-    return true;
-  }
-  if (circuitBreaker.fallosConsecutivos >= 4) {
-    circuitBreaker.pausadoHasta = Date.now() + 30 * 60 * 1000; // 30 min
-    circuitBreaker.fallosConsecutivos = 0;
-    console.error('🔴 4 fallos consecutivos — circuit breaker activado 30 min (posible restricción WA)');
-    return true;
-  }
-  const tasa = circuitBreaker.totalIntentados > 10
-    ? circuitBreaker.totalFallidos / circuitBreaker.totalIntentados
-    : 0;
-  if (tasa > 0.15) {
-    circuitBreaker.pausadoHasta = Date.now() + 20 * 60 * 1000; // 20 min
-    console.error(`🟠 Tasa de error ${(tasa * 100).toFixed(1)}% — circuit breaker 20 min`);
-    return true;
-  }
-  return false;
-}
-
 // procesarColaFranja: igual que procesarCola('val') pero con límite propio de la franja
 // Se llama desde el cron cuando llega la hora de cada franja horaria
 async function procesarColaFranja(mod, maxFranja) {
@@ -961,22 +905,38 @@ async function procesarColaFranja(mod, maxFranja) {
     console.log(`📤 [Franja] Enviando ${aEnviar.length}/${maxFranja} valoraciones...`);
 
     for (let i = 0; i < aEnviar.length; i++) {
-      // MEJORA 2: circuit breaker — parar si detecta restricción de WA
-      if (circuitAbierto()) break;
-
       const p = aEnviar[i];
       const varianteIdx = seleccionarVariante();
       const msgTexto = construirMsgVal(p, varianteIdx);
       try {
         await enviarMensaje(p.tel, msgTexto);
-        registrarExitoCB(); // MEJORA 2
-        logEnvio('OK', { tel: p.tel, nombre: p.nombre, variante: varianteIdx, mod: 'val' }); // MEJORA 7
         if (!datos.enviados[p.tel]) datos.enviados[p.tel] = {};
         datos.enviados[p.tel][p.mod] = hoy();
         datos.enviados[p.tel].nombre  = p.nombre;
         datos.enviados[p.tel].trat    = p.trat || '';
         datos.enviados[p.tel].variante = varianteIdx;
         registrarAbEnvio(varianteIdx);
+
+        // ── TRACKING: persistir uid y sid del envío ──────────────────────────
+        // NOTA: el sid ya fue generado dentro de urlConUtm() al construir msgTexto.
+        // Extraemos el uid (determinista) y creamos un sid de referencia para el MP.
+        // El sid del frontend vendrá del URL que el paciente recibió — aquí guardamos
+        // el uid para poder buscarlo en GA4 cuando el paciente haga clic.
+        const uid = generarUid(p.tel);
+        const sid = generarSid(); // sid de este evento de backend (distinto al del link)
+        datos.enviados[p.tel].uid = uid;
+
+        // ── MEASUREMENT PROTOCOL: evento message_sent ────────────────────────
+        mpSendEvent({
+          eventName: 'message_sent',
+          uid,
+          params: {
+            sid,
+            variant:      'v' + varianteIdx,
+            message_type: 'val',
+            clinica:      CLINICA,
+          }
+        });
 
         // Flujo SÍ/NO valoración
         if (config.flujoSiNo_val) {
@@ -985,31 +945,21 @@ async function procesarColaFranja(mod, maxFranja) {
         }
 
         p.enviado = true; p.fechaEnvio = new Date().toISOString(); p.variante = varianteIdx;
+        // NO guardarCola aquí — se guarda una sola vez al final del bucle
         enviosHoyVal++;
-        registrarEnvioExitoso_BD(); // MEJORA 6
         console.log(`✅ [${i + 1}/${aEnviar.length}] VAL V${varianteIdx} → ${p.nombre}`);
 
         if (i < aEnviar.length - 1) {
-          // MEJORA 5: pausa larga cada 10 mensajes (descanso humano)
-          if ((i + 1) % 10 === 0) {
-            const pausaLarga = delayGaussiano(3 * 60 * 1000, 6 * 60 * 1000);
-            console.log(`☕ Pausa de descanso — ${Math.round(pausaLarga/60000)}min (${i+1} enviados)`);
-            logEnvio('PAUSA_LOTE', { despuesDe: i + 1, duracionMs: pausaLarga }); // MEJORA 7
-            await sleep(pausaLarga);
-          } else {
-            await sleep(delayGaussiano(config.delayMinSeg * 1000, config.delayMaxSeg * 1000));
-          }
+          // OPT-5: delay gaussiano entre mensajes — más natural que uniforme
+          await sleep(delayGaussiano(config.delayMinSeg * 1000, config.delayMaxSeg * 1000));
         }
       } catch (err) {
-        registrarFalloCB(); // MEJORA 2
-        logEnvio('FALLO', { tel: p.tel, nombre: p.nombre, error: err.message }); // MEJORA 7
         console.error(`❌ ${p.nombre}:`, err.message);
         p.error = err.message; guardarCola(cola);
       }
     }
     guardarDatos(datos);
     guardarCola(cola); // una sola escritura al final — no dentro del bucle
-    alertaBaneSilencioso(); // MEJORA 6: comprobar silencio prolongado
     console.log(`🏁 Franja completada — val hoy: ${enviosHoyVal}`);
   } catch (err) {
     console.error('💥 Error en procesarColaFranja:', err.message);
@@ -1083,9 +1033,6 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
   console.log(`📤 Enviando ${aEnviar.length} mensajes...`);
 
   for (let i=0; i<aEnviar.length; i++) {
-    // MEJORA 2: circuit breaker — parar si detecta restricción de WA
-    if (circuitAbierto()) break;
-
     const p = aEnviar[i];
     let msgTexto, varianteIdx = 0;
 
@@ -1099,10 +1046,6 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
     try {
       await enviarMensaje(p.tel, msgTexto);
 
-      registrarExitoCB(); // MEJORA 2
-      if (p.mod === 'val') registrarEnvioExitoso_BD(); // MEJORA 6
-      logEnvio('OK', { tel: p.tel, nombre: p.nombre, variante: varianteIdx, mod: p.mod }); // MEJORA 7
-
       // Guardar en historial
       if (!datos.enviados[p.tel]) datos.enviados[p.tel]={};
       datos.enviados[p.tel][p.mod] = hoy();
@@ -1111,6 +1054,25 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
       if (p.mod==='val') datos.enviados[p.tel].variante = varianteIdx;
       // A/B tracking envío
       if (p.mod==='val') registrarAbEnvio(varianteIdx);
+
+      // ── TRACKING: persistir uid y sid del envío ────────────────────────────
+      if (p.mod === 'val') {
+        const uid = generarUid(p.tel);
+        const sid = generarSid(); // sid de referencia backend; el del link lo generó urlConUtm()
+        datos.enviados[p.tel].uid = uid;
+
+        // ── MEASUREMENT PROTOCOL: evento message_sent ──────────────────────
+        mpSendEvent({
+          eventName: 'message_sent',
+          uid,
+          params: {
+            sid,
+            variant:      'v' + varianteIdx,
+            message_type: p.mod,
+            clinica:      CLINICA,
+          }
+        });
+      }
 
       // SÍ/NO: guardar para respuesta automática — CITAS y VALORACIONES (si flujo activo)
       const flujoActivoCita = config.flujoSiNo_cita ?? config.flujoSiNo;
@@ -1124,25 +1086,17 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
       }
 
       p.enviado=true; p.fechaEnvio=new Date().toISOString(); p.variante=varianteIdx;
+      // NO guardarCola aquí — se guarda una sola vez al final del bucle
 
       if (p.mod==='val')  enviosHoyVal++;
       if (p.mod==='cita') enviosHoyCita++;
       console.log(`✅ [${i+1}/${aEnviar.length}] ${p.mod.toUpperCase()} V${varianteIdx} → ${p.nombre}`);
 
       if (i < aEnviar.length - 1) {
-        // MEJORA 5: pausa larga cada 10 mensajes (descanso humano)
-        if ((i + 1) % 10 === 0) {
-          const pausaLarga = delayGaussiano(3 * 60 * 1000, 6 * 60 * 1000);
-          console.log(`☕ Pausa de descanso — ${Math.round(pausaLarga/60000)}min (${i+1} enviados)`);
-          logEnvio('PAUSA_LOTE', { despuesDe: i + 1, duracionMs: pausaLarga }); // MEJORA 7
-          await sleep(pausaLarga);
-        } else {
-          await sleep(delayGaussiano(config.delayMinSeg * 1000, config.delayMaxSeg * 1000));
-        }
+        // OPT-5: delay gaussiano entre mensajes — más natural que uniforme
+        await sleep(delayGaussiano(config.delayMinSeg * 1000, config.delayMaxSeg * 1000));
       }
     } catch(err) {
-      registrarFalloCB(); // MEJORA 2
-      logEnvio('FALLO', { tel: p.tel, nombre: p.nombre, error: err.message }); // MEJORA 7
       console.error(`❌ ${p.nombre}:`,err.message);
       p.error=err.message; guardarCola(cola);
     }
@@ -1416,18 +1370,6 @@ async function verificarEnviosPendientesAlArrancar() {
 // Evitar llamadas concurrentes a conectar() — solo una instancia activa a la vez
 let conectando = false;
 
-// MEJORA 1 — Reconexión exponencial con jitter
-// Los bots que reconectan siempre en exactamente 5s tienen un patrón muy reconocible para WA
-let _reintentoConexion = 0;
-function delayReconexion() {
-  // Backoff exponencial: 5s → 10s → 20s → 40s... tope 5 min
-  // + jitter ±30% para que nunca sea exactamente el mismo valor
-  const base   = Math.min(5000 * Math.pow(2, _reintentoConexion), 300000);
-  const jitter = base * 0.3 * (Math.random() * 2 - 1);
-  _reintentoConexion++;
-  return Math.round(base + jitter);
-}
-
 async function limpiarSesion() {
   const authDir = path.join(__dirname, 'auth_avancedental');
   try { fs.rmSync(authDir, { recursive: true, force: true }); } catch (e) {}
@@ -1469,7 +1411,6 @@ async function conectar() {
         qrActual   = null;
         sockGlobal = sock;
         conectando = false;
-        _reintentoConexion = 0; // MEJORA 1: resetear backoff tras conexión exitosa
         console.log('✅ WhatsApp conectado');
       }
       if (connection === 'close') {
@@ -1487,12 +1428,10 @@ async function conectar() {
           console.log(`🚫 Sesión inválida (código ${statusCode}) — borrando sesión y generando nuevo QR`);
           await limpiarSesion();
           estadoWA = 'esperando_qr'; // estado intermedio visible en el panel
-          _reintentoConexion = 0; // MEJORA 1: QR es situación nueva, resetear backoff
           setTimeout(conectar, 2000);
         } else {
-          const delay = delayReconexion(); // MEJORA 1: backoff exponencial con jitter
-          console.log(`🔄 Reconectando en ${Math.round(delay/1000)}s... (código: ${statusCode}, intento: ${_reintentoConexion})`);
-          setTimeout(conectar, delay);
+          console.log(`🔄 Reconectando en 5s... (código: ${statusCode})`);
+          setTimeout(conectar, 5000);
         }
       }
     });
@@ -1566,37 +1505,6 @@ app.get('/api/status', (req,res)=>{
     esFinDeSemana: dia === 'sábado' || dia === 'domingo', diaActual: dia,
     esperandoRespuesta: esperandoRespuesta.size,
     rutaServidor: __dirname
-  });
-});
-
-// MEJORA 8 — Panel de salud antibaneo
-app.get('/api/antibaneo-status', (req, res) => {
-  const total = circuitBreaker.totalIntentados;
-  const tasa  = total > 0 ? (circuitBreaker.totalFallidos / total * 100).toFixed(1) + '%' : 'N/A';
-  res.json({
-    circuitBreaker: {
-      estado:             circuitBreaker.pausadoHasta && Date.now() < circuitBreaker.pausadoHasta ? 'ABIERTO' : 'CERRADO',
-      fallosConsecutivos: circuitBreaker.fallosConsecutivos,
-      totalIntentados:    total,
-      totalFallidos:      circuitBreaker.totalFallidos,
-      tasaError:          tasa,
-      pausadoHasta:       circuitBreaker.pausadoHasta ? new Date(circuitBreaker.pausadoHasta).toISOString() : null,
-    },
-    baneDetector: {
-      enviosDesdeUltimaRespuesta: baneDetector.enviosDesdeUltimaRespuesta,
-      respuestasRecibidas:        baneDetector.respuestasRecibidas,
-      alertaShadowBan:            alertaBaneSilencioso(),
-    },
-    reconexion: {
-      intento:       _reintentoConexion,
-      proximoDelayMs: _reintentoConexion > 0 ? Math.min(5000 * Math.pow(2, _reintentoConexion), 300000) : 0,
-    },
-    config: {
-      delayMin:       config.delayMinSeg + 's',
-      delayMax:       config.delayMaxSeg + 's',
-      limiteValDia:   config.val_maxPorDia,
-      franjas:        (config.val_horas || []).map(f => `${f.hora}(max:${f.max})`).join(', '),
-    }
   });
 });
 
@@ -1961,7 +1869,7 @@ app.get('/api/backup/export-json', (req, res) => {
 });
 
 // Cron backup cada hora — usa la misma constante TIMEZONE que el resto del servidor
-cron.schedule('0 * * * *', () => { backupAutomatico(); rotarLogEnvios(); }, { timezone: TIMEZONE });
+cron.schedule('0 * * * *', backupAutomatico, { timezone: TIMEZONE });
 setTimeout(backupAutomatico, 5000); // Uno al arrancar
 
 // ── GOOGLE ANALYTICS 4 ────────────────────────────────────────────────────────
@@ -2017,15 +1925,19 @@ app.get('/api/analytics', async (req, res) => {
 });
 
 app.post('/api/analytics/config', (req, res) => {
-  const { propertyId, credentialsPath } = req.body;
+  const { propertyId, credentialsPath, measurementId, apiSecret } = req.body;
   if (!propertyId || !credentialsPath) return res.status(400).json({ error: 'Faltan datos' });
   const credPath = path.isAbsolute(credentialsPath) ? credentialsPath : path.join(__dirname, credentialsPath);
   if (!fs.existsSync(credPath)) return res.status(400).json({ error: `Archivo no encontrado: ${credPath}` });
   config.ga4PropertyId      = String(propertyId).replace('properties/','').trim();
   config.ga4CredentialsPath = credentialsPath.trim();
+  // Measurement Protocol (opcional — habilita eventos desde backend)
+  if (measurementId) config.ga4MeasurementId = measurementId.trim();
+  if (apiSecret)     config.ga4ApiSecret     = apiSecret.trim();
   guardarConfigDisco(config);
-  console.log(`📡 GA4 configurado — Property: ${config.ga4PropertyId}`);
-  res.json({ ok: true });
+  const mpActivo = !!(config.ga4MeasurementId && config.ga4ApiSecret);
+  console.log(`📡 GA4 configurado — Property: ${config.ga4PropertyId} | MP: ${mpActivo ? '✅' : '⚠️ sin Measurement Protocol'}`);
+  res.json({ ok: true, measurementProtocol: mpActivo });
 });
 
 // ── ARRANQUE ──────────────────────────────────────────────────────────────────

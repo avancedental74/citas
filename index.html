@@ -363,6 +363,69 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
 .backup-status.ok{background:var(--verde-c);color:var(--verde);display:block}
 .backup-status.err{background:var(--coral-c);color:var(--coral);display:block}
 
+/* ── FUNNEL GA4 ── */
+.funnel-wrap{display:flex;align-items:stretch;gap:0;margin:8px 0 20px}
+.funnel-step{flex:1;min-width:0;background:var(--blanco);border:1.5px solid var(--borde);border-radius:0;padding:14px 12px;text-align:center;position:relative;transition:border-color .15s}
+.funnel-step:first-child{border-radius:12px 0 0 12px}
+.funnel-step:last-child{border-radius:0 12px 12px 0}
+.funnel-step.fs-conversion{border-color:var(--verde);background:linear-gradient(135deg,#f0fdf4,#fff)}
+.funnel-step.fs-drop{border-color:var(--coral)}
+.funnel-ico{font-size:20px;margin-bottom:4px}
+.funnel-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gris-m);line-height:1.3;margin-bottom:6px}
+.funnel-val{font-size:24px;font-weight:300;font-family:'DM Serif Display',serif;color:var(--azul);line-height:1}
+.funnel-pct{font-size:11px;font-weight:700;margin-top:4px;padding:2px 7px;border-radius:10px;display:inline-block}
+.funnel-pct.ok{background:var(--verde-c);color:var(--verde)}
+.funnel-pct.warn{background:var(--amber-c);color:var(--amber)}
+.funnel-pct.bad{background:var(--coral-c);color:var(--coral)}
+.funnel-drop{position:absolute;top:50%;right:-18px;transform:translateY(-50%);z-index:2;background:var(--coral-c);color:var(--coral);font-size:10px;font-weight:700;padding:3px 6px;border-radius:6px;border:1px solid #fca5a5;white-space:nowrap}
+.funnel-arrow{width:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--borde);font-size:16px;font-weight:300;background:transparent;border:none;position:relative}
+
+/* ── VARIANT TABLE ── */
+.variant-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px}
+.variant-table th{padding:8px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gris-m);border-bottom:2px solid var(--borde);background:var(--gris-c)}
+.variant-table td{padding:9px 10px;border-bottom:1px solid var(--borde);vertical-align:middle}
+.variant-table tr:last-child td{border-bottom:none}
+.variant-table tr:hover td{background:var(--azul-xc)}
+.vt-bar-cell{min-width:80px}
+.vt-bar{height:6px;border-radius:3px;background:var(--azul-m)}
+.vt-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px}
+.vt-badge.best{background:var(--verde-c);color:var(--verde)}
+.vt-badge.worst{background:var(--coral-c);color:var(--coral)}
+.vt-badge.neutral{background:var(--azul-c);color:var(--azul-m)}
+
+/* ── FRICTION PANEL ── */
+.friction-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}
+.friction-card{background:var(--amber-c);border:1px solid #fcd34d;border-radius:10px;padding:14px 16px}
+.friction-card.low{background:var(--verde-c);border-color:#bbf7d0}
+.friction-val{font-size:26px;font-weight:300;font-family:'DM Serif Display',serif;color:var(--amber);line-height:1}
+.friction-card.low .friction-val{color:var(--verde)}
+.friction-label{font-size:11px;font-weight:600;color:var(--amber);margin-top:4px;text-transform:uppercase;letter-spacing:.3px}
+.friction-card.low .friction-label{color:var(--verde-m)}
+.friction-sub{font-size:11px;color:var(--gris-m);margin-top:3px;line-height:1.4}
+.friction-bar-wrap{margin-top:10px}
+.friction-step-bar{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.friction-step-bar-label{font-size:11px;color:var(--gris-m);width:120px;flex-shrink:0;text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
+.friction-step-bar-track{flex:1;height:8px;background:var(--gris-c);border-radius:4px;overflow:hidden}
+.friction-step-bar-fill{height:100%;border-radius:4px;background:var(--amber);transition:width .6s cubic-bezier(.22,1,.36,1)}
+.friction-step-bar-val{font-size:11px;font-weight:600;color:var(--amber);width:38px;text-align:right;flex-shrink:0}
+
+/* ── LOADING / ERROR STATES ── */
+.ga4-loading{padding:32px;text-align:center;color:var(--gris-m)}
+.ga4-spinner{display:inline-block;width:20px;height:20px;border:2.5px solid rgba(37,99,168,.2);border-top-color:var(--azul-m);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:10px}
+.ga4-error{padding:20px;background:var(--coral-c);border:1px solid #fca5a5;border-radius:10px;font-size:13px;color:var(--coral);text-align:center}
+.ga4-nodata{padding:24px;background:var(--azul-xc);border:1px solid var(--azul-c);border-radius:10px;font-size:13px;color:var(--azul-m);text-align:center;line-height:1.7}
+.ga4-last-refresh{font-size:11px;color:var(--gris-m);text-align:right;margin-top:8px;font-style:italic}
+.uid-badge{font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;background:var(--morado-c);color:var(--morado);vertical-align:middle;margin-left:4px}
+
+/* ── STEP TIMING ── */
+.timing-row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.timing-label{font-size:11px;color:var(--gris-m);width:140px;flex-shrink:0}
+.timing-track{flex:1;height:8px;background:var(--gris-c);border-radius:4px;overflow:hidden}
+.timing-fill{height:100%;border-radius:4px;background:var(--azul-m);transition:width .6s cubic-bezier(.22,1,.36,1)}
+.timing-fill.slow{background:var(--amber)}
+.timing-fill.very-slow{background:var(--coral)}
+.timing-val{font-size:11px;font-weight:600;color:var(--azul);width:45px;text-align:right;flex-shrink:0}
+
 /* ── RESPUESTAS ── */
 .resp-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
 .resp-filter-btn{padding:7px 14px;border:1.5px solid var(--borde);border-radius:9px;font-size:12px;font-weight:500;background:#fff;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--gris-m);transition:all .15s}
@@ -1296,36 +1359,50 @@ Te escribimos desde *[clinica]* para recordarte que tienes cita[tratamiento] el 
 
   </div>
 
-  <!-- Variantes A/B -->
+  <!-- Variantes A/B (envíos internos + CTR WhatsApp) -->
   <div class="chart-card" style="margin-bottom:16px">
-    <div class="chart-card-title">🧪 Rendimiento variantes A/B <span style="font-size:11px;font-weight:400;color:var(--gris-m)">(mensajes de valoración)</span></div>
-    <div class="chart-card-sub">Cuántos mensajes de cada variante se han enviado</div>
+    <div class="chart-card-title">🧪 Variantes A/B/C — mensajes de valoración <span style="font-size:11px;font-weight:400;color:var(--gris-m)">(utm_content=v{a|b|c})</span></div>
+    <div class="chart-card-sub">Enviados · Clics en link WhatsApp · CTR interno — Conv. rate real en GA4 ↓</div>
     <div id="ab-bars" style="padding:4px 0"></div>
   </div>
 
-  <!-- GA4 Section -->
-  <div class="chart-card" style="border:1.5px solid var(--azul-c)">
-    <div class="chart-card-title">
-      <span style="background:linear-gradient(135deg,#e37400,#f9ab00);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:700">G</span>
-      Google Analytics 4 — Clics en reseña
+  <!-- GA4 Section — Funnel completo + variantes + fricción -->
+  <div class="chart-card" style="border:1.5px solid var(--azul-c);margin-bottom:16px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+      <div>
+        <div class="chart-card-title">
+          <span style="background:linear-gradient(135deg,#e37400,#f9ab00);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:700">G</span>
+          Google Analytics 4 — Panel de conversión
+        </div>
+        <div class="chart-card-sub" style="margin-bottom:0">Funnel real · Variantes A/B/C · Fricción · Tiempos por paso</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span class="ga4-last-refresh" id="ga4-last-refresh" style="font-style:normal;margin-top:0"></span>
+        <button class="stats-refresh" onclick="cargarGA4Stats(true)" id="ga4-refresh-btn" style="padding:5px 12px;font-size:11px">🔄 Actualizar</button>
+      </div>
     </div>
-    <div class="chart-card-sub">Datos reales de cuántos pacientes hicieron clic en Google Reviews tras recibir el mensaje</div>
+
     <div id="ga4-content">
-      <!-- Se rellena dinámicamente: setup si no hay creds, datos si sí -->
-      <div class="ga4-setup">
+      <!-- Setup screen (default) -->
+      <div class="ga4-setup" id="ga4-setup-panel">
         <div style="font-size:32px;margin-bottom:10px">📡</div>
         <h3>Conecta Google Analytics 4</h3>
-        <p>Para ver los datos de clics en Google Reviews necesitas crear una <strong>Service Account</strong> en Google Cloud y darle acceso a tu propiedad de GA4. Es un proceso de 5 minutos.</p>
+        <p>Para ver el funnel completo necesitas una <strong>Service Account</strong> en Google Cloud con acceso a tu propiedad GA4. Opcionalmente añade el Measurement Protocol para eventos del servidor.</p>
         <ol class="ga4-steps">
           <li>Ve a <strong>console.cloud.google.com</strong> → Crea un proyecto</li>
           <li>Habilita la API: <strong>Google Analytics Data API</strong></li>
           <li>Crea una <strong>Service Account</strong> y descarga el JSON de credenciales</li>
           <li>En <strong>analytics.google.com</strong> → Admin → Gestión de acceso → añade el email de la Service Account como <em>Viewer</em></li>
           <li>Pon la ruta al JSON y el Property ID abajo y pulsa Guardar</li>
+          <li><em>Opcional</em>: añade el <strong>Measurement ID</strong> (G-SSRX65FWDB) y el <strong>API Secret</strong> para que el servidor envíe eventos de WhatsApp a GA4</li>
         </ol>
         <div class="ga4-key-row">
-          <input type="text" id="ga4-property-id" placeholder="Property ID de GA4 (ej: 123456789)" style="max-width:260px">
+          <input type="text" id="ga4-property-id" placeholder="Property ID de GA4 (ej: 123456789)" style="max-width:220px">
           <input type="text" id="ga4-credentials-path" placeholder="Ruta al JSON (ej: ./ga4-key.json)">
+        </div>
+        <div class="ga4-key-row" style="margin-top:6px">
+          <input type="text" id="ga4-measurement-id" placeholder="Measurement ID (G-SSRX65FWDB) — Measurement Protocol" style="max-width:260px">
+          <input type="password" id="ga4-api-secret" placeholder="API Secret — Measurement Protocol (opcional)">
           <button class="btn-sched" onclick="guardarGA4Config()">💾 Guardar</button>
         </div>
         <div id="ga4-status" style="font-size:12px;color:var(--gris-m);margin-top:4px"></div>
@@ -1334,6 +1411,140 @@ Te escribimos desde *[clinica]* para recordarte que tienes cita[tratamiento] el 
         </div>
       </div>
     </div>
+
+    <!-- Datos GA4 — se inyecta aquí por JS cuando hay credenciales -->
+    <div id="ga4-dashboard" style="display:none">
+
+      <!-- ── 1. MÉTRICAS PRINCIPALES ── -->
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:10px" id="ga4-kpi-grid">
+        <div class="stat-card accent-azul">
+          <div class="stat-label">👁️ Landings</div>
+          <div class="stat-val" id="ga4-k-landings">—</div>
+          <div class="stat-sub">landing_view</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid var(--morado)">
+          <div class="stat-label">⭐ Rating selec.</div>
+          <div class="stat-val" id="ga4-k-rating" style="color:var(--morado)">—</div>
+          <div class="stat-sub">rating_selected</div>
+        </div>
+        <div class="stat-card accent-amber">
+          <div class="stat-label">🔗 Clics Google</div>
+          <div class="stat-val" id="ga4-k-gclick">—</div>
+          <div class="stat-sub">google_click</div>
+        </div>
+        <div class="stat-card accent-verde">
+          <div class="stat-label">✅ Conversiones</div>
+          <div class="stat-val" id="ga4-k-conv">—</div>
+          <div class="stat-sub">conversion_google_review</div>
+        </div>
+      </div>
+      <!-- Fila 2: eventos secundarios -->
+      <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+        <div class="stat-card" style="border-left:3px solid var(--gris-m);padding:12px 14px">
+          <div class="stat-label" style="font-size:10px">💬 Feedback views</div>
+          <div class="stat-val" style="font-size:20px" id="ga4-k-fbview">—</div>
+          <div class="stat-sub">feedback_view</div>
+        </div>
+        <div class="stat-card accent-coral" style="padding:12px 14px">
+          <div class="stat-label" style="font-size:10px">📝 Feedback enviado</div>
+          <div class="stat-val" style="font-size:20px" id="ga4-k-feedback">—</div>
+          <div class="stat-sub">feedback_submit</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid var(--amber);padding:12px 14px">
+          <div class="stat-label" style="font-size:10px">⏭️ Feedback skip</div>
+          <div class="stat-val" style="font-size:20px" id="ga4-k-fbskip">—</div>
+          <div class="stat-sub">feedback_skip</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid var(--borde);padding:12px 14px">
+          <div class="stat-label" style="font-size:10px">🔁 Repetidores</div>
+          <div class="stat-val" style="font-size:20px" id="ga4-k-repeat">—</div>
+          <div class="stat-sub">repeat_visitor</div>
+        </div>
+      </div>
+
+      <!-- ── 2. FUNNEL VISUAL ── -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:13px;font-weight:700;color:var(--azul);margin-bottom:6px;display:flex;align-items:center;gap:8px">
+          🔽 Funnel completo
+          <span style="font-size:11px;font-weight:400;color:var(--gris-m)">— drop-off por paso · últimos 30 días</span>
+        </div>
+        <!-- Leyenda de bifurcación -->
+        <div style="font-size:11px;color:var(--gris-m);margin-bottom:10px;padding:7px 12px;background:var(--gris-c);border-radius:8px;line-height:1.7">
+          <strong>⭐⭐⭐⭐⭐ (5★)</strong> → Google screen → Google click → conversión &nbsp;|&nbsp;
+          <strong>★★★★ (1-4★)</strong> → Feedback view → Feedback submit / skip → Gracias
+        </div>
+        <div class="funnel-wrap" id="ga4-funnel-wrap">
+          <!-- Generado por JS -->
+        </div>
+        <!-- Resumen de pérdidas -->
+        <div id="ga4-funnel-summary" style="margin-top:8px;padding:10px 14px;background:var(--azul-xc);border-radius:9px;border:1px solid var(--azul-c);font-size:12px;color:var(--azul-m);line-height:1.7"></div>
+      </div>
+
+      <!-- ── 3. VARIANTES A/B/C ── -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:13px;font-weight:700;color:var(--azul);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+          <span>🧪 Rendimiento por variante <span style="font-size:11px;font-weight:400;color:var(--gris-m)">(parámetro <code>variant</code>)</span></span>
+          <div id="ga4-variant-winner" style="font-size:11px;font-weight:600"></div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="variant-table" id="ga4-variant-table">
+            <thead>
+              <tr>
+                <th>Variante</th>
+                <th>Landings</th>
+                <th>Clics Google</th>
+                <th>Conversiones</th>
+                <th>Conv. Rate</th>
+                <th style="min-width:90px">Rate visual</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="ga4-variant-tbody">
+              <!-- Generado por JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── 4. FRICCIÓN ── -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:13px;font-weight:700;color:var(--azul);margin-bottom:10px">
+          ⚡ Fricción detectada
+          <span style="font-size:11px;font-weight:400;color:var(--gris-m)">— eventos <code>funnel_hesitation</code> · <code>funnel_google_hesitation</code></span>
+        </div>
+        <div class="friction-grid" id="ga4-friction-grid">
+          <!-- Generado por JS -->
+        </div>
+        <div style="margin-top:12px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gris-m);margin-bottom:8px">Fricción por paso (%  usuarios que dudan)</div>
+          <div id="ga4-friction-bars" class="friction-bar-wrap">
+            <!-- Generado por JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 5. TIEMPOS POR PASO ── -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--azul);margin-bottom:10px">
+          ⏱️ Tiempo medio por paso
+          <span style="font-size:11px;font-weight:400;color:var(--gris-m)">— evento <code>session_time_on_step</code></span>
+        </div>
+        <div id="ga4-timing-bars">
+          <!-- Generado por JS -->
+        </div>
+        <div id="ga4-timing-insight" style="margin-top:8px;font-size:12px;color:var(--gris-m);line-height:1.7"></div>
+      </div>
+
+      <!-- ── 6. GRÁFICA TENDENCIA ── -->
+      <div class="chart-wrap" style="height:160px;margin-bottom:8px">
+        <canvas id="chart-ga4"></canvas>
+      </div>
+
+      <!-- Editar credenciales -->
+      <div style="margin-top:12px;text-align:right">
+        <button class="btn-sm ghost" onclick="resetGA4Config()" style="font-size:11px;padding:4px 10px">⚙️ Editar credenciales GA4</button>
+      </div>
+    </div><!-- /ga4-dashboard -->
   </div>
 
 </div>
@@ -3018,19 +3229,36 @@ function renderStatsFromServer(historial, status, abData) {
     ).join('');
   }
 
-  // ── Barras A/B ────────────────────────────────────────────────────────────
+  // ── Barras A/B internas (abStats del servidor) ────────────────────────────
+  // Variantes: backend guarda v0/v1/v2/v3 — landing asigna a/b/c por orden
+  // Etiquetas gancho (según labels del servidor)
+  const _abLabels = ['Importancia+comunidad','Gratitud+mejora','Cercanía+impacto','Confianza+pertenencia'];
+  const _abLetras = ['a','b','c','d']; // mapeo numérico → letra visual
   const abContainer = document.getElementById('ab-bars');
   if (abData && abData.stats && abData.stats.length) {
     const maxEnv = Math.max(...abData.stats.map(s=>s.enviados), 1);
     const coloresAb = [C.azul, C.verde, C.amber, C.coral];
     abContainer.innerHTML = abData.stats.map((s,i) => {
-      const pct = Math.round(s.enviados/maxEnv*100);
-      return `<div class="bar-row">
-        <div class="bar-row-label">Variante ${i}</div>
-        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${coloresAb[i%4]}"></div></div>
-        <div class="bar-val">${s.enviados}</div>
+      const pct    = Math.round(s.enviados / maxEnv * 100);
+      const letraN = _abLetras[i] || ('v'+i);
+      const ctr    = s.enviados > 0 ? ((s.clics / s.enviados) * 100).toFixed(1) + '%' : '—';
+      const gancho = s.gancho || _abLabels[i] || ('Variante ' + letraN.toUpperCase());
+      return `<div class="bar-row" style="margin-bottom:12px">
+        <div class="bar-row-label" style="width:100px;font-size:11px">
+          <strong>v${letraN.toUpperCase()}</strong>
+          <div style="font-size:10px;color:var(--gris-m);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:96px" title="${x(gancho)}">${x(gancho)}</div>
+        </div>
+        <div style="flex:1">
+          <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${coloresAb[i%4]}"></div></div>
+          <div style="display:flex;justify-content:space-between;margin-top:3px;font-size:10px;color:var(--gris-m)">
+            <span>${s.enviados} enviados</span>
+            <span>${s.clics||0} clics WA · CTR <strong style="color:${coloresAb[i%4]}">${ctr}</strong></span>
+          </div>
+        </div>
       </div>`;
-    }).join('') + `<div style="font-size:11px;color:var(--gris-m);margin-top:8px">Los clics reales en Google Reviews se miden en GA4 (ver sección abajo)</div>`;
+    }).join('') + `<div style="font-size:11px;color:var(--gris-m);margin-top:4px;padding-top:8px;border-top:1px solid var(--borde)">
+      ℹ️ CTR = clics en link WhatsApp · Conv. rate real (Google click → review) → GA4 abajo
+    </div>`;
   } else {
     abContainer.innerHTML = '<div style="font-size:12px;color:var(--gris-m);padding:8px 0">Sin envíos de valoración registrados aún</div>';
   }
@@ -3040,59 +3268,339 @@ function renderStatsFromServer(historial, status, abData) {
 }
 
 // ── GA4 ───────────────────────────────────────────────────────────────────
-async function cargarGA4Stats() {
-  if (!MODO_BAILEYS) return;
+let _ga4ChartInst = null;
+
+async function cargarGA4Stats(force) {
+  if (!MODO_BAILEYS) {
+    // Offline: hide dashboard, show setup (already shown by default)
+    return;
+  }
+  // Show loading state inside dashboard panel
+  const dash = document.getElementById('ga4-dashboard');
+  const setup = document.getElementById('ga4-setup-panel');
+  if (!dash) return;
+
+  // Show spinner on refresh button
+  const btn = document.getElementById('ga4-refresh-btn');
+  if (btn) btn.textContent = '⏳';
+
   try {
     const r = await fetch(API_BASE+'/api/analytics');
-    if (!r.ok) return; // no configurado aún — mantiene el panel de setup
+    if (!r.ok) { if (btn) btn.textContent = '🔄 Actualizar'; return; }
     const d = await r.json();
-    if (d.noConfigurado) return; // mostrar setup
+    if (d.noConfigurado) { if (btn) btn.textContent = '🔄 Actualizar'; return; }
+
+    // Hide setup, show dashboard
+    if (setup) setup.style.display = 'none';
+    dash.style.display = 'block';
+
     renderGA4(d);
-  } catch { /* mantener panel setup */ }
+
+    // Timestamp
+    const ts = document.getElementById('ga4-last-refresh');
+    if (ts) ts.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+  } catch(e) {
+    // Show error inline in the refresh button area
+    const ts = document.getElementById('ga4-last-refresh');
+    if (ts) ts.innerHTML = '<span style="color:var(--coral)">❌ Error al cargar datos</span>';
+  } finally {
+    if (btn) btn.textContent = '🔄 Actualizar';
+  }
 }
 
 function renderGA4(d) {
-  const container = document.getElementById('ga4-content');
-  // d.totalClics, d.clicsPorDia [{fecha, clics}], d.clicsPorVariante {v0,v1,v2,v3}
-  const totalClics = d.totalClics || 0;
-  const porDia     = d.clicsPorDia || [];
-  const porVar     = d.clicsPorVariante || {};
+  // ── Datos normalizados — soporta formato legacy y nuevo extendido ─────────
+  const landings      = d.landingViews    || d.totalLandings   || 0;
+  const ratingSel     = d.ratingSelected  || 0;
+  const ratingCont    = d.ratingContinue  || ratingSel         || 0;
+  const googleScreen  = d.googleScreenViews || 0;
+  const googleClick   = d.googleClicks    || d.totalClics      || 0;
+  const conversions   = d.conversions     || d.totalConversions|| 0;
+  const feedbackView  = d.feedbackViews   || 0;
+  const feedbackSub   = d.feedbackSubmits || 0;
+  const feedbackSkip  = d.feedbackSkips   || 0;
+  const repeatVis     = d.repeatVisitors  || 0;
+  const thankyouView  = d.thankyouViews   || 0;
+  const clicsHoy      = d.clicsHoy        || 0;
+  const porDia        = d.clicsPorDia     || d.eventsByDay     || [];
+  // variants: objeto {a/b/c/v0/v1} con {landings,clicks,conversions} — o legacy {v0:sessions}
+  const variants      = d.variants        || d.clicsPorVariante|| null;
+  const friction      = d.friction        || null;
+  const timing        = d.timing          || null;
+  const uid_count     = d.uniqueUsers     || null;
 
-  container.innerHTML = `
-    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
-      <div class="stat-card accent-verde">
-        <div class="stat-label">Clics en Google Reviews</div>
-        <div class="stat-val">${totalClics}</div>
-        <div class="stat-sub">Últimos 30 días</div>
-      </div>
-      <div class="stat-card accent-azul">
-        <div class="stat-label">Clics hoy</div>
-        <div class="stat-val">${d.clicsHoy || 0}</div>
-        <div class="stat-sub">Sesiones landing</div>
-      </div>
-      <div class="stat-card accent-amber">
-        <div class="stat-label">Tasa conversión</div>
-        <div class="stat-val">${d.tasaConversion || '—'}</div>
-        <div class="stat-sub">Enviados → clic Google</div>
-      </div>
-    </div>
-    <div style="text-align:right; margin-bottom:12px">
-      <button class="btn-sm ghost" onclick="resetGA4Config()" style="font-size:11px; padding:4px 8px; border:1px solid var(--borde); border-radius:6px; background:none; cursor:pointer;" onmouseover="this.style.background='var(--gris-c)'" onmouseout="this.style.background='none'">⚙️ Editar credenciales GA4</button>
-    </div>
-    <div class="chart-wrap" style="height:160px">
-      <canvas id="chart-ga4"></canvas>
-    </div>
-  `;
+  const g = id => document.getElementById(id);
 
-  if (porDia.length) {
-    const ctxG = document.getElementById('chart-ga4').getContext('2d');
-    new Chart(ctxG, {
+  // ── 1. KPI cards ─────────────────────────────────────────────────────────
+  g('ga4-k-landings').textContent  = fmtN(landings);
+  g('ga4-k-rating').textContent    = fmtN(ratingSel);
+  g('ga4-k-gclick').textContent    = fmtN(googleClick);
+  g('ga4-k-conv').textContent      = fmtN(conversions);
+  // KPIs fila 2 (nuevos elementos — safe: si no existen en el DOM se ignoran)
+  if (g('ga4-k-fbview'))   g('ga4-k-fbview').textContent   = fmtN(feedbackView);
+  if (g('ga4-k-feedback')) g('ga4-k-feedback').textContent = fmtN(feedbackSub);
+  if (g('ga4-k-fbskip'))   g('ga4-k-fbskip').textContent   = fmtN(feedbackSkip);
+  if (g('ga4-k-repeat'))   g('ga4-k-repeat').textContent   = fmtN(repeatVis);
+
+  // ── 2. FUNNEL VISUAL ─────────────────────────────────────────────────────
+  // Funnel primario: ruta de 5 estrellas (Google review)
+  // Los valores de google_screen_view y google_click pueden coincidir cuando el
+  // backend solo expone totalClics — se marca si son idénticos
+  const funnelSteps = [
+    { ico:'👁️', label:'Landing view',      val: landings,                  event:'landing_view' },
+    { ico:'⭐', label:'Rating selec.',       val: ratingSel  || landings,    event:'rating_selected',
+      note: !ratingSel ? 'sin dato' : null },
+    { ico:'▶️', label:'Rating continue',    val: ratingCont || ratingSel || landings, event:'rating_continue',
+      note: !ratingCont ? 'inferido' : null },
+    { ico:'🖥️', label:'Google screen',      val: googleScreen || googleClick, event:'google_screen_view',
+      note: !googleScreen ? 'inferido' : null },
+    { ico:'🔗', label:'Google click',       val: googleClick,               event:'google_click' },
+    { ico:'🏆', label:'Conversión',         val: conversions,               event:'conversion_google_review', isConversion: true },
+  ];
+
+  // Colapsar pasos consecutivos con mismo valor (evita barras 0%)
+  const validSteps = funnelSteps.filter((s,i,arr) => {
+    if (i === 0) return true;
+    return s.val !== arr[i-1].val || s.isConversion;
+  });
+
+  const funnelWrap = g('ga4-funnel-wrap');
+  if (funnelWrap) {
+    const base = validSteps[0]?.val || 1;
+    funnelWrap.innerHTML = validSteps.map((step, i) => {
+      const isLast  = i === validSteps.length - 1;
+      const prev    = i > 0 ? validSteps[i-1].val : step.val;
+      const dropPct = prev > 0 ? Math.round((1 - step.val / prev) * 100) : 0;
+      const totPct  = base > 0 ? Math.round(step.val / base * 100) : 0;
+      const pctCls  = totPct >= 60 ? 'ok' : totPct >= 30 ? 'warn' : 'bad';
+      const dropHtml = (!isLast && dropPct > 0)
+        ? `<div class="funnel-drop">-${dropPct}%</div>` : '';
+      const stepCls = step.isConversion
+        ? 'funnel-step fs-conversion'
+        : (dropPct > 40 ? 'funnel-step fs-drop' : 'funnel-step');
+      return `
+        <div class="${stepCls}" style="position:relative">
+          <div class="funnel-ico">${step.ico}</div>
+          <div class="funnel-label">${step.label}</div>
+          <div class="funnel-val">${fmtN(step.val)}</div>
+          <div class="funnel-pct ${pctCls}">${i === 0 ? '100%' : totPct + '%'}</div>
+          ${step.note ? `<div style="font-size:9px;color:var(--gris-m);margin-top:2px">(${step.note})</div>` : ''}
+          ${dropHtml}
+        </div>
+        ${!isLast ? '<div class="funnel-arrow">›</div>' : ''}
+      `;
+    }).join('');
+  }
+
+  // Resumen con tasas clave + abandono
+  const convRate    = landings > 0 ? (conversions  / landings * 100).toFixed(1) : '—';
+  const clickRate   = landings > 0 ? (googleClick  / landings * 100).toFixed(1) : '—';
+  const fbRate      = landings > 0 ? (feedbackView / landings * 100).toFixed(1) : '—';
+  // Abandono: usuarios que llegan pero no hacen rating_continue
+  const abandoned   = ratingCont > 0 && landings > 0
+    ? (100 - Math.round(ratingCont / landings * 100)) + '%' : '—';
+  const summaryEl = g('ga4-funnel-summary');
+  if (summaryEl) {
+    const uidNote = uid_count ? ` · <strong>${fmtN(uid_count)}</strong> usuarios únicos` : '';
+    const fbNote  = feedbackView > 0
+      ? ` · Ruta feedback: <strong>${fbRate}%</strong> (${fmtN(feedbackView)} usuarios)` : '';
+    summaryEl.innerHTML =
+      `📊 <strong>Conversión Landing → Google review: ${convRate}%</strong>` +
+      ` &nbsp;|&nbsp; CTR Google: <strong>${clickRate}%</strong>` +
+      ` &nbsp;|&nbsp; Abandono estimado: <strong>${abandoned}</strong>` +
+      `${fbNote}${uidNote}`;
+  }
+
+  // ── 3. VARIANTES A/B/C ───────────────────────────────────────────────────
+  // El backend expone variants en 2 formatos posibles:
+  //   a) Nuevo: { a: {landings, clicks, conversions}, b: {...}, c: {...} }
+  //   b) Legacy (solo desde GA4 Data API): { va: sessions, vb: sessions }  ← solo sesiones por utm_content
+  // Detectar automáticamente
+  const tbody = g('ga4-variant-tbody');
+  const winnerEl = g('ga4-variant-winner');
+  if (tbody) {
+    let varData = [];
+    if (variants && typeof variants === 'object' && !Array.isArray(variants)) {
+      const entries = Object.entries(variants);
+      const isLegacy = entries.length > 0 && typeof entries[0][1] === 'number';
+      if (isLegacy) {
+        // Legacy: solo sesiones por utm_content — sin conversiones desglosadas
+        varData = entries
+          .filter(([k]) => /^v[a-d0-3]$/i.test(k)) // filtrar ruido
+          .map(([key, sessions]) => ({
+            name:        key,
+            landings:    sessions,
+            clicks:      0,
+            conversions: 0,
+            isLegacy:    true,
+          }));
+      } else {
+        varData = entries.map(([key, v]) => ({
+          name:        key,
+          landings:    v.landings    || v.sessions || 0,
+          clicks:      v.clicks      || v.clics    || 0,
+          conversions: v.conversions || 0,
+        }));
+      }
+    } else if (Array.isArray(variants)) {
+      varData = variants.map((v, i) => ({
+        name:        v.name || `v${i}`,
+        landings:    v.landings    || v.sessions || 0,
+        clicks:      v.clicks      || v.clics    || 0,
+        conversions: v.conversions || v.enviados  || 0,
+      }));
+    }
+
+    varData.forEach(v => {
+      v.convRate = v.landings > 0 ? (v.conversions / v.landings * 100) : 0;
+    });
+    const maxRate = Math.max(...varData.map(v => v.convRate), 0.01);
+    const sorted  = [...varData].sort((a,b) => b.convRate - a.convRate);
+    const best    = sorted[0]?.name;
+    const worst   = sorted[sorted.length-1]?.name;
+
+    if (varData.length) {
+      const isLegacy = varData.some(v => v.isLegacy);
+      tbody.innerHTML = varData.map(v => {
+        const rate = v.convRate.toFixed(1) + '%';
+        const barW = maxRate > 0 ? Math.round(v.convRate / maxRate * 100) : 0;
+        let badge  = '';
+        if (v.name === best  && varData.length > 1) badge = '<span class="vt-badge best">🏆 Mejor</span>';
+        if (v.name === worst && varData.length > 1) badge = '<span class="vt-badge worst">⚠️ Peor</span>';
+        if (varData.length === 1) badge = '<span class="vt-badge neutral">Única</span>';
+        const convCell = isLegacy
+          ? '<td colspan="2" style="color:var(--gris-m);font-size:11px">sin datos GA4 extendidos</td>'
+          : `<td>${fmtN(v.conversions)}</td><td><strong>${rate}</strong></td>`;
+        return `<tr>
+          <td><strong>${x(v.name)}</strong></td>
+          <td>${fmtN(v.landings)}</td>
+          <td>${fmtN(v.clicks)}</td>
+          ${convCell}
+          <td class="vt-bar-cell"><div class="vt-bar" style="width:${barW}%"></div></td>
+          <td>${badge}</td>
+        </tr>`;
+      }).join('');
+      if (isLegacy) {
+        tbody.innerHTML += `<tr><td colspan="7" style="font-size:11px;color:var(--gris-m);padding:8px 10px;border-top:1px solid var(--borde)">
+          ℹ️ El backend solo expone sesiones por utm_content. Para ver conv. rate real por variante expón el campo <code>variants</code> extendido en <code>/api/analytics</code>.
+        </td></tr>`;
+      }
+      if (winnerEl && varData.length > 1 && !varData.every(v=>v.isLegacy)) {
+        winnerEl.innerHTML = `<span style="background:var(--verde-c);color:var(--verde);padding:3px 10px;border-radius:10px">🏆 Mejor: <strong>${x(best)}</strong> (${sorted[0].convRate.toFixed(1)}%)</span>
+          &nbsp;<span style="background:var(--coral-c);color:var(--coral);padding:3px 10px;border-radius:10px">⚠️ Peor: <strong>${x(worst)}</strong> (${sorted[sorted.length-1].convRate.toFixed(1)}%)</span>`;
+      }
+    } else {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gris-m);font-size:12px;padding:20px">Sin datos de variantes — revisa que <code>utm_content=v{a|b|c}</code> llega a GA4</td></tr>';
+    }
+  }
+
+  // ── 4. FRICCIÓN ──────────────────────────────────────────────────────────
+  const frictionGrid = g('ga4-friction-grid');
+  const frictionBars = g('ga4-friction-bars');
+  if (frictionGrid) {
+    if (friction) {
+      const hes        = friction.hesitation         || {};
+      const gHes       = friction.googleHesitation   || {};
+      const totalHes   = hes.users      || 0;
+      const totalGHes  = gHes.users     || 0;
+      const hesTime    = hes.avgMs      || 0;
+      const gHesTime   = gHes.avgMs     || 0;
+      const hesBase    = landings > 0 ? landings : 1;
+      const hesPct     = Math.round(totalHes  / hesBase * 100);
+      const gHesPct    = Math.round(totalGHes / hesBase * 100);
+
+      const cardClass1 = hesPct  > 40 ? 'friction-card'     : 'friction-card low';
+      const cardClass2 = gHesPct > 40 ? 'friction-card'     : 'friction-card low';
+
+      frictionGrid.innerHTML = `
+        <div class="${cardClass1}">
+          <div class="friction-val">${hesPct}%</div>
+          <div class="friction-label">Fricción pantalla 1 (estrellas)</div>
+          <div class="friction-sub">funnel_hesitation (3s sin tocar) · <strong>${fmtN(totalHes)}</strong> usuarios · media: <strong>${fmtMs(hesTime)}</strong></div>
+        </div>
+        <div class="${cardClass2}">
+          <div class="friction-val">${gHesPct}%</div>
+          <div class="friction-label">Fricción pantalla Google CTA</div>
+          <div class="friction-sub">funnel_google_hesitation (5s sin clic) · <strong>${fmtN(totalGHes)}</strong> usuarios · media: <strong>${fmtMs(gHesTime)}</strong></div>
+        </div>
+      `;
+
+      if (frictionBars) {
+        const steps = friction.byStep || [
+          { label: 'Pantalla 1 — Estrellas (3s)',   pct: hesPct  },
+          { label: 'Pantalla 3 — Google CTA (5s)',  pct: gHesPct },
+        ];
+        const maxPct = Math.max(...steps.map(s => s.pct || 0), 1);
+        frictionBars.innerHTML = steps.map(s => `
+          <div class="friction-step-bar">
+            <div class="friction-step-bar-label">${x(s.label)}</div>
+            <div class="friction-step-bar-track"><div class="friction-step-bar-fill" style="width:${Math.round((s.pct||0)/maxPct*100)}%"></div></div>
+            <div class="friction-step-bar-val">${s.pct||0}%</div>
+          </div>`).join('');
+      }
+    } else {
+      frictionGrid.innerHTML = `<div class="ga4-nodata" style="grid-column:1/-1">
+        Sin datos de fricción — los eventos <code>funnel_hesitation</code> y <code>funnel_google_hesitation</code> están implementados en la landing (opinion-ab3-v7.html) pero el backend aún no los expone en <code>/api/analytics</code>.
+      </div>`;
+      if (frictionBars) frictionBars.innerHTML = '';
+    }
+  }
+
+  // ── 5. TIEMPOS POR PASO ──────────────────────────────────────────────────
+  // La landing envía session_time_on_step con funnel_step=1/2/3/4 (numérico)
+  // Mapeamos a nombres legibles igual que el stepMap de la landing
+  const _stepNames = {
+    1: 'Pantalla 1 — Estrellas',
+    2: 'Pantalla 2 — Feedback',
+    3: 'Pantalla 3 — Google CTA',
+    4: 'Pantalla 4 — Gracias',
+    'screen-stars':    'Pantalla 1 — Estrellas',
+    'screen-feedback': 'Pantalla 2 — Feedback',
+    'screen-google':   'Pantalla 3 — Google CTA',
+    'screen-gracias':  'Pantalla 4 — Gracias',
+  };
+  const timingEl      = g('ga4-timing-bars');
+  const timingInsight = g('ga4-timing-insight');
+  if (timingEl) {
+    if (timing && timing.steps && timing.steps.length) {
+      const maxMs = Math.max(...timing.steps.map(s => s.avgMs || 0), 1);
+      timingEl.innerHTML = timing.steps.map(s => {
+        const avgMs    = s.avgMs || 0;
+        const label    = _stepNames[s.step] || _stepNames[s.label] || s.step || s.label || '—';
+        const isSlow   = avgMs > 8000;
+        const isVSlow  = avgMs > 20000;
+        const fillCls  = isVSlow ? 'timing-fill very-slow' : isSlow ? 'timing-fill slow' : 'timing-fill';
+        const barW     = Math.round(avgMs / maxMs * 100);
+        return `<div class="timing-row">
+          <div class="timing-label">${x(label)}</div>
+          <div class="timing-track"><div class="${fillCls}" style="width:${barW}%"></div></div>
+          <div class="timing-val">${fmtMs(avgMs)}</div>
+        </div>`;
+      }).join('');
+      const slowest = timing.steps.reduce((a,b) => (a.avgMs||0) > (b.avgMs||0) ? a : b);
+      const sLabel  = _stepNames[slowest.step] || _stepNames[slowest.label] || slowest.step || slowest.label || '—';
+      if (timingInsight) {
+        timingInsight.innerHTML = slowest.avgMs > 5000
+          ? `⚠️ Paso más lento: <strong>${x(sLabel)}</strong> con media de <strong>${fmtMs(slowest.avgMs)}</strong> — considera simplificar esta pantalla.`
+          : `✅ Tiempos dentro de lo esperado. Paso más largo: <strong>${x(sLabel)}</strong> (${fmtMs(slowest.avgMs)}).`;
+      }
+    } else {
+      timingEl.innerHTML = `<div class="ga4-nodata">Sin datos de tiempos — el evento <code>session_time_on_step</code> está implementado en la landing con <code>funnel_step</code> (1-4). El backend necesita exponer el campo <code>timing</code> en <code>/api/analytics</code>.</div>`;
+      if (timingInsight) timingInsight.textContent = '';
+    }
+  }
+
+  // ── 6. GRÁFICA TENDENCIA ─────────────────────────────────────────────────
+  const ctxG = document.getElementById('chart-ga4');
+  if (ctxG && porDia.length) {
+    if (_ga4ChartInst) { _ga4ChartInst.destroy(); _ga4ChartInst = null; }
+    _ga4ChartInst = new Chart(ctxG.getContext('2d'), {
       type:'line',
       data:{
-        labels: porDia.map(r=>new Date(r.fecha+'T12:00').toLocaleDateString('es-ES',{day:'numeric',month:'short'})),
+        labels: porDia.map(r => new Date((r.fecha||r.date)+'T12:00').toLocaleDateString('es-ES',{day:'numeric',month:'short'})),
         datasets:[{
-          label:'Clics Google Reviews',
-          data: porDia.map(r=>r.clics),
+          label:'google_click / día',
+          data: porDia.map(r => r.clics || r.clicks || r.count || 0),
           borderColor:C.amber, backgroundColor:'rgba(217,119,6,0.08)',
           borderWidth:2, fill:true, tension:.35,
           pointBackgroundColor:C.amber, pointRadius:3
@@ -3100,7 +3608,10 @@ function renderGA4(d) {
       },
       options:{
         responsive:true, maintainAspectRatio:false,
-        plugins:{legend:{display:false}},
+        plugins:{
+          legend:{display:false},
+          tooltip:{ callbacks:{ title: items => items[0].label, label: ctx => `${ctx.raw} clics Google` } }
+        },
         scales:{
           x:{grid:{display:false},ticks:{font:{size:10}}},
           y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11},stepSize:1}}
@@ -3110,19 +3621,36 @@ function renderGA4(d) {
   }
 }
 
+// ── Helpers de formato ────────────────────────────────────────────────────
+function fmtN(n) { return (n === null || n === undefined || isNaN(n)) ? '—' : Number(n).toLocaleString('es-ES'); }
+function fmtMs(ms) {
+  if (!ms || ms < 100) return '—';
+  if (ms < 1000) return ms + 'ms';
+  if (ms < 60000) return (ms/1000).toFixed(1) + 's';
+  return Math.floor(ms/60000) + 'm ' + Math.round((ms%60000)/1000) + 's';
+}
+
 async function guardarGA4Config() {
-  const propId = document.getElementById('ga4-property-id')?.value.trim();
-  const credPath = document.getElementById('ga4-credentials-path')?.value.trim();
-  const statusEl = document.getElementById('ga4-status');
-  if (!propId || !credPath) { statusEl.textContent = '⚠️ Rellena ambos campos'; return; }
+  const propId    = document.getElementById('ga4-property-id')?.value.trim();
+  const credPath  = document.getElementById('ga4-credentials-path')?.value.trim();
+  const measId    = document.getElementById('ga4-measurement-id')?.value.trim() || '';
+  const apiSecret = document.getElementById('ga4-api-secret')?.value.trim()     || '';
+  const statusEl  = document.getElementById('ga4-status');
+  if (!propId || !credPath) { statusEl.textContent = '⚠️ Rellena el Property ID y la ruta al JSON'; return; }
   try {
     const r = await fetch(API_BASE+'/api/analytics/config', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ propertyId: propId, credentialsPath: credPath })
+      body: JSON.stringify({
+        propertyId:      propId,
+        credentialsPath: credPath,
+        measurementId:   measId,    // para Measurement Protocol
+        apiSecret:       apiSecret  // para Measurement Protocol
+      })
     });
     const d = await r.json();
     if (d.ok) {
-      statusEl.textContent = '✅ Configuración guardada — probando conexión...';
+      const mpMsg = d.measurementProtocol ? ' · Measurement Protocol activo ✅' : ' · Measurement Protocol: sin configurar';
+      statusEl.textContent = '✅ Configuración guardada' + mpMsg;
       statusEl.style.color = 'var(--verde)';
       setTimeout(cargarGA4Stats, 1500);
     } else {
@@ -3137,25 +3665,20 @@ async function guardarGA4Config() {
 
 async function resetGA4Config() {
   if (!confirm('¿Deseas editar la configuración de Google Analytics 4?')) return;
-  document.getElementById('ga4-property-id').value = '';
-  document.getElementById('ga4-credentials-path').value = '';
-  await fetch(API_BASE+'/api/analytics/config', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ propertyId: '', credentialsPath: '' })
+  ['ga4-property-id','ga4-credentials-path','ga4-measurement-id','ga4-api-secret'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
   });
-  // Recargar la UI (ahora fallará y volverá a mostrar el setup original)
-  document.getElementById('ga4-content').innerHTML = `
-    <div class="ga4-setup">
-      <div style="font-size:32px;margin-bottom:10px">📡</div>
-      <h3>Conecta Google Analytics 4</h3>
-      <p>Para ver los datos de clics en Google Reviews necesitas crear una <strong>Service Account</strong> en Google Cloud y darle acceso a tu propiedad de GA4. Es un proceso de 5 minutos.</p>
-      <div class="ga4-key-row">
-        <input type="text" id="ga4-property-id" placeholder="Property ID de GA4 (ej: 123456789)" style="max-width:260px">
-        <input type="text" id="ga4-credentials-path" placeholder="Ruta al JSON (ej: ./ga4-key.json)">
-        <button class="btn-sched" onclick="guardarGA4Config()">💾 Guardar</button>
-      </div>
-      <div id="ga4-status" style="font-size:12px;color:var(--gris-m);margin-top:4px"></div>
-    </div>`;
+  try {
+    await fetch(API_BASE+'/api/analytics/config', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ propertyId: '', credentialsPath: '' })
+    });
+  } catch(_) {}
+  const dash  = document.getElementById('ga4-dashboard');
+  const setup = document.getElementById('ga4-setup-panel');
+  if (dash)  dash.style.display  = 'none';
+  if (setup) setup.style.display = '';
 }
 
 
