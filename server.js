@@ -14,8 +14,6 @@ import path       from 'path';
 import { fileURLToPath } from 'url';
 import nodemailer from 'nodemailer';
 import archiver   from 'archiver';
-import crypto     from 'crypto';          // ← tracking: uid hashing
-import https      from 'https';           // ← tracking: Measurement Protocol
 import googleAnalyticsData from '@google-analytics/data';
 const { BetaAnalyticsDataClient } = googleAnalyticsData;
 
@@ -82,8 +80,6 @@ const CONFIG_DEFAULT = {
   // Google Analytics 4
   ga4PropertyId:      '',
   ga4CredentialsPath: '',
-  ga4MeasurementId:   '',   // ← tracking: G-XXXXXXXX de tu stream web
-  ga4ApiSecret:       '',   // ← tracking: Measurement Protocol API Secret
 
   // Plantillas de mensajes
   // IMPORTANTE: vacío por defecto → el sistema usa las 4 variantes A/B automáticamente.
@@ -116,24 +112,9 @@ const URL_POOL = [
   'https://avancedental74.github.io/citas/dental/',
 ];
 
-// ── TRACKING: IDENTIFICADORES ÚNICOS ─────────────────────────────────────────
-// uid: hash SHA-1 truncado del teléfono — estable por paciente, anónimo (LOPD)
-// sid: ID de sesión de envío — único por mensaje enviado
-// Salt fijo en proceso — cambia entre deploys pero no entre envíos del mismo día
-const UID_SALT = process.env.UID_SALT || 'avance2024';
-function generarUid(tel) {
-  if (!tel) return 'anon';
-  return crypto.createHash('sha1').update(UID_SALT + tel).digest('hex').slice(0, 10);
-}
-function generarSid() {
-  // base36 de timestamp + 4 chars aleatorios → ~8-9 chars, URL-safe, sin ambigüedad
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-}
-
 // Selecciona URL del pool:
 // - Base: índice determinista por teléfono (mismo paciente → siempre la misma, distinto entre pacientes)
 // - Jitter: 25% de probabilidad de elegir una URL aleatoria (rompe patrones en envíos masivos)
-// - uid + sid añadidos para trazabilidad completa en GA4
 function urlConUtm(variante, tipo = 'val', tel = '') {
   const baseIdx = tel
     ? tel.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % URL_POOL.length
@@ -142,15 +123,7 @@ function urlConUtm(variante, tipo = 'val', tel = '') {
     ? Math.floor(Math.random() * URL_POOL.length)
     : baseIdx;
   const base = URL_POOL[idx];
-  const uid  = generarUid(tel);
-  const sid  = generarSid();
-  return base
-    + '?utm_source=whatsapp'
-    + '&utm_medium=directo'
-    + '&utm_campaign=' + tipo
-    + '&utm_content=v' + variante
-    + '&uid=' + uid
-    + '&sid=' + sid;
+  return base + '?utm_source=whatsapp&utm_medium=directo&utm_campaign=' + tipo + '&utm_content=v' + variante;
 }
 
 // ── UTILS BÁSICOS (deben declararse antes que el estado) ──────────────────────
@@ -161,50 +134,6 @@ function telLimpio(t) {
   const limpio = String(t).replace(/\D/g, '').replace(/^34/, '').slice(-9);
   // Validar que sea móvil español o fijo (empieza por 6, 7, 8 o 9) (M1)
   return /^[6789]\d{8}$/.test(limpio) ? limpio : '';
-}
-
-// ── MEASUREMENT PROTOCOL GA4 ──────────────────────────────────────────────────
-// Envía eventos desde el backend a GA4 sin navegador.
-// Documentación: https://developers.google.com/analytics/devguides/collection/protocol/ga4
-// Requiere: ga4MeasurementId (G-XXXXXXXX) + ga4ApiSecret en config.
-// Fire-and-forget: nunca bloquea el flujo de envío de mensajes.
-function mpSendEvent({ eventName, params = {}, uid = null }) {
-  if (!config.ga4MeasurementId || !config.ga4ApiSecret) return; // no configurado → silencioso
-  const measurementId = config.ga4MeasurementId;
-  const apiSecret     = config.ga4ApiSecret;
-
-  // client_id requerido por GA4 — usamos uid si existe, o 'backend.server' como fallback
-  // GA4 usará esto para agrupar eventos del mismo "cliente" en el servidor
-  const clientId = uid ? `uid.${uid}` : 'backend.server';
-
-  const payload = JSON.stringify({
-    client_id: clientId,
-    user_id:   uid || undefined,          // User-ID para cross-device si uid existe
-    events: [{
-      name:   eventName,
-      params: {
-        engagement_time_msec: 1,          // requerido por MP para que eventos cuenten en informes
-        session_id: params.sid || '0',    // vincula con la sesión del frontend si se conoce
-        ...params
-      }
-    }]
-  });
-
-  const options = {
-    hostname: 'www.google-analytics.com',
-    path:     `/mp/collect?measurement_id=${measurementId}&api_secret=${apiSecret}`,
-    method:   'POST',
-    headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
-  };
-
-  const req = https.request(options, res => {
-    if (res.statusCode !== 204) {
-      console.warn(`⚠️  MP GA4 [${eventName}] → HTTP ${res.statusCode}`);
-    }
-  });
-  req.on('error', e => console.warn(`⚠️  MP GA4 error [${eventName}]:`, e.message));
-  req.write(payload);
-  req.end();
 }
 
 // ── ESTADO ────────────────────────────────────────────────────────────────────
@@ -917,27 +846,6 @@ async function procesarColaFranja(mod, maxFranja) {
         datos.enviados[p.tel].variante = varianteIdx;
         registrarAbEnvio(varianteIdx);
 
-        // ── TRACKING: persistir uid y sid del envío ──────────────────────────
-        // NOTA: el sid ya fue generado dentro de urlConUtm() al construir msgTexto.
-        // Extraemos el uid (determinista) y creamos un sid de referencia para el MP.
-        // El sid del frontend vendrá del URL que el paciente recibió — aquí guardamos
-        // el uid para poder buscarlo en GA4 cuando el paciente haga clic.
-        const uid = generarUid(p.tel);
-        const sid = generarSid(); // sid de este evento de backend (distinto al del link)
-        datos.enviados[p.tel].uid = uid;
-
-        // ── MEASUREMENT PROTOCOL: evento message_sent ────────────────────────
-        mpSendEvent({
-          eventName: 'message_sent',
-          uid,
-          params: {
-            sid,
-            variant:      'v' + varianteIdx,
-            message_type: 'val',
-            clinica:      CLINICA,
-          }
-        });
-
         // Flujo SÍ/NO valoración
         if (config.flujoSiNo_val) {
           esperandoRespuesta.set(p.tel, { mod: 'val', nombre: p.nombre, variante: varianteIdx, fecha: p.fecha || null, hora: p.hora || '', trat: p.trat || '', ts: Date.now() });
@@ -1054,25 +962,6 @@ async function procesarCola(modFiltro = null, forzarTodos = false) {
       if (p.mod==='val') datos.enviados[p.tel].variante = varianteIdx;
       // A/B tracking envío
       if (p.mod==='val') registrarAbEnvio(varianteIdx);
-
-      // ── TRACKING: persistir uid y sid del envío ────────────────────────────
-      if (p.mod === 'val') {
-        const uid = generarUid(p.tel);
-        const sid = generarSid(); // sid de referencia backend; el del link lo generó urlConUtm()
-        datos.enviados[p.tel].uid = uid;
-
-        // ── MEASUREMENT PROTOCOL: evento message_sent ──────────────────────
-        mpSendEvent({
-          eventName: 'message_sent',
-          uid,
-          params: {
-            sid,
-            variant:      'v' + varianteIdx,
-            message_type: p.mod,
-            clinica:      CLINICA,
-          }
-        });
-      }
 
       // SÍ/NO: guardar para respuesta automática — CITAS y VALORACIONES (si flujo activo)
       const flujoActivoCita = config.flujoSiNo_cita ?? config.flujoSiNo;
@@ -1925,19 +1814,15 @@ app.get('/api/analytics', async (req, res) => {
 });
 
 app.post('/api/analytics/config', (req, res) => {
-  const { propertyId, credentialsPath, measurementId, apiSecret } = req.body;
+  const { propertyId, credentialsPath } = req.body;
   if (!propertyId || !credentialsPath) return res.status(400).json({ error: 'Faltan datos' });
   const credPath = path.isAbsolute(credentialsPath) ? credentialsPath : path.join(__dirname, credentialsPath);
   if (!fs.existsSync(credPath)) return res.status(400).json({ error: `Archivo no encontrado: ${credPath}` });
   config.ga4PropertyId      = String(propertyId).replace('properties/','').trim();
   config.ga4CredentialsPath = credentialsPath.trim();
-  // Measurement Protocol (opcional — habilita eventos desde backend)
-  if (measurementId) config.ga4MeasurementId = measurementId.trim();
-  if (apiSecret)     config.ga4ApiSecret     = apiSecret.trim();
   guardarConfigDisco(config);
-  const mpActivo = !!(config.ga4MeasurementId && config.ga4ApiSecret);
-  console.log(`📡 GA4 configurado — Property: ${config.ga4PropertyId} | MP: ${mpActivo ? '✅' : '⚠️ sin Measurement Protocol'}`);
-  res.json({ ok: true, measurementProtocol: mpActivo });
+  console.log(`📡 GA4 configurado — Property: ${config.ga4PropertyId}`);
+  res.json({ ok: true });
 });
 
 // ── ARRANQUE ──────────────────────────────────────────────────────────────────
