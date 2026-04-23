@@ -1825,6 +1825,161 @@ app.post('/api/analytics/config', (req, res) => {
   res.json({ ok: true });
 });
 
+// ── SMS LABSMOBILE ────────────────────────────────────────────────────────────
+const SMS_LOG_FILE = path.join(__dirname, 'sms_log.json');
+
+function cargarSmsLog() {
+  if (!fs.existsSync(SMS_LOG_FILE)) return [];
+  try { return JSON.parse(fs.readFileSync(SMS_LOG_FILE, 'utf8')); } catch { return []; }
+}
+function guardarSmsLog(lista) {
+  fs.writeFileSync(SMS_LOG_FILE, JSON.stringify(lista.slice(-1000), null, 2));
+}
+
+async function enviarSmsLabsMobile({ username, password, telefono, mensaje }) {
+  const numero = String(telefono).replace(/\D/g, '').replace(/^34/, '').slice(-9);
+  if (!/^[6789]\d{8}$/.test(numero)) throw new Error(`Teléfono inválido: ${telefono}`);
+
+  const body = {
+    username,
+    password,
+    message:  mensaje,
+    msisdn:   [{ number: `34${numero}` }]
+  };
+
+  const resp = await fetch('https://api.labsmobile.com/json/send', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body)
+  });
+
+  if (!resp.ok) throw new Error(`LabsMobile HTTP ${resp.status}`);
+  const data = await resp.json();
+  // LabsMobile devuelve { code:'0', message:'...' } en éxito
+  if (data.code !== undefined && String(data.code) !== '0') {
+    throw new Error(`LabsMobile error ${data.code}: ${data.message}`);
+  }
+  return data;
+}
+
+// GET /api/sms/config — devuelve config SMS (sin password)
+app.get('/api/sms/config', (req, res) => {
+  res.json({
+    username:     config.smsUsername      || '',
+    passwordSet:  !!config.smsPassword,
+    linkVal:      config.smsLinkVal       || GOOGLE_REVIEW,
+    plantilla:    config.smsMsgPlantilla  || 'Hola [nombre], ¿cómo fue tu visita en [clinica]? Valóranos en 1 min: [link]',
+    activo:       config.smsActivo        !== false,
+    delayMinSeg:  config.smsDelayMinSeg   ?? 3,
+    delayMaxSeg:  config.smsDelayMaxSeg   ?? 8,
+  });
+});
+
+// POST /api/sms/config — guarda config SMS
+app.post('/api/sms/config', (req, res) => {
+  const { username, password, linkVal, plantilla, activo, delayMinSeg, delayMaxSeg } = req.body;
+  if (username !== undefined)   config.smsUsername      = String(username).trim();
+  if (password)                  config.smsPassword      = String(password).trim();
+  if (linkVal !== undefined)     config.smsLinkVal       = String(linkVal).trim();
+  if (plantilla !== undefined)   config.smsMsgPlantilla  = String(plantilla);
+  if (activo !== undefined)      config.smsActivo        = !!activo;
+  if (delayMinSeg !== undefined) config.smsDelayMinSeg   = Number(delayMinSeg);
+  if (delayMaxSeg !== undefined) config.smsDelayMaxSeg   = Number(delayMaxSeg);
+  guardarConfigDisco(config);
+  res.json({ ok: true });
+});
+
+// POST /api/sms/test — prueba con un solo número
+app.post('/api/sms/test', async (req, res) => {
+  const { telefono, nombre } = req.body;
+  if (!config.smsUsername || !config.smsPassword)
+    return res.status(400).json({ error: 'Configura usuario y contraseña de LabsMobile primero' });
+  if (!telefono)
+    return res.status(400).json({ error: 'Falta el teléfono' });
+
+  const link      = config.smsLinkVal || GOOGLE_REVIEW;
+  const plantilla = config.smsMsgPlantilla || 'Hola [nombre], ¿cómo fue tu visita en [clinica]? Valóranos en 1 min: [link]';
+  const mensaje   = plantilla
+    .replace(/\[nombre\]/gi,  nombre || 'Paciente')
+    .replace(/\[clinica\]/gi, CLINICA)
+    .replace(/\[link\]/gi,    link);
+
+  try {
+    const r = await enviarSmsLabsMobile({ username: config.smsUsername, password: config.smsPassword, telefono, mensaje });
+    const log = cargarSmsLog();
+    log.push({ ts: Date.now(), fecha: new Date().toISOString(), tel: telefono, nombre: nombre || '—', mensaje, resultado: 'ok', respuesta: r });
+    guardarSmsLog(log);
+    console.log(`📱 SMS test OK → ${telefono}`);
+    res.json({ ok: true, mensaje, respuesta: r });
+  } catch(e) {
+    console.error('❌ SMS test:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/sms/enviar-lote — envía a una lista de pacientes con delay anti-baneo
+app.post('/api/sms/enviar-lote', async (req, res) => {
+  const { pacientes } = req.body; // [{ nombre, telefono }]
+  if (!config.smsUsername || !config.smsPassword)
+    return res.status(400).json({ error: 'Configura usuario y contraseña de LabsMobile primero' });
+  if (!Array.isArray(pacientes) || !pacientes.length)
+    return res.status(400).json({ error: 'Lista de pacientes vacía' });
+
+  const link      = config.smsLinkVal || GOOGLE_REVIEW;
+  const plantilla = config.smsMsgPlantilla || 'Hola [nombre], ¿cómo fue tu visita en [clinica]? Valóranos en 1 min: [link]';
+  const dMin      = (config.smsDelayMinSeg ?? 3) * 1000;
+  const dMax      = (config.smsDelayMaxSeg ?? 8) * 1000;
+
+  // Responder inmediatamente — el envío es async
+  res.json({ ok: true, total: pacientes.length, mensaje: 'Envío en curso — consulta el log para el estado' });
+
+  // Procesar en background
+  (async () => {
+    const log = cargarSmsLog();
+    for (const p of pacientes) {
+      const nombre  = p.nombre || 'Paciente';
+      const tel     = String(p.telefono || p.tel || '').replace(/\D/g,'').replace(/^34/,'').slice(-9);
+      if (!/^[6789]\d{8}$/.test(tel)) {
+        log.push({ ts: Date.now(), fecha: new Date().toISOString(), tel: p.telefono || '?', nombre, mensaje: '', resultado: 'error', respuesta: { error: 'Teléfono inválido' } });
+        continue;
+      }
+      const mensaje = plantilla
+        .replace(/\[nombre\]/gi,  nombre)
+        .replace(/\[clinica\]/gi, CLINICA)
+        .replace(/\[link\]/gi,    link);
+      try {
+        const r = await enviarSmsLabsMobile({ username: config.smsUsername, password: config.smsPassword, telefono: tel, mensaje });
+        log.push({ ts: Date.now(), fecha: new Date().toISOString(), tel, nombre, mensaje, resultado: 'ok', respuesta: r });
+        console.log(`📱 SMS enviado → ${tel} (${nombre})`);
+      } catch(e) {
+        log.push({ ts: Date.now(), fecha: new Date().toISOString(), tel, nombre, mensaje, resultado: 'error', respuesta: { error: e.message } });
+        console.error(`❌ SMS error → ${tel}: ${e.message}`);
+      }
+      guardarSmsLog(log);
+      // delay aleatorio entre envíos
+      await sleep(dMin + Math.random() * (dMax - dMin));
+    }
+    console.log(`📱 Lote SMS completado — ${pacientes.length} enviados`);
+  })();
+});
+
+// GET /api/sms/log — últimos N registros
+app.get('/api/sms/log', (req, res) => {
+  const n    = Math.min(parseInt(req.query.n || 200), 500);
+  const log  = cargarSmsLog();
+  const corte = log.slice(-n).reverse();
+  const total = log.length;
+  const ok    = log.filter(e => e.resultado === 'ok').length;
+  const err   = log.filter(e => e.resultado === 'error').length;
+  res.json({ total, ok, err, log: corte });
+});
+
+// DELETE /api/sms/log — limpiar log
+app.delete('/api/sms/log', (req, res) => {
+  guardarSmsLog([]);
+  res.json({ ok: true });
+});
+
 // ── ARRANQUE ──────────────────────────────────────────────────────────────────
 // Servir estáticos DESPUÉS de todas las rutas API para que no intercepten
 app.use(express.static(__dirname));
