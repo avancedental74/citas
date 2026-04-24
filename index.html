@@ -428,7 +428,6 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
   <button class="ntab" onclick="irPagina('respuestas',this)">💬 Respuestas <span class="nbadge" id="badge-resp">0</span></button>
   <button class="ntab" onclick="irPagina('listanegra',this)">🚫 Lista negra <span class="nbadge coral" id="badge-lb">0</span></button>
   <button class="ntab" onclick="irPagina('pruebas',this)">🧪 Pruebas</button>
-  <button class="ntab" onclick="irPagina('sms',this)">📱 SMS <span class="nbadge" id="badge-sms" style="display:none">0</span></button>
 </div>
 
 <main>
@@ -585,12 +584,159 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
           <div class="wf-label">Envía</div>
         </div>
       </div>
-      <div class="entrada-tabs">
-        <button class="etab on" onclick="setEntrada('val','excel',this)">📂 Excel</button>
-        <button class="etab" onclick="setEntrada('val','pegar',this)">📋 Pegar</button>
-        <button class="etab" onclick="setEntrada('val','imagen',this)">📷 Captura</button>
-        <button class="etab" onclick="setEntrada('val','manual',this)">✏️ Manual</button>
+
+      <!-- ── SELECTOR CANAL ── -->
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button id="canal-btn-wa" onclick="setCanal('wa')" style="flex:1;padding:10px 14px;border-radius:9px;border:2px solid var(--verde);background:var(--verde);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:7px">
+          💬 WhatsApp
+        </button>
+        <button id="canal-btn-sms" onclick="setCanal('sms')" style="flex:1;padding:10px 14px;border-radius:9px;border:2px solid var(--borde);background:#fff;color:var(--gris-m);font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;display:flex;align-items:center;justify-content:center;gap:7px">
+          📱 SMS masivo
+        </button>
       </div>
+
+      <!-- ── PANEL SMS ── -->
+      <div id="panel-sms-val" style="display:none;margin-bottom:16px">
+
+        <!-- Config rápida SMS -->
+        <div style="background:var(--azul-xc);border:1px solid var(--azul-c);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+          <div style="font-size:12px;font-weight:700;color:var(--azul);margin-bottom:10px;text-transform:uppercase;letter-spacing:.4px">⚙️ Config SMS — LabsMobile</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div>
+              <label class="sched-label">Usuario (email)</label>
+              <input class="sched-input" id="sms-username" type="email" placeholder="cuenta@email.com" oninput="smsConfigDirty()">
+            </div>
+            <div>
+              <label class="sched-label">Token / Contraseña API</label>
+              <input class="sched-input" id="sms-password" type="password" placeholder="déjalo vacío para no cambiar" oninput="smsConfigDirty()">
+            </div>
+            <div>
+              <label class="sched-label">Remitente <span style="font-weight:400;text-transform:none">(máx 11 caracteres, sin espacios)</span></label>
+              <input class="sched-input" id="sms-sender" type="text" maxlength="11" placeholder="AvanceDental" oninput="smsConfigDirty()">
+            </div>
+            <div>
+              <label class="sched-label">Delay entre envíos (seg)</label>
+              <div style="display:flex;gap:8px">
+                <input class="sched-input" id="sms-delay-min" type="number" min="1" max="60" value="3" placeholder="Mín" oninput="smsConfigDirty()" style="flex:1">
+                <input class="sched-input" id="sms-delay-max" type="number" min="1" max="120" value="8" placeholder="Máx" oninput="smsConfigDirty()" style="flex:1">
+              </div>
+            </div>
+            <div style="grid-column:1/-1">
+              <label class="sched-label">Plantilla <span style="font-weight:400;text-transform:none">— variables: <code>[nombre]</code> <code>[fecha]</code> <code>[link]</code></span></label>
+              <textarea class="sched-input" id="sms-plantilla" rows="2" style="resize:vertical;font-size:13px;line-height:1.5" oninput="smsConfigDirty();smsContarChars()"></textarea>
+              <div style="font-size:11px;color:var(--gris-m);margin-top:3px;text-align:right"><span id="sms-chars">0</span> caracteres · 1 SMS = 160 · 2 SMS = 306</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span id="sms-status-dot" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:4px 10px;border-radius:20px;background:var(--gris-c);color:var(--gris-m)">
+              <span style="width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0"></span>
+              <span id="sms-status-txt">Sin configurar</span>
+            </span>
+            <button class="btn-sched" id="sms-save-btn" onclick="guardarConfigSms()" style="opacity:.5;pointer-events:none">💾 Guardar config</button>
+            <div style="display:flex;gap:7px;align-items:center;margin-left:auto">
+              <input class="sched-input" id="sms-test-tel" type="tel" placeholder="612345678" style="width:130px">
+              <input class="sched-input" id="sms-test-nom" type="text" placeholder="Nombre test" style="width:130px">
+              <button class="btn-enviar-ahora" onclick="enviarSmsTest()" style="white-space:nowrap">📤 Prueba</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Entrada SMS tabs -->
+        <div class="entrada-tabs" style="margin-bottom:12px">
+          <button class="etab on" onclick="setSmsEntrada('pegar',this)">📋 Pegar Excel</button>
+          <button class="etab" onclick="setSmsEntrada('manual',this)">✏️ Manual</button>
+          <button class="etab" onclick="setSmsEntrada('excel',this)">📂 Archivo Excel</button>
+        </div>
+
+        <div class="entrada-panel on" id="sms-ep-pegar">
+          <div class="paste-area">
+            <div class="paste-label">Copia Nombre + Teléfono (+ Fecha visita opcional) desde Excel y pega aquí</div>
+            <textarea class="paste-input" id="sms-paste-txt" placeholder="Pega con Ctrl+V... (columnas: nombre · teléfono · fecha visita)"></textarea>
+            <button class="paste-btn" onclick="smsProcesarPaste()">Procesar</button>
+          </div>
+        </div>
+
+        <div class="entrada-panel" id="sms-ep-manual">
+          <div class="form-manual">
+            <div class="form-field"><label>Nombre</label><input type="text" id="sms-m-nombre" placeholder="Ej: María García"></div>
+            <div class="form-field"><label>Teléfono</label><input type="tel" id="sms-m-tel" placeholder="612345678"></div>
+            <div class="form-field"><label>Fecha de visita</label><input type="date" id="sms-m-fecha"></div>
+            <div class="form-full"><button class="btn-add" onclick="smsAddManual()">+ Añadir a la lista</button></div>
+          </div>
+        </div>
+
+        <div class="entrada-panel" id="sms-ep-excel">
+          <div class="zona-carga" id="zona-sms-excel" onclick="document.getElementById('file-sms-excel').click()">
+            <div class="zona-ico">📂</div>
+            <div class="zona-txt">Arrastra el Excel aquí o haz clic</div>
+            <div class="zona-sub">.xlsx · .xls · .csv (columnas: nombre, teléfono, fecha visita)</div>
+            <input type="file" class="zona-input" id="file-sms-excel" accept=".xlsx,.xls,.csv">
+          </div>
+        </div>
+
+        <!-- Lista de pacientes SMS -->
+        <div id="sms-leads-wrap" style="display:none;margin-top:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-size:14px;font-weight:600;color:var(--azul)"><span id="sms-leads-count">0</span> pacientes · Coste est. <strong id="sms-coste-est">—</strong></div>
+            <button class="btn-sm ghost" onclick="smsVaciarLista()">🗑 Vaciar</button>
+          </div>
+          <div class="hist-table-wrap">
+            <table class="hist-table">
+              <thead><tr><th>Nombre</th><th>Teléfono</th><th>Fecha visita</th><th>Mensaje preview</th><th></th></tr></thead>
+              <tbody id="sms-leads-tbody"></tbody>
+            </table>
+          </div>
+
+          <!-- Programación / envío inmediato -->
+          <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div style="flex:1;min-width:200px">
+              <label class="sched-label">Programar envío (opcional)</label>
+              <input type="datetime-local" id="sms-prog-fecha" class="sched-input" style="font-size:13px">
+              <div style="font-size:11px;color:var(--gris-m);margin-top:3px">Deja vacío para enviar ahora</div>
+            </div>
+            <div id="sms-prog-estado" style="display:none;flex:1;min-width:180px;padding:10px 12px;background:var(--amber-c);border:1px solid #fcd34d;border-radius:9px;font-size:12px;font-weight:500;color:var(--amber)"></div>
+            <div style="display:flex;gap:8px">
+              <button class="btn-enviar-ahora" id="sms-enviar-btn" onclick="smsDeterminarEnvio()" style="opacity:.5;pointer-events:none">
+                ⚡ Enviar a todos (<span id="sms-total-count">0</span>)
+              </button>
+              <button id="sms-cancelar-prog-btn" style="display:none;padding:10px 16px;background:var(--coral-c);color:var(--coral);border:1px solid var(--coral);border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif" onclick="smsCancelarProgramado()">✕ Cancelar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Log SMS colapsable -->
+        <details style="margin-top:16px">
+          <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--azul);padding:8px 0;list-style:none;display:flex;align-items:center;gap:8px">
+            📋 Log de envíos SMS <span class="badge-count" id="sms-log-badge" style="font-size:11px">0 SMS</span>
+            <button class="btn-sm" style="margin-left:auto;background:var(--gris-c);color:var(--gris-m);border:1px solid var(--borde);font-size:11px;padding:3px 8px" onclick="event.preventDefault();cargarSmsLog()">🔄</button>
+            <button class="btn-sm danger" style="font-size:11px;padding:3px 8px" onclick="event.preventDefault();borrarSmsLog()">🗑</button>
+          </summary>
+          <div style="margin-top:10px">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
+              <div class="resp-kpi"><div class="resp-kpi-val" id="sms-stat-total">—</div><div class="resp-kpi-label">Total</div></div>
+              <div class="resp-kpi" style="border-top:3px solid var(--verde)"><div class="resp-kpi-val" id="sms-stat-ok" style="color:var(--verde)">—</div><div class="resp-kpi-label">✅ OK</div></div>
+              <div class="resp-kpi" style="border-top:3px solid var(--coral)"><div class="resp-kpi-val" id="sms-stat-err" style="color:var(--coral)">—</div><div class="resp-kpi-label">❌ Errores</div></div>
+            </div>
+            <div class="hist-table-wrap">
+              <table class="hist-table">
+                <thead><tr><th>Fecha</th><th>Paciente</th><th>Teléfono</th><th>Estado</th><th>Mensaje</th></tr></thead>
+                <tbody id="sms-log-tbody"></tbody>
+              </table>
+              <div id="sms-log-empty" style="display:none;padding:30px;text-align:center;color:var(--gris-m);font-size:13px">Sin registros todavía</div>
+            </div>
+          </div>
+        </details>
+
+      </div><!-- /panel-sms-val -->
+
+      <!-- ── PANEL WA (entrada normal) ── -->
+      <div id="panel-wa-val">
+        <div class="entrada-tabs">
+          <button class="etab on" onclick="setEntrada('val','excel',this)">📂 Excel</button>
+          <button class="etab" onclick="setEntrada('val','pegar',this)">📋 Pegar</button>
+          <button class="etab" onclick="setEntrada('val','imagen',this)">📷 Captura</button>
+          <button class="etab" onclick="setEntrada('val','manual',this)">✏️ Manual</button>
+        </div>
 
       <div class="entrada-panel on" id="ep-val-excel">
         <div class="zona-carga" id="zona-val" onclick="clickZona('val')">
@@ -661,6 +807,7 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
         </div>
         <div class="leads-grid" id="leads-val"></div>
       </div>
+      </div><!-- /panel-wa-val -->
     </div>
   </div>
 </div>
@@ -3565,172 +3712,112 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </script>
 
-<!-- ═══════════════════════════════════════════════════
-     PÁGINA: SMS LABSMOBILE
-════════════════════════════════════════════════════ -->
-<div class="page" id="page-sms">
-
-  <!-- CONFIG CARD -->
-  <div class="section-card" style="margin-bottom:16px">
-    <div class="section-card-header">
-      <div>
-        <div class="section-card-title">📱 SMS — LabsMobile</div>
-        <div style="font-size:12px;color:var(--gris-m);margin-top:2px">Envía SMS de solicitud de valoración. Canal alternativo a WhatsApp, sin necesidad de conexión Baileys.</div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <span id="sms-status-dot" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;background:var(--gris-c);color:var(--gris-m)">
-          <span style="width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0"></span>
-          <span id="sms-status-txt">Sin configurar</span>
-        </span>
-      </div>
-    </div>
-    <div class="section-card-body">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
-        <div>
-          <label class="sched-label">Usuario LabsMobile (email)</label>
-          <input class="sched-input" id="sms-username" type="email" placeholder="tucuenta@email.com" oninput="smsConfigDirty()">
-        </div>
-        <div>
-          <label class="sched-label">Token / Contraseña API</label>
-          <input class="sched-input" id="sms-password" type="password" placeholder="••••••••••  (déjalo vacío para no cambiar)" oninput="smsConfigDirty()">
-        </div>
-        <div>
-          <label class="sched-label">Link de valoración en el SMS</label>
-          <input class="sched-input" id="sms-link" type="url" placeholder="https://g.page/r/..." oninput="smsConfigDirty()">
-        </div>
-        <div style="display:flex;gap:12px">
-          <div style="flex:1">
-            <label class="sched-label">Delay mín (seg)</label>
-            <input class="sched-input" id="sms-delay-min" type="number" min="1" max="60" value="3" oninput="smsConfigDirty()">
-          </div>
-          <div style="flex:1">
-            <label class="sched-label">Delay máx (seg)</label>
-            <input class="sched-input" id="sms-delay-max" type="number" min="1" max="120" value="8" oninput="smsConfigDirty()">
-          </div>
-        </div>
-      </div>
-      <div style="margin-bottom:16px">
-        <label class="sched-label">Plantilla del mensaje <span style="font-weight:400;text-transform:none;letter-spacing:0">(variables: <code>[nombre]</code>, <code>[clinica]</code>, <code>[link]</code>)</span></label>
-        <textarea class="sched-input" id="sms-plantilla" rows="3" style="resize:vertical;font-size:13px;line-height:1.5" oninput="smsConfigDirty();smsContarChars()">Hola [nombre], ¿cómo fue tu visita en [clinica]? Valóranos en 1 min: [link]</textarea>
-        <div style="font-size:11px;color:var(--gris-m);margin-top:4px;text-align:right"><span id="sms-chars">0</span> caracteres (1 SMS = 160 · 2 SMS = 306)</div>
-      </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <button class="btn-sched" id="sms-save-btn" onclick="guardarConfigSms()" style="opacity:.5;pointer-events:none">💾 Guardar config</button>
-        <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
-          <input class="sched-input" id="sms-test-tel" type="tel" placeholder="612345678" style="width:140px">
-          <input class="sched-input" id="sms-test-nom" type="text" placeholder="Nombre test" style="width:140px">
-          <button class="btn-enviar-ahora" onclick="enviarSmsTest()">📤 SMS de prueba</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ENVÍO LOTE CARD -->
-  <div class="section-card" style="margin-bottom:16px">
-    <div class="section-card-header">
-      <div>
-        <div class="section-card-title">📤 Envío en lote</div>
-        <div style="font-size:12px;color:var(--gris-m);margin-top:2px">Pega pacientes desde Excel o añádelos manualmente</div>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn-sm ghost" onclick="smsVaciarLista()">🗑 Vaciar lista</button>
-        <button class="btn-enviar-ahora" id="sms-enviar-btn" onclick="enviarSmslote()" style="opacity:.5;pointer-events:none">⚡ Enviar a todos (<span id="sms-total-count">0</span>)</button>
-      </div>
-    </div>
-    <div class="section-card-body">
-
-      <!-- Entrada tabs -->
-      <div class="entrada-tabs" style="margin-bottom:14px">
-        <button class="etab on" onclick="setSmsEntrada('pegar',this)">📋 Pegar Excel</button>
-        <button class="etab" onclick="setSmsEntrada('manual',this)">✏️ Manual</button>
-        <button class="etab" onclick="setSmsEntrada('excel',this)">📂 Archivo Excel</button>
-      </div>
-
-      <div class="entrada-panel on" id="sms-ep-pegar">
-        <div class="paste-area">
-          <div class="paste-label">Copia las columnas Nombre + Teléfono en Excel y pega aquí</div>
-          <textarea class="paste-input" id="sms-paste-txt" placeholder="Pega con Ctrl+V...&#10;(columnas: nombre · teléfono)"></textarea>
-          <button class="paste-btn" onclick="smsProcesarPaste()">Procesar</button>
-        </div>
-      </div>
-
-      <div class="entrada-panel" id="sms-ep-manual">
-        <div class="form-manual">
-          <div class="form-field"><label>Nombre</label><input type="text" id="sms-m-nombre" placeholder="Ej: María García"></div>
-          <div class="form-field"><label>Teléfono</label><input type="tel" id="sms-m-tel" placeholder="612345678"></div>
-          <div class="form-full"><button class="btn-add" onclick="smsAddManual()">+ Añadir a la lista</button></div>
-        </div>
-      </div>
-
-      <div class="entrada-panel" id="sms-ep-excel">
-        <div class="zona-carga" id="zona-sms-excel" onclick="document.getElementById('file-sms-excel').click()">
-          <div class="zona-ico">📂</div>
-          <div class="zona-txt">Arrastra el Excel aquí o haz clic</div>
-          <div class="zona-sub">.xlsx · .xls · .csv (columnas: nombre, teléfono)</div>
-          <input type="file" class="zona-input" id="file-sms-excel" accept=".xlsx,.xls,.csv">
-        </div>
-      </div>
-
-      <!-- Vista previa de pacientes -->
-      <div id="sms-leads-wrap" style="display:none;margin-top:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div style="font-size:14px;font-weight:600;color:var(--azul)"><span id="sms-leads-count">0</span> pacientes en la lista</div>
-          <div style="font-size:12px;color:var(--gris-m)">Coste estimado: <strong id="sms-coste-est">—</strong></div>
-        </div>
-        <div class="hist-table-wrap">
-          <table class="hist-table">
-            <thead><tr><th>Nombre</th><th>Teléfono</th><th>Mensaje preview</th><th></th></tr></thead>
-            <tbody id="sms-leads-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <!-- LOG CARD -->
-  <div class="section-card">
-    <div class="section-card-header">
-      <div>
-        <div class="section-card-title">📋 Log de envíos SMS</div>
-        <div style="font-size:12px;color:var(--gris-m);margin-top:2px">Historial de todos los SMS enviados</div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <span class="badge-count" id="sms-log-badge">0 SMS</span>
-        <button class="btn-sm" style="background:var(--gris-c);color:var(--gris-m);border:1px solid var(--borde)" onclick="cargarSmsLog()">🔄 Actualizar</button>
-        <button class="btn-sm danger" onclick="borrarSmsLog()">🗑 Borrar log</button>
-      </div>
-    </div>
-    <div class="section-card-body">
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
-        <div class="resp-kpi"><div class="resp-kpi-val" id="sms-stat-total">—</div><div class="resp-kpi-label">Total enviados</div></div>
-        <div class="resp-kpi" style="border-top:3px solid var(--verde)"><div class="resp-kpi-val" id="sms-stat-ok" style="color:var(--verde)">—</div><div class="resp-kpi-label">✅ Exitosos</div></div>
-        <div class="resp-kpi" style="border-top:3px solid var(--coral)"><div class="resp-kpi-val" id="sms-stat-err" style="color:var(--coral)">—</div><div class="resp-kpi-label">❌ Errores</div></div>
-      </div>
-      <div class="hist-table-wrap">
-        <table class="hist-table">
-          <thead><tr><th>Fecha</th><th>Paciente</th><th>Teléfono</th><th>Estado</th><th>Mensaje</th></tr></thead>
-          <tbody id="sms-log-tbody"></tbody>
-        </table>
-        <div id="sms-log-empty" style="display:none;padding:40px;text-align:center;color:var(--gris-m);font-size:13px">Sin registros todavía</div>
-      </div>
-    </div>
-  </div>
-
-</div><!-- /page-sms -->
-
 <script>
 // ═══════════════════════════════════════════════════
 // SMS LABSMOBILE
 // ═══════════════════════════════════════════════════
 let smsPacientes = [];
 let smsConfigLoaded = false;
+let smsLinkCache = '';   // se rellena al cargar la config del servidor (sms-link fue eliminado del DOM)
+let canalActivo = 'wa'; // 'wa' | 'sms'
+
+// ── Selector de canal ──
+function setCanal(canal) {
+  canalActivo = canal;
+  const btnWa  = document.getElementById('canal-btn-wa');
+  const btnSms = document.getElementById('canal-btn-sms');
+  const panelSms = document.getElementById('panel-sms-val');
+  const panelWa  = document.getElementById('panel-wa-val');
+
+  if (canal === 'sms') {
+    btnSms.style.background = 'var(--azul)';
+    btnSms.style.borderColor = 'var(--azul)';
+    btnSms.style.color = '#fff';
+    btnWa.style.background = '#fff';
+    btnWa.style.borderColor = 'var(--borde)';
+    btnWa.style.color = 'var(--gris-m)';
+    panelSms.style.display = 'block';
+    panelWa.style.display  = 'none';
+    if (!smsConfigLoaded) iniciarSms();
+  } else {
+    btnWa.style.background = 'var(--verde)';
+    btnWa.style.borderColor = 'var(--verde)';
+    btnWa.style.color = '#fff';
+    btnSms.style.background = '#fff';
+    btnSms.style.borderColor = 'var(--borde)';
+    btnSms.style.color = 'var(--gris-m)';
+    panelSms.style.display = 'none';
+    panelWa.style.display  = 'block';
+  }
+}
+
+// ── Determinar si enviar ahora o programar ──
+async function smsDeterminarEnvio() {
+  const fechaInput = document.getElementById('sms-prog-fecha').value;
+  if (fechaInput) {
+    // Envío programado
+    const ts = new Date(fechaInput).getTime();
+    if (isNaN(ts) || ts <= Date.now()) { toast('⚠️ La fecha debe ser futura'); return; }
+    if (!confirm('¿Programar el envío de ' + smsPacientes.filter(p => !p.bloqueado).length + ' SMS para el ' + new Date(ts).toLocaleString('es-ES') + '?')) return;
+    try {
+      const r = await fetch(API_BASE + '/api/sms/programar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pacientes: smsPacientes.map(p => ({ nombre: p.nombre, telefono: p.tel, fecha: p.fecha || '' })), fechaEnvio: fechaInput })
+      });
+      const d = await r.json();
+      if (d.ok) {
+        toast('📅 ' + d.total + ' SMS programados para ' + new Date(fechaInput).toLocaleString('es-ES'));
+        smsPacientes = [];
+        smsRenderLista();
+        cargarSmsProgramado();
+      } else { toast('❌ ' + (d.error || 'Error')); }
+    } catch(e) { toast('❌ ' + e.message); }
+  } else {
+    // Envío inmediato
+    await enviarSmslote();
+  }
+}
+
+// ── Cancelar envío programado ──
+async function smsCancelarProgramado() {
+  if (!confirm('¿Cancelar el envío programado?')) return;
+  try {
+    await fetch(API_BASE + '/api/sms/programado', { method: 'DELETE' });
+    toast('✅ Envío programado cancelado');
+    cargarSmsProgramado();
+  } catch(e) { toast('❌ ' + e.message); }
+}
+
+// ── Cargar estado de envío programado ──
+async function cargarSmsProgramado() {
+  const estadoDiv   = document.getElementById('sms-prog-estado');
+  const cancelarBtn = document.getElementById('sms-cancelar-prog-btn');
+  const enviarBtn   = document.getElementById('sms-enviar-btn');
+  if (!estadoDiv) return;
+  try {
+    const r = await fetch(API_BASE + '/api/sms/programado');
+    const d = await r.json();
+    if (d.programado && d.programado.estado === 'pendiente') {
+      const fecha = new Date(d.programado.fechaEnvio).toLocaleString('es-ES');
+      estadoDiv.style.display = 'block';
+      estadoDiv.innerHTML = '📅 <strong>Envío programado:</strong> ' + fecha + ' · ' + d.programado.pacientes.length + ' SMS pendientes';
+      cancelarBtn.style.display = 'inline-flex';
+      enviarBtn.style.display = 'none';
+    } else {
+      estadoDiv.style.display = 'none';
+      cancelarBtn.style.display = 'none';
+      enviarBtn.style.display = 'inline-flex';
+    }
+  } catch { /* sin estado programado */ }
+}
 
 // ── Inicialización ──
 async function iniciarSms() {
   if (smsConfigLoaded) return;
   await cargarConfigSmsDesdeServidor();
   await cargarSmsLog();
+  await cargarSmsProgramado();
   smsConfigLoaded = true;
 
   // File input para Excel
@@ -3749,17 +3836,21 @@ async function iniciarSms() {
     reader.readAsBinaryString(f);
   });
 
-  // Drag-drop
+  // Drag-drop — zona puede ser null si el panel SMS no está en el DOM todavía
   const zona = document.getElementById('zona-sms-excel');
-  zona.addEventListener('dragover', e => { e.preventDefault(); zona.classList.add('drag'); });
-  zona.addEventListener('dragleave', () => zona.classList.remove('drag'));
-  zona.addEventListener('drop', e => {
-    e.preventDefault(); zona.classList.remove('drag');
-    const f = e.dataTransfer.files[0];
-    if (!f) return;
-    document.getElementById('file-sms-excel').files = e.dataTransfer.files;
-    document.getElementById('file-sms-excel').dispatchEvent(new Event('change'));
-  });
+  if (zona) {
+    zona.addEventListener('dragover', e => { e.preventDefault(); zona.classList.add('drag'); });
+    zona.addEventListener('dragleave', () => zona.classList.remove('drag'));
+    zona.addEventListener('drop', e => {
+      e.preventDefault(); zona.classList.remove('drag');
+      const f = e.dataTransfer.files[0];
+      if (!f) return;
+      const fileInput = document.getElementById('file-sms-excel');
+      if (!fileInput) return;
+      fileInput.files = e.dataTransfer.files;
+      fileInput.dispatchEvent(new Event('change'));
+    });
+  }
 }
 
 // ── Config ──
@@ -3767,15 +3858,17 @@ async function cargarConfigSmsDesdeServidor() {
   try {
     const r = await fetch(API_BASE + '/api/sms/config');
     const d = await r.json();
-    document.getElementById('sms-username').value  = d.username  || '';
-    document.getElementById('sms-link').value      = d.linkVal   || '';
-    document.getElementById('sms-plantilla').value = d.plantilla || '';
-    document.getElementById('sms-delay-min').value = d.delayMinSeg ?? 3;
-    document.getElementById('sms-delay-max').value = d.delayMaxSeg ?? 8;
-    // Password no se devuelve, solo si está seteado
-    const statusDot = document.getElementById('sms-status-dot');
-    const statusTxt = document.getElementById('sms-status-txt');
-    if (d.username && d.passwordSet) {
+    // Cachear el link para usarlo en previews (el campo sms-link fue eliminado del DOM)
+    smsLinkCache = d.link || d.smsLinkVal || '';
+    const el = id => document.getElementById(id);
+    if (el('sms-username'))  el('sms-username').value  = d.username  || '';
+    if (el('sms-sender'))    el('sms-sender').value    = d.sender    || '';
+    if (el('sms-plantilla')) el('sms-plantilla').value = d.plantilla || '';
+    if (el('sms-delay-min')) el('sms-delay-min').value = d.delayMinSeg ?? 3;
+    if (el('sms-delay-max')) el('sms-delay-max').value = d.delayMaxSeg ?? 8;
+    const statusDot = el('sms-status-dot');
+    const statusTxt = el('sms-status-txt');
+    if (statusDot && statusTxt && d.username && d.passwordSet) {
       statusDot.style.background = 'rgba(15,123,85,.15)';
       statusDot.style.color = 'var(--verde)';
       statusTxt.textContent = 'Configurado';
@@ -3791,38 +3884,43 @@ function smsConfigDirty() {
 }
 
 async function guardarConfigSms() {
+  const el = id => document.getElementById(id);
   const body = {
-    username:    document.getElementById('sms-username').value.trim(),
-    linkVal:     document.getElementById('sms-link').value.trim(),
-    plantilla:   document.getElementById('sms-plantilla').value,
-    delayMinSeg: parseInt(document.getElementById('sms-delay-min').value) || 3,
-    delayMaxSeg: parseInt(document.getElementById('sms-delay-max').value) || 8,
+    username:    el('sms-username')?.value.trim()  || '',
+    sender:      el('sms-sender')?.value.trim()    || '',
+    plantilla:   el('sms-plantilla')?.value        || '',
+    delayMinSeg: parseInt(el('sms-delay-min')?.value) || 3,
+    delayMaxSeg: parseInt(el('sms-delay-max')?.value) || 8,
   };
-  const pwd = document.getElementById('sms-password').value.trim();
+  const pwd = el('sms-password')?.value.trim();
   if (pwd) body.password = pwd;
 
   try {
     await fetch(API_BASE + '/api/sms/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
     toast('✅ Configuración SMS guardada');
-    const btn = document.getElementById('sms-save-btn');
-    btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none';
-    document.getElementById('sms-password').value = '';
-    const statusDot = document.getElementById('sms-status-dot');
-    statusDot.style.background = 'rgba(15,123,85,.15)';
-    statusDot.style.color = 'var(--verde)';
-    document.getElementById('sms-status-txt').textContent = 'Configurado';
+    const btn = el('sms-save-btn');
+    if (btn) { btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none'; }
+    if (el('sms-password')) el('sms-password').value = '';
+    const statusDot = el('sms-status-dot');
+    if (statusDot) {
+      statusDot.style.background = 'rgba(15,123,85,.15)';
+      statusDot.style.color = 'var(--verde)';
+    }
+    const statusTxt = el('sms-status-txt');
+    if (statusTxt) statusTxt.textContent = 'Configurado';
   } catch(e) { toast('❌ Error: ' + e.message); }
 }
 
 function smsContarChars() {
   const txt = document.getElementById('sms-plantilla')?.value || '';
-  document.getElementById('sms-chars').textContent = txt.length;
+  const el = document.getElementById('sms-chars');
+  if (el) el.textContent = txt.length;
 }
 
 // ── Test ──
 async function enviarSmsTest() {
-  const tel    = document.getElementById('sms-test-tel').value.trim();
-  const nombre = document.getElementById('sms-test-nom').value.trim() || 'Paciente';
+  const tel    = document.getElementById('sms-test-tel')?.value.trim();
+  const nombre = document.getElementById('sms-test-nom')?.value.trim() || 'Paciente';
   if (!tel) { toast('⚠️ Introduce un teléfono para la prueba'); return; }
   toast('📤 Enviando SMS de prueba...');
   try {
@@ -3835,7 +3933,7 @@ async function enviarSmsTest() {
 
 // ── Entrada tabs ──
 function setSmsEntrada(tipo, btn) {
-  document.querySelectorAll('#page-sms .etab').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('#panel-sms-val .etab').forEach(b => b.classList.remove('on'));
   btn.classList.add('on');
   ['pegar','manual','excel'].forEach(t => {
     const el = document.getElementById('sms-ep-' + t);
@@ -3845,46 +3943,74 @@ function setSmsEntrada(tipo, btn) {
 
 // ── Procesar paste ──
 function smsProcesarPaste() {
-  const txt = document.getElementById('sms-paste-txt').value;
+  const pasteEl = document.getElementById('sms-paste-txt');
+  if (!pasteEl) return;
+  const txt = pasteEl.value;
   const filas = txt.split('\n').filter(l => l.trim()).map(l => l.split(/\t|;/));
   smsProcesarFilas(filas);
-  document.getElementById('sms-paste-txt').value = '';
+  pasteEl.value = '';
 }
 
 function smsProcesarFilas(filas) {
   let nuevos = 0;
   for (const fila of filas) {
     if (!fila.length) continue;
-    // Intentar detectar columnas nombre/telefono
-    let nombre = '', tel = '';
+    // Intentar detectar columnas nombre/telefono/fecha
+    let nombre = '', tel = '', fecha = '';
     for (const celda of fila) {
       const s = String(celda || '').trim();
       const nums = s.replace(/\D/g,'').replace(/^34/,'').slice(-9);
       if (!tel && /^[6789]\d{8}$/.test(nums)) { tel = nums; }
+      else if (!fecha && smsDetectarFecha(s)) { fecha = smsDetectarFecha(s); }
       else if (!nombre && s.length > 1 && isNaN(s.replace(/\s/g,''))) { nombre = s; }
     }
     if (!tel) continue;
     // Dedup por tel
     if (smsPacientes.some(p => p.tel === tel)) continue;
-    smsPacientes.push({ nombre: nombre || 'Paciente', tel });
+    smsPacientes.push({ nombre: nombre || 'Paciente', tel, fecha });
     nuevos++;
   }
   smsRenderLista();
-  if (nuevos) toast(`✅ ${nuevos} paciente${nuevos!==1?'s':''} añadido${nuevos!==1?'s':''}`);
+  if (nuevos) { toast(`✅ ${nuevos} paciente${nuevos!==1?'s':''} añadido${nuevos!==1?'s':''}`); smsFiltrarConServidor(); }
   else toast('ℹ️ No se encontraron teléfonos nuevos');
 }
 
+// Detecta si una cadena es una fecha y la devuelve en formato legible (dd/mm/yyyy)
+function smsDetectarFecha(s) {
+  if (!s || s.length < 6) return '';
+  var m1 = s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})$/);
+  if (m1) {
+    var d = m1[1].padStart(2,'0'), mo = m1[2].padStart(2,'0'), y = m1[3].length===2 ? '20'+m1[3] : m1[3];
+    return d+'/'+mo+'/'+y;
+  }
+  var m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m2) return m2[3]+'/'+m2[2]+'/'+m2[1];
+  var n = parseFloat(s);
+  if (!isNaN(n) && n > 30000 && n < 60000) {
+    var dt = new Date(Math.round((n - 25569) * 86400 * 1000));
+    if (!isNaN(dt)) return dt.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
+  }
+  return '';
+}
+
 function smsAddManual() {
-  const nombre = document.getElementById('sms-m-nombre').value.trim();
-  const tel    = document.getElementById('sms-m-tel').value.replace(/\D/g,'').replace(/^34/,'').slice(-9);
+  const elNombre = document.getElementById('sms-m-nombre');
+  const elTel    = document.getElementById('sms-m-tel');
+  const elFecha  = document.getElementById('sms-m-fecha');
+  if (!elNombre || !elTel) return; // panel no visible en el DOM
+  const nombre   = elNombre.value.trim();
+  const tel      = elTel.value.replace(/\D/g,'').replace(/^34/,'').slice(-9);
+  const fechaRaw = elFecha?.value || ''; // yyyy-mm-dd
+  const fecha    = fechaRaw ? (function(d){ return d[2]+'/'+d[1]+'/'+d[0]; })(fechaRaw.split('-')) : '';
   if (!nombre) { toast('⚠️ El nombre es obligatorio'); return; }
   if (!/^[6789]\d{8}$/.test(tel)) { toast('⚠️ Teléfono inválido (9 dígitos)'); return; }
   if (smsPacientes.some(p => p.tel === tel)) { toast('ℹ️ Ese teléfono ya está en la lista'); return; }
-  smsPacientes.push({ nombre, tel });
-  smsRenderLista();
-  document.getElementById('sms-m-nombre').value = '';
-  document.getElementById('sms-m-tel').value = '';
-  toast(`✅ ${nombre} añadido`);
+  smsPacientes.push({ nombre, tel, fecha });
+  smsFiltrarConServidor();
+  elNombre.value = '';
+  elTel.value    = '';
+  if (elFecha) elFecha.value = '';
+  toast(`\u2705 ${nombre} añadido`);
 }
 
 function smsEliminar(idx) {
@@ -3898,8 +4024,9 @@ function smsVaciarLista() {
 }
 
 function smsRenderLista() {
-  const plantilla = document.getElementById('sms-plantilla').value || 'Hola [nombre], ¿cómo fue tu visita? Valóranos: [link]';
-  const link      = document.getElementById('sms-link').value || '...';
+  const plantilla = document.getElementById('sms-plantilla')?.value || 'Hola [nombre], ¿cómo fue tu visita? Valóranos: [link]';
+  // sms-link fue eliminado con la página SMS antigua — usar el link guardado en config
+  const link      = smsLinkCache || '...';
   const wrap    = document.getElementById('sms-leads-wrap');
   const tbody   = document.getElementById('sms-leads-tbody');
   const countEl = document.getElementById('sms-leads-count');
@@ -3907,46 +4034,107 @@ function smsRenderLista() {
   const envBtn  = document.getElementById('sms-enviar-btn');
   const totEl   = document.getElementById('sms-total-count');
 
+  // Guard: si el panel SMS no está en el DOM aún, salir sin crashear
+  if (!wrap || !tbody || !countEl || !costeEl || !envBtn || !totEl) return;
+
   const n = smsPacientes.length;
+  const libres = smsPacientes.filter(p => !p.bloqueado).length;
   countEl.textContent = n;
-  totEl.textContent   = n;
-  costeEl.textContent = n ? `≈ ${(n * 0.04).toFixed(2)} €` : '—';
+  totEl.textContent   = libres;
+  costeEl.textContent = libres ? `≈ ${(libres * 0.04).toFixed(2)} €` : '—';
   wrap.style.display  = n ? 'block' : 'none';
-  envBtn.style.opacity       = n ? '1' : '.5';
-  envBtn.style.pointerEvents = n ? 'auto' : 'none';
+  envBtn.style.opacity       = libres ? '1' : '.5';
+  envBtn.style.pointerEvents = libres ? 'auto' : 'none';
 
   tbody.innerHTML = smsPacientes.map((p, i) => {
     const preview = plantilla
       .replace(/\[nombre\]/gi, p.nombre)
+      .replace(/\[fecha\]/gi,  p.fecha || 'tu visita')
       .replace(/\[clinica\]/gi, 'Avance Dental')
       .replace(/\[link\]/gi, link)
-      .substring(0, 80) + (plantilla.length > 80 ? '…' : '');
+      .substring(0, 90) + (plantilla.length > 90 ? '…' : '');
+
+    if (p.bloqueado) {
+      const iconoMotivo = p.motivo === 'WhatsApp' ? '💬' : p.motivo === 'Lista negra' ? '🚫' : '📱';
+      return `<tr style="opacity:.45;background:var(--gris-c)">
+        <td>${x(p.nombre)}</td>
+        <td style="font-variant-numeric:tabular-nums">${p.tel}</td>
+        <td style="font-size:12px;color:var(--gris-m)">${p.fecha || '—'}</td>
+        <td style="font-size:11px;color:var(--coral);font-weight:600">${iconoMotivo} ${p.motivo}${p.fechaWA ? ' ('+p.fechaWA+')' : ''} — se omitirá</td>
+        <td><button class="hist-btn del" onclick="smsEliminar(${i})" title="Quitar de la lista">🗑</button></td>
+      </tr>`;
+    }
+
     return `<tr>
       <td>${x(p.nombre)}</td>
       <td style="font-variant-numeric:tabular-nums">${p.tel}</td>
+      <td style="font-size:12px;color:var(--gris-m)">${p.fecha || '<span style="color:var(--amber);font-size:11px">Sin fecha</span>'}</td>
       <td style="font-size:11px;color:var(--gris-m);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${x(preview)}">${x(preview)}</td>
       <td><button class="hist-btn del" onclick="smsEliminar(${i})" title="Eliminar">🗑</button></td>
     </tr>`;
   }).join('');
+
+  // Mostrar resumen dedup si hay bloqueados
+  const bloq = smsPacientes.filter(p => p.bloqueado).length;
+  let avisoEl = document.getElementById('sms-dedup-aviso');
+  if (!avisoEl) {
+    avisoEl = document.createElement('div');
+    avisoEl.id = 'sms-dedup-aviso';
+    avisoEl.style.cssText = 'font-size:12px;padding:8px 12px;border-radius:8px;margin-bottom:10px';
+    document.getElementById('sms-leads-wrap').prepend(avisoEl);
+  }
+  if (bloq) {
+    avisoEl.style.background = 'var(--amber-c)';
+    avisoEl.style.color = 'var(--amber)';
+    avisoEl.style.display = 'block';
+    avisoEl.innerHTML = `⚠️ <strong>${bloq} paciente${bloq!==1?'s':''}</strong> ya recibieron una solicitud de valoración (por WhatsApp o SMS) y se omitirán automáticamente. Se enviarán a los <strong>${libres}</strong> restantes.`;
+  } else {
+    avisoEl.style.display = 'none';
+  }
 }
 
-// ── Envío lote ──
-async function enviarSmslote() {
-  if (!smsPacientes.length) { toast('⚠️ La lista está vacía'); return; }
-  if (!confirm(`¿Enviar SMS a ${smsPacientes.length} paciente${smsPacientes.length!==1?'s':''}? El envío se hará con delay antibaneo en segundo plano.`)) return;
-
+// ── Verificar dedup contra servidor tras añadir pacientes ──
+async function smsFiltrarConServidor() {
+  if (!smsPacientes.length) return;
   try {
-    const r = await fetch(API_BASE + '/api/sms/enviar-lote', {
+    const r = await fetch(API_BASE + '/api/sms/filtrar', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ pacientes: smsPacientes.map(p => ({ nombre: p.nombre, telefono: p.tel })) })
     });
     const d = await r.json();
+    if (!d.ok) return;
+    // Actualizar estado bloqueado en smsPacientes
+    d.pacientes.forEach(filtrado => {
+      const p = smsPacientes.find(x => x.tel === filtrado.telefono);
+      if (p) { p.bloqueado = filtrado.bloqueado; p.motivo = filtrado.motivo; p.fechaWA = filtrado.fechaWA; }
+    });
+    smsRenderLista();
+    if (d.bloqueados) toast(`ℹ️ ${d.bloqueados} paciente${d.bloqueados!==1?'s':''} omitidos por dedup`);
+  } catch(e) { console.warn('SMS filtrar:', e.message); smsRenderLista(); }
+}
+
+async function enviarSmslote() {
+  const libres = smsPacientes.filter(p => !p.bloqueado);
+  if (!libres.length) { toast('⚠️ No hay pacientes nuevos — todos ya recibieron valoración'); return; }
+  const bloq = smsPacientes.filter(p => p.bloqueado).length;
+  const msg = bloq
+    ? `¿Enviar SMS a ${libres.length} paciente${libres.length!==1?'s':''}? (${bloq} se omitirán por dedup)`
+    : `¿Enviar SMS a ${libres.length} paciente${libres.length!==1?'s':''}?`;
+  if (!confirm(msg)) return;
+
+  try {
+    const r = await fetch(API_BASE + '/api/sms/enviar-lote', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ pacientes: smsPacientes.map(p => ({ nombre: p.nombre, telefono: p.tel, fecha: p.fecha || '' })) })
+    });
+    const d = await r.json();
     if (d.ok) {
-      toast(`🚀 Enviando ${smsPacientes.length} SMS en segundo plano...`);
+      const omitTxt = d.omitidos ? ` · ${d.omitidos} omitidos por dedup` : '';
+      toast(`🚀 Enviando ${d.total} SMS en segundo plano${omitTxt}`);
       smsPacientes = [];
       smsRenderLista();
-      // Actualizar log a los 5 segundos
       setTimeout(cargarSmsLog, 5000);
     } else {
       toast('❌ ' + (d.error || 'Error desconocido'));
@@ -3959,13 +4147,16 @@ async function cargarSmsLog() {
   try {
     const r = await fetch(API_BASE + '/api/sms/log');
     const d = await r.json();
-    document.getElementById('sms-stat-total').textContent = d.total ?? '—';
-    document.getElementById('sms-stat-ok').textContent   = d.ok    ?? '—';
-    document.getElementById('sms-stat-err').textContent  = d.err   ?? '—';
-    document.getElementById('sms-log-badge').textContent = `${d.total ?? 0} SMS`;
+    const el = id => document.getElementById(id);
+    // Guard: si el panel SMS no está en el DOM, salir sin crashear
+    const tbody = el('sms-log-tbody');
+    const empty = el('sms-log-empty');
+    if (!tbody || !empty) return;
+    if (el('sms-stat-total')) el('sms-stat-total').textContent = d.total ?? '—';
+    if (el('sms-stat-ok'))    el('sms-stat-ok').textContent   = d.ok    ?? '—';
+    if (el('sms-stat-err'))   el('sms-stat-err').textContent  = d.err   ?? '—';
+    if (el('sms-log-badge'))  el('sms-log-badge').textContent = `${d.total ?? 0} SMS`;
 
-    const tbody = document.getElementById('sms-log-tbody');
-    const empty = document.getElementById('sms-log-empty');
     if (!d.log?.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
     empty.style.display = 'none';
 

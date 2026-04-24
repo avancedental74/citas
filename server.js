@@ -1836,7 +1836,7 @@ function guardarSmsLog(lista) {
   fs.writeFileSync(SMS_LOG_FILE, JSON.stringify(lista.slice(-1000), null, 2));
 }
 
-async function enviarSmsLabsMobile({ username, password, telefono, mensaje }) {
+async function enviarSmsLabsMobile({ username, password, telefono, mensaje, sender }) {
   const numero = String(telefono).replace(/\D/g, '').replace(/^34/, '').slice(-9);
   if (!/^[6789]\d{8}$/.test(numero)) throw new Error(`Teléfono inválido: ${telefono}`);
 
@@ -1846,6 +1846,7 @@ async function enviarSmsLabsMobile({ username, password, telefono, mensaje }) {
     message:  mensaje,
     msisdn:   [{ number: `34${numero}` }]
   };
+  if (sender && String(sender).trim()) body.sender = String(sender).trim();
 
   const resp = await fetch('https://api.labsmobile.com/json/send', {
     method:  'POST',
@@ -1855,7 +1856,6 @@ async function enviarSmsLabsMobile({ username, password, telefono, mensaje }) {
 
   if (!resp.ok) throw new Error(`LabsMobile HTTP ${resp.status}`);
   const data = await resp.json();
-  // LabsMobile devuelve { code:'0', message:'...' } en éxito
   if (data.code !== undefined && String(data.code) !== '0') {
     throw new Error(`LabsMobile error ${data.code}: ${data.message}`);
   }
@@ -1867,8 +1867,9 @@ app.get('/api/sms/config', (req, res) => {
   res.json({
     username:     config.smsUsername      || '',
     passwordSet:  !!config.smsPassword,
+    sender:       config.smsSender        || '',
     linkVal:      config.smsLinkVal       || GOOGLE_REVIEW,
-    plantilla:    config.smsMsgPlantilla  || 'Hola [nombre], ¿cómo fue tu visita en [clinica]? Valóranos en 1 min: [link]',
+    plantilla:    config.smsMsgPlantilla  || 'Hola [nombre], nos alegra haber contado contigo el [fecha] 😊 Tu opinión vale mucho para nosotros. ¿Nos dejas 5 estrellas? Solo 1 minuto: [link] Gracias — Avance Dental',
     activo:       config.smsActivo        !== false,
     delayMinSeg:  config.smsDelayMinSeg   ?? 3,
     delayMaxSeg:  config.smsDelayMaxSeg   ?? 8,
@@ -1877,9 +1878,10 @@ app.get('/api/sms/config', (req, res) => {
 
 // POST /api/sms/config — guarda config SMS
 app.post('/api/sms/config', (req, res) => {
-  const { username, password, linkVal, plantilla, activo, delayMinSeg, delayMaxSeg } = req.body;
+  const { username, password, sender, linkVal, plantilla, activo, delayMinSeg, delayMaxSeg } = req.body;
   if (username !== undefined)   config.smsUsername      = String(username).trim();
   if (password)                  config.smsPassword      = String(password).trim();
+  if (sender !== undefined)      config.smsSender        = String(sender).trim();
   if (linkVal !== undefined)     config.smsLinkVal       = String(linkVal).trim();
   if (plantilla !== undefined)   config.smsMsgPlantilla  = String(plantilla);
   if (activo !== undefined)      config.smsActivo        = !!activo;
@@ -1898,14 +1900,15 @@ app.post('/api/sms/test', async (req, res) => {
     return res.status(400).json({ error: 'Falta el teléfono' });
 
   const link      = config.smsLinkVal || GOOGLE_REVIEW;
-  const plantilla = config.smsMsgPlantilla || 'Hola [nombre], ¿cómo fue tu visita en [clinica]? Valóranos en 1 min: [link]';
+  const plantilla = config.smsMsgPlantilla || 'Hola [nombre], nos alegra haber contado contigo el [fecha] 😊 Tu opinión vale mucho para nosotros. ¿Nos dejas 5 estrellas? Solo 1 minuto: [link] Gracias — Avance Dental';
   const mensaje   = plantilla
     .replace(/\[nombre\]/gi,  nombre || 'Paciente')
+    .replace(/\[fecha\]/gi,   'tu visita')
     .replace(/\[clinica\]/gi, CLINICA)
     .replace(/\[link\]/gi,    link);
 
   try {
-    const r = await enviarSmsLabsMobile({ username: config.smsUsername, password: config.smsPassword, telefono, mensaje });
+    const r = await enviarSmsLabsMobile({ username: config.smsUsername, password: config.smsPassword, telefono, mensaje, sender: config.smsSender });
     const log = cargarSmsLog();
     log.push({ ts: Date.now(), fecha: new Date().toISOString(), tel: telefono, nombre: nombre || '—', mensaje, resultado: 'ok', respuesta: r });
     guardarSmsLog(log);
@@ -1917,38 +1920,91 @@ app.post('/api/sms/test', async (req, res) => {
   }
 });
 
-// POST /api/sms/enviar-lote — envía a una lista de pacientes con delay anti-baneo
+// POST /api/sms/filtrar — devuelve qué pacientes ya recibieron valoración (WA o SMS) o están en lista negra
+// Input: [{ nombre, telefono }]  Output: misma lista con campo { bloqueado, motivo }
+app.post('/api/sms/filtrar', (req, res) => {
+  const { pacientes } = req.body;
+  if (!Array.isArray(pacientes)) return res.status(400).json({ error: 'Falta lista' });
+
+  const datos   = cargarDatos();
+  const smsLog  = cargarSmsLog();
+  const yaSms   = new Set(smsLog.filter(e => e.resultado === 'ok').map(e => e.tel));
+  const listaNegra = new Set((datos.listaNegra || []).map(e => {
+    const t = typeof e === 'string' ? e : (e.tel || e.telefono || '');
+    return String(t).replace(/\D/g,'').replace(/^34/,'').slice(-9);
+  }));
+
+  const resultado = pacientes.map(p => {
+    const tel = String(p.telefono || p.tel || '').replace(/\D/g,'').replace(/^34/,'').slice(-9);
+    const enLN  = listaNegra.has(tel);
+    const yaWA  = !!datos.enviados?.[tel]?.val;
+    const yaSMS = yaSms.has(tel);
+    return {
+      nombre:    p.nombre,
+      telefono:  tel,
+      bloqueado: enLN || yaWA || yaSMS,
+      motivo:    enLN ? 'Lista negra' : yaWA ? 'WhatsApp' : yaSMS ? 'SMS' : null,
+      fechaWA:   datos.enviados?.[tel]?.val || null,
+    };
+  });
+
+  const bloqueados = resultado.filter(p => p.bloqueado).length;
+  res.json({ ok: true, total: resultado.length, bloqueados, pacientes: resultado });
+});
+
+// POST /api/sms/enviar-lote — envía a una lista con dedup automático
 app.post('/api/sms/enviar-lote', async (req, res) => {
-  const { pacientes } = req.body; // [{ nombre, telefono }]
+  const { pacientes, forzar } = req.body; // forzar=true omite el filtro de dedup
   if (!config.smsUsername || !config.smsPassword)
     return res.status(400).json({ error: 'Configura usuario y contraseña de LabsMobile primero' });
   if (!Array.isArray(pacientes) || !pacientes.length)
     return res.status(400).json({ error: 'Lista de pacientes vacía' });
 
+  // Filtrar duplicados salvo que se fuerce
+  const datos  = cargarDatos();
+  const smsLog = cargarSmsLog();
+  const yaSms  = new Set(smsLog.filter(e => e.resultado === 'ok').map(e => e.tel));
+  const listaNegra = new Set((datos.listaNegra || []).map(e => {
+    const t = typeof e === 'string' ? e : (e.tel || e.telefono || '');
+    return String(t).replace(/\D/g,'').replace(/^34/,'').slice(-9);
+  }));
+
+  const pendientes = pacientes.filter(p => {
+    if (forzar) return true;
+    const tel = String(p.telefono || p.tel || '').replace(/\D/g,'').replace(/^34/,'').slice(-9);
+    return !listaNegra.has(tel) && !datos.enviados?.[tel]?.val && !yaSms.has(tel);
+  });
+
+  const omitidos = pacientes.length - pendientes.length;
+
+  // Responder inmediatamente
+  res.json({ ok: true, total: pendientes.length, omitidos, mensaje: 'Envío en curso — consulta el log para el estado' });
+
+  if (!pendientes.length) return;
+
   const link      = config.smsLinkVal || GOOGLE_REVIEW;
-  const plantilla = config.smsMsgPlantilla || 'Hola [nombre], ¿cómo fue tu visita en [clinica]? Valóranos en 1 min: [link]';
+  const plantilla = config.smsMsgPlantilla || 'Hola [nombre], nos alegra haber contado contigo el [fecha] 😊 Tu opinión vale mucho para nosotros. ¿Nos dejas 5 estrellas? Solo 1 minuto: [link] Gracias — Avance Dental';
   const dMin      = (config.smsDelayMinSeg ?? 3) * 1000;
   const dMax      = (config.smsDelayMaxSeg ?? 8) * 1000;
-
-  // Responder inmediatamente — el envío es async
-  res.json({ ok: true, total: pacientes.length, mensaje: 'Envío en curso — consulta el log para el estado' });
 
   // Procesar en background
   (async () => {
     const log = cargarSmsLog();
-    for (const p of pacientes) {
+    for (const p of pendientes) {
       const nombre  = p.nombre || 'Paciente';
       const tel     = String(p.telefono || p.tel || '').replace(/\D/g,'').replace(/^34/,'').slice(-9);
       if (!/^[6789]\d{8}$/.test(tel)) {
         log.push({ ts: Date.now(), fecha: new Date().toISOString(), tel: p.telefono || '?', nombre, mensaje: '', resultado: 'error', respuesta: { error: 'Teléfono inválido' } });
         continue;
       }
+      const fechaVisita = p.fecha || '';
       const mensaje = plantilla
         .replace(/\[nombre\]/gi,  nombre)
+        .replace(/\[fecha\]/gi,   fechaVisita || 'tu visita')
         .replace(/\[clinica\]/gi, CLINICA)
         .replace(/\[link\]/gi,    link);
       try {
-        const r = await enviarSmsLabsMobile({ username: config.smsUsername, password: config.smsPassword, telefono: tel, mensaje });
+        const r = await enviarSmsLabsMobile({ username: config.smsUsername, password: config.smsPassword, telefono: tel, mensaje, sender: config.smsSender });
         log.push({ ts: Date.now(), fecha: new Date().toISOString(), tel, nombre, mensaje, resultado: 'ok', respuesta: r });
         console.log(`📱 SMS enviado → ${tel} (${nombre})`);
       } catch(e) {
@@ -1956,10 +2012,9 @@ app.post('/api/sms/enviar-lote', async (req, res) => {
         console.error(`❌ SMS error → ${tel}: ${e.message}`);
       }
       guardarSmsLog(log);
-      // delay aleatorio entre envíos
       await sleep(dMin + Math.random() * (dMax - dMin));
     }
-    console.log(`📱 Lote SMS completado — ${pacientes.length} enviados`);
+    console.log(`📱 Lote SMS completado — ${pendientes.length} enviados, ${omitidos} omitidos por dedup`);
   })();
 });
 
@@ -1979,6 +2034,103 @@ app.delete('/api/sms/log', (req, res) => {
   guardarSmsLog([]);
   res.json({ ok: true });
 });
+
+// ── ENVÍO SMS PROGRAMADO ──────────────────────────────────────────────────────
+const SMS_PROG_FILE = path.join(__dirname, 'sms_programado.json');
+
+function cargarSmsProg() {
+  if (!fs.existsSync(SMS_PROG_FILE)) return null;
+  try { return JSON.parse(fs.readFileSync(SMS_PROG_FILE, 'utf8')); } catch { return null; }
+}
+function guardarSmsProg(data) {
+  if (data === null) { if (fs.existsSync(SMS_PROG_FILE)) fs.unlinkSync(SMS_PROG_FILE); return; }
+  fs.writeFileSync(SMS_PROG_FILE, JSON.stringify(data, null, 2));
+}
+
+// POST /api/sms/programar — guarda un lote para envío diferido
+app.post('/api/sms/programar', (req, res) => {
+  const { pacientes, fechaEnvio } = req.body; // fechaEnvio: ISO string "2024-06-15T10:30"
+  if (!config.smsUsername || !config.smsPassword)
+    return res.status(400).json({ error: 'Configura usuario y contraseña de LabsMobile primero' });
+  if (!Array.isArray(pacientes) || !pacientes.length)
+    return res.status(400).json({ error: 'Lista de pacientes vacía' });
+  if (!fechaEnvio)
+    return res.status(400).json({ error: 'Falta la fecha y hora de envío' });
+  const ts = new Date(fechaEnvio).getTime();
+  if (isNaN(ts) || ts <= Date.now())
+    return res.status(400).json({ error: 'La fecha de envío debe ser futura' });
+
+  guardarSmsProg({ pacientes, fechaEnvio, ts, programadoEn: new Date().toISOString(), estado: 'pendiente' });
+  console.log('📅 SMS programado para', fechaEnvio, '—', pacientes.length, 'pacientes');
+  res.json({ ok: true, total: pacientes.length, fechaEnvio });
+});
+
+// GET /api/sms/programado — devuelve el estado del envío programado actual
+app.get('/api/sms/programado', (req, res) => {
+  const prog = cargarSmsProg();
+  res.json({ ok: true, programado: prog });
+});
+
+// DELETE /api/sms/programado — cancela el envío programado
+app.delete('/api/sms/programado', (req, res) => {
+  guardarSmsProg(null);
+  res.json({ ok: true });
+});
+
+// Tick cada minuto para ejecutar envíos programados
+setInterval(async () => {
+  const prog = cargarSmsProg();
+  if (!prog || prog.estado !== 'pendiente') return;
+  if (Date.now() < prog.ts) return;
+
+  const pacientes = prog.pacientes || [];
+  console.log('🚀 Ejecutando SMS programado —', pacientes.length, 'pacientes');
+  guardarSmsProg({ ...prog, estado: 'enviando' });
+
+  const datos  = cargarDatos();
+  const smsLog = cargarSmsLog();
+  const yaSms  = new Set(smsLog.filter(e => e.resultado === 'ok').map(e => e.tel));
+  const listaNegra = new Set((datos.listaNegra || []).map(e => {
+    const t = typeof e === 'string' ? e : (e.tel || e.telefono || '');
+    return String(t).replace(/\D/g,'').replace(/^34/,'').slice(-9);
+  }));
+
+  const pendientes = pacientes.filter(p => {
+    const tel = String(p.telefono || p.tel || '').replace(/\D/g,'').replace(/^34/,'').slice(-9);
+    return !listaNegra.has(tel) && !datos.enviados?.[tel]?.val && !yaSms.has(tel);
+  });
+
+  const link      = config.smsLinkVal || GOOGLE_REVIEW;
+  const plantilla = config.smsMsgPlantilla || 'Hola [nombre], nos alegra haber contado contigo el [fecha] 😊 Tu opinión vale mucho para nosotros. ¿Nos dejas 5 estrellas? Solo 1 minuto: [link] Gracias — Avance Dental';
+  const dMin      = (config.smsDelayMinSeg ?? 3) * 1000;
+  const dMax      = (config.smsDelayMaxSeg ?? 8) * 1000;
+
+  const log = cargarSmsLog();
+  for (const p of pendientes) {
+    const nombre = p.nombre || 'Paciente';
+    const tel    = String(p.telefono || p.tel || '').replace(/\D/g,'').replace(/^34/,'').slice(-9);
+    if (!/^[6789]\d{8}$/.test(tel)) {
+      log.push({ ts: Date.now(), fecha: new Date().toISOString(), tel: p.telefono||'?', nombre, mensaje:'', resultado:'error', respuesta:{ error:'Teléfono inválido' } });
+      continue;
+    }
+    const fechaVisita = p.fecha || '';
+    const mensaje = plantilla
+      .replace(/\[nombre\]/gi,  nombre)
+      .replace(/\[fecha\]/gi,   fechaVisita || 'tu visita')
+      .replace(/\[clinica\]/gi, CLINICA)
+      .replace(/\[link\]/gi,    link);
+    try {
+      const r = await enviarSmsLabsMobile({ username: config.smsUsername, password: config.smsPassword, telefono: tel, mensaje, sender: config.smsSender });
+      log.push({ ts: Date.now(), fecha: new Date().toISOString(), tel, nombre, mensaje, resultado: 'ok', respuesta: r });
+    } catch(e) {
+      log.push({ ts: Date.now(), fecha: new Date().toISOString(), tel, nombre, mensaje, resultado: 'error', respuesta: { error: e.message } });
+    }
+    guardarSmsLog(log);
+    await sleep(dMin + Math.random() * (dMax - dMin));
+  }
+  guardarSmsProg(null); // limpia tras completar
+  console.log('✅ SMS programado completado —', pendientes.length, 'enviados');
+}, 60000);
 
 // ── ARRANQUE ──────────────────────────────────────────────────────────────────
 // Servir estáticos DESPUÉS de todas las rutas API para que no intercepten
