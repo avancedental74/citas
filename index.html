@@ -623,7 +623,7 @@ main{max-width:1200px;margin:0 auto;padding:24px 20px}
             </div>
             <div style="grid-column:1/-1">
               <label class="sched-label">Plantilla <span style="font-weight:400;text-transform:none">— variables: <code>[nombre]</code> <code>[fecha]</code> <code>[link]</code></span></label>
-              <textarea class="sched-input" id="sms-plantilla" rows="2" style="resize:vertical;font-size:13px;line-height:1.5" oninput="smsConfigDirty();smsContarChars()"></textarea>
+              <textarea class="sched-input" id="sms-plantilla" rows="2" style="resize:vertical;font-size:13px;line-height:1.5" oninput="smsConfigDirty();smsContarChars()" placeholder="Dejar vacío para usar las 4 variantes automáticas con el link de valoración&#10;Ej: Hola [nombre], fue un placer atenderte [fecha]. Tu opinion nos ayuda: [link] — Avance Dental"></textarea>
               <div style="font-size:11px;color:var(--gris-m);margin-top:3px;text-align:right"><span id="sms-chars">0</span> caracteres · 1 SMS = 160 · 2 SMS = 306</div>
             </div>
           </div>
@@ -3718,7 +3718,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // ═══════════════════════════════════════════════════
 let smsPacientes = [];
 let smsConfigLoaded = false;
-let smsLinkCache = '';   // se rellena al cargar la config del servidor (sms-link fue eliminado del DOM)
 let canalActivo = 'wa'; // 'wa' | 'sms'
 
 // ── Selector de canal ──
@@ -3753,12 +3752,13 @@ function setCanal(canal) {
 
 // ── Determinar si enviar ahora o programar ──
 async function smsDeterminarEnvio() {
-  const fechaInput = document.getElementById('sms-prog-fecha').value;
+  const fechaInput = document.getElementById('sms-prog-fecha')?.value || '';
   if (fechaInput) {
-    // Envío programado
     const ts = new Date(fechaInput).getTime();
     if (isNaN(ts) || ts <= Date.now()) { toast('⚠️ La fecha debe ser futura'); return; }
-    if (!confirm('¿Programar el envío de ' + smsPacientes.filter(p => !p.bloqueado).length + ' SMS para el ' + new Date(ts).toLocaleString('es-ES') + '?')) return;
+    const libres = smsPacientes.filter(p => !p.bloqueado).length;
+    if (!libres) { toast('⚠️ No hay pacientes nuevos para programar'); return; }
+    if (!confirm('¿Programar el envío de ' + libres + ' SMS para el ' + new Date(ts).toLocaleString('es-ES') + '?')) return;
     try {
       const r = await fetch(API_BASE + '/api/sms/programar', {
         method: 'POST',
@@ -3771,10 +3771,9 @@ async function smsDeterminarEnvio() {
         smsPacientes = [];
         smsRenderLista();
         cargarSmsProgramado();
-      } else { toast('❌ ' + (d.error || 'Error')); }
+      } else { toast('❌ ' + (d.error || 'Error al programar')); }
     } catch(e) { toast('❌ ' + e.message); }
   } else {
-    // Envío inmediato
     await enviarSmslote();
   }
 }
@@ -3794,14 +3793,16 @@ async function cargarSmsProgramado() {
   const estadoDiv   = document.getElementById('sms-prog-estado');
   const cancelarBtn = document.getElementById('sms-cancelar-prog-btn');
   const enviarBtn   = document.getElementById('sms-enviar-btn');
-  if (!estadoDiv) return;
+  if (!estadoDiv || !cancelarBtn || !enviarBtn) return;
   try {
     const r = await fetch(API_BASE + '/api/sms/programado');
+    if (!r.ok) return;
     const d = await r.json();
     if (d.programado && d.programado.estado === 'pendiente') {
       const fecha = new Date(d.programado.fechaEnvio).toLocaleString('es-ES');
+      const total = Array.isArray(d.programado.pacientes) ? d.programado.pacientes.length : '?';
       estadoDiv.style.display = 'block';
-      estadoDiv.innerHTML = '📅 <strong>Envío programado:</strong> ' + fecha + ' · ' + d.programado.pacientes.length + ' SMS pendientes';
+      estadoDiv.innerHTML = '📅 <strong>Envío programado:</strong> ' + fecha + ' · ' + total + ' SMS pendientes';
       cancelarBtn.style.display = 'inline-flex';
       enviarBtn.style.display = 'none';
     } else {
@@ -3809,19 +3810,20 @@ async function cargarSmsProgramado() {
       cancelarBtn.style.display = 'none';
       enviarBtn.style.display = 'inline-flex';
     }
-  } catch { /* sin estado programado */ }
+  } catch { /* servidor no disponible, no romper */ }
 }
 
 // ── Inicialización ──
 async function iniciarSms() {
   if (smsConfigLoaded) return;
-  await cargarConfigSmsDesdeServidor();
-  await cargarSmsLog();
-  await cargarSmsProgramado();
-  smsConfigLoaded = true;
+  smsConfigLoaded = true; // marcar antes para evitar doble llamada si hay reentrada
+  try { await cargarConfigSmsDesdeServidor(); } catch(e) { console.warn('SMS init config:', e.message); }
+  try { await cargarSmsLog(); }               catch(e) { console.warn('SMS init log:', e.message); }
+  try { await cargarSmsProgramado(); }        catch(e) { console.warn('SMS init prog:', e.message); }
 
   // File input para Excel
-  document.getElementById('file-sms-excel').addEventListener('change', e => {
+  const fileInput = document.getElementById('file-sms-excel');
+  if (fileInput) fileInput.addEventListener('change', e => {
     const f = e.target.files[0];
     if (!f) return;
     const reader = new FileReader();
@@ -3836,7 +3838,7 @@ async function iniciarSms() {
     reader.readAsBinaryString(f);
   });
 
-  // Drag-drop — zona puede ser null si el panel SMS no está en el DOM todavía
+  // Drag-drop
   const zona = document.getElementById('zona-sms-excel');
   if (zona) {
     zona.addEventListener('dragover', e => { e.preventDefault(); zona.classList.add('drag'); });
@@ -3845,10 +3847,10 @@ async function iniciarSms() {
       e.preventDefault(); zona.classList.remove('drag');
       const f = e.dataTransfer.files[0];
       if (!f) return;
-      const fileInput = document.getElementById('file-sms-excel');
-      if (!fileInput) return;
-      fileInput.files = e.dataTransfer.files;
-      fileInput.dispatchEvent(new Event('change'));
+      const fi = document.getElementById('file-sms-excel');
+      if (!fi) return;
+      fi.files = e.dataTransfer.files;
+      fi.dispatchEvent(new Event('change'));
     });
   }
 }
@@ -3858,17 +3860,16 @@ async function cargarConfigSmsDesdeServidor() {
   try {
     const r = await fetch(API_BASE + '/api/sms/config');
     const d = await r.json();
-    // Cachear el link para usarlo en previews (el campo sms-link fue eliminado del DOM)
-    smsLinkCache = d.link || d.smsLinkVal || '';
     const el = id => document.getElementById(id);
     if (el('sms-username'))  el('sms-username').value  = d.username  || '';
     if (el('sms-sender'))    el('sms-sender').value    = d.sender    || '';
     if (el('sms-plantilla')) el('sms-plantilla').value = d.plantilla || '';
     if (el('sms-delay-min')) el('sms-delay-min').value = d.delayMinSeg ?? 3;
     if (el('sms-delay-max')) el('sms-delay-max').value = d.delayMaxSeg ?? 8;
+    smsLinkCache = d.linkVal || '';
     const statusDot = el('sms-status-dot');
     const statusTxt = el('sms-status-txt');
-    if (statusDot && statusTxt && d.username && d.passwordSet) {
+    if (d.username && d.passwordSet && statusDot && statusTxt) {
       statusDot.style.background = 'rgba(15,123,85,.15)';
       statusDot.style.color = 'var(--verde)';
       statusTxt.textContent = 'Configurado';
@@ -3879,6 +3880,7 @@ async function cargarConfigSmsDesdeServidor() {
 
 function smsConfigDirty() {
   const btn = document.getElementById('sms-save-btn');
+  if (!btn) return;
   btn.style.opacity = '1';
   btn.style.pointerEvents = 'auto';
 }
@@ -3900,14 +3902,9 @@ async function guardarConfigSms() {
     toast('✅ Configuración SMS guardada');
     const btn = el('sms-save-btn');
     if (btn) { btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none'; }
-    if (el('sms-password')) el('sms-password').value = '';
-    const statusDot = el('sms-status-dot');
-    if (statusDot) {
-      statusDot.style.background = 'rgba(15,123,85,.15)';
-      statusDot.style.color = 'var(--verde)';
-    }
-    const statusTxt = el('sms-status-txt');
-    if (statusTxt) statusTxt.textContent = 'Configurado';
+    if (el('sms-password'))    el('sms-password').value = '';
+    if (el('sms-status-dot'))  { el('sms-status-dot').style.background = 'rgba(15,123,85,.15)'; el('sms-status-dot').style.color = 'var(--verde)'; }
+    if (el('sms-status-txt'))  el('sms-status-txt').textContent = 'Configurado';
   } catch(e) { toast('❌ Error: ' + e.message); }
 }
 
@@ -3942,75 +3939,35 @@ function setSmsEntrada(tipo, btn) {
 }
 
 // ── Procesar paste ──
+// ── Procesar paste ──
 function smsProcesarPaste() {
-  const pasteEl = document.getElementById('sms-paste-txt');
-  if (!pasteEl) return;
-  const txt = pasteEl.value;
-  const filas = txt.split('\n').filter(l => l.trim()).map(l => l.split(/\t|;/));
+  var el = document.getElementById('sms-paste-txt');
+  if (!el) return;
+  var txt = el.value.trim();
+  if (!txt) { toast('⚠️ No hay texto para procesar'); return; }
+  var filas = txt.split('\n').filter(function(l){ return l.trim(); }).map(function(l){ return l.split(/\t|;/); });
   smsProcesarFilas(filas);
-  pasteEl.value = '';
-}
-
-function smsProcesarFilas(filas) {
-  let nuevos = 0;
-  for (const fila of filas) {
-    if (!fila.length) continue;
-    // Intentar detectar columnas nombre/telefono/fecha
-    let nombre = '', tel = '', fecha = '';
-    for (const celda of fila) {
-      const s = String(celda || '').trim();
-      const nums = s.replace(/\D/g,'').replace(/^34/,'').slice(-9);
-      if (!tel && /^[6789]\d{8}$/.test(nums)) { tel = nums; }
-      else if (!fecha && smsDetectarFecha(s)) { fecha = smsDetectarFecha(s); }
-      else if (!nombre && s.length > 1 && isNaN(s.replace(/\s/g,''))) { nombre = s; }
-    }
-    if (!tel) continue;
-    // Dedup por tel
-    if (smsPacientes.some(p => p.tel === tel)) continue;
-    smsPacientes.push({ nombre: nombre || 'Paciente', tel, fecha });
-    nuevos++;
-  }
-  smsRenderLista();
-  if (nuevos) { toast(`✅ ${nuevos} paciente${nuevos!==1?'s':''} añadido${nuevos!==1?'s':''}`); smsFiltrarConServidor(); }
-  else toast('ℹ️ No se encontraron teléfonos nuevos');
-}
-
-// Detecta si una cadena es una fecha y la devuelve en formato legible (dd/mm/yyyy)
-function smsDetectarFecha(s) {
-  if (!s || s.length < 6) return '';
-  var m1 = s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})$/);
-  if (m1) {
-    var d = m1[1].padStart(2,'0'), mo = m1[2].padStart(2,'0'), y = m1[3].length===2 ? '20'+m1[3] : m1[3];
-    return d+'/'+mo+'/'+y;
-  }
-  var m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (m2) return m2[3]+'/'+m2[2]+'/'+m2[1];
-  var n = parseFloat(s);
-  if (!isNaN(n) && n > 30000 && n < 60000) {
-    var dt = new Date(Math.round((n - 25569) * 86400 * 1000));
-    if (!isNaN(dt)) return dt.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
-  }
-  return '';
+  el.value = '';
 }
 
 function smsAddManual() {
-  const elNombre = document.getElementById('sms-m-nombre');
-  const elTel    = document.getElementById('sms-m-tel');
-  const elFecha  = document.getElementById('sms-m-fecha');
-  if (!elNombre || !elTel) return; // panel no visible en el DOM
-  const nombre   = elNombre.value.trim();
-  const tel      = elTel.value.replace(/\D/g,'').replace(/^34/,'').slice(-9);
-  const fechaRaw = elFecha?.value || ''; // yyyy-mm-dd
-  const fecha    = fechaRaw ? (function(d){ return d[2]+'/'+d[1]+'/'+d[0]; })(fechaRaw.split('-')) : '';
+  var elNombre = document.getElementById('sms-m-nombre');
+  var elTel    = document.getElementById('sms-m-tel');
+  var elFecha  = document.getElementById('sms-m-fecha');
+  if (!elNombre || !elTel) return;
+  var nombre = elNombre.value.trim();
+  var tel    = elTel.value.replace(/\D/g,'').replace(/^34/,'').slice(-9);
+  var fechaRaw = elFecha ? elFecha.value : '';
+  var fecha  = fechaRaw ? (function(d){ return d[2]+'/'+d[1]+'/'+d[0]; })(fechaRaw.split('-')) : '';
   if (!nombre) { toast('⚠️ El nombre es obligatorio'); return; }
-  if (!/^[6789]\d{8}$/.test(tel)) { toast('⚠️ Teléfono inválido (9 dígitos)'); return; }
-  if (smsPacientes.some(p => p.tel === tel)) { toast('ℹ️ Ese teléfono ya está en la lista'); return; }
-  smsPacientes.push({ nombre, tel, fecha });
+  if (!/^[6789]\d{8}$/.test(tel)) { toast('⚠️ Teléfono inválido (9 dígitos, empieza por 6/7/8/9)'); return; }
+  if (smsPacientes.some(function(p){ return p.tel === tel; })) { toast('ℹ️ Ese teléfono ya está en la lista'); return; }
+  smsPacientes.push({ nombre: nombre, tel: tel, fecha: fecha });
   smsFiltrarConServidor();
   elNombre.value = '';
-  elTel.value    = '';
+  elTel.value = '';
   if (elFecha) elFecha.value = '';
-  toast(`\u2705 ${nombre} añadido`);
+  toast('✅ ' + nombre + ' añadido');
 }
 
 function smsEliminar(idx) {
@@ -4023,18 +3980,18 @@ function smsVaciarLista() {
   smsRenderLista();
 }
 
+// Cache del link SMS (se rellena al cargar config)
+let smsLinkCache = '';
+
 function smsRenderLista() {
   const plantilla = document.getElementById('sms-plantilla')?.value || 'Hola [nombre], ¿cómo fue tu visita? Valóranos: [link]';
-  // sms-link fue eliminado con la página SMS antigua — usar el link guardado en config
-  const link      = smsLinkCache || '...';
+  const link      = smsLinkCache || '(link pendiente de config)';
   const wrap    = document.getElementById('sms-leads-wrap');
   const tbody   = document.getElementById('sms-leads-tbody');
   const countEl = document.getElementById('sms-leads-count');
   const costeEl = document.getElementById('sms-coste-est');
   const envBtn  = document.getElementById('sms-enviar-btn');
   const totEl   = document.getElementById('sms-total-count');
-
-  // Guard: si el panel SMS no está en el DOM aún, salir sin crashear
   if (!wrap || !tbody || !countEl || !costeEl || !envBtn || !totEl) return;
 
   const n = smsPacientes.length;
@@ -4148,30 +4105,33 @@ async function cargarSmsLog() {
     const r = await fetch(API_BASE + '/api/sms/log');
     const d = await r.json();
     const el = id => document.getElementById(id);
-    // Guard: si el panel SMS no está en el DOM, salir sin crashear
-    const tbody = el('sms-log-tbody');
-    const empty = el('sms-log-empty');
-    if (!tbody || !empty) return;
     if (el('sms-stat-total')) el('sms-stat-total').textContent = d.total ?? '—';
     if (el('sms-stat-ok'))    el('sms-stat-ok').textContent   = d.ok    ?? '—';
     if (el('sms-stat-err'))   el('sms-stat-err').textContent  = d.err   ?? '—';
-    if (el('sms-log-badge'))  el('sms-log-badge').textContent = `${d.total ?? 0} SMS`;
+    if (el('sms-log-badge'))  el('sms-log-badge').textContent = (d.total ?? 0) + ' SMS';
 
-    if (!d.log?.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
-    empty.style.display = 'none';
+    const tbody = el('sms-log-tbody');
+    const empty = el('sms-log-empty');
+    if (!tbody) return;
+    if (!d.log?.length) {
+      tbody.innerHTML = '';
+      if (empty) empty.style.display = 'block';
+      return;
+    }
+    if (empty) empty.style.display = 'none';
 
     tbody.innerHTML = d.log.map(e => {
       const fecha = new Date(e.fecha);
       const fechaTxt = isNaN(fecha) ? '—' : fecha.toLocaleDateString('es-ES',{day:'numeric',month:'short'}) + ' ' + fecha.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
       const okClass = e.resultado === 'ok' ? 'var(--verde)' : 'var(--coral)';
       const ico = e.resultado === 'ok' ? '✅' : '❌';
-      return `<tr>
-        <td style="font-size:12px;white-space:nowrap">${fechaTxt}</td>
-        <td>${x(e.nombre || '—')}</td>
-        <td style="font-variant-numeric:tabular-nums">${e.tel || '—'}</td>
-        <td style="color:${okClass};font-weight:600;font-size:12px">${ico} ${e.resultado}</td>
-        <td style="font-size:11px;color:var(--gris-m);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${x(e.mensaje||'')}">${x((e.mensaje||'').substring(0,80))}</td>
-      </tr>`;
+      return '<tr>' +
+        '<td style="font-size:12px;white-space:nowrap">' + fechaTxt + '</td>' +
+        '<td>' + x(e.nombre || '—') + '</td>' +
+        '<td style="font-variant-numeric:tabular-nums">' + (e.tel || '—') + '</td>' +
+        '<td style="color:' + okClass + ';font-weight:600;font-size:12px">' + ico + ' ' + e.resultado + '</td>' +
+        '<td style="font-size:11px;color:var(--gris-m);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + x(e.mensaje||'') + '">' + x((e.mensaje||'').substring(0,80)) + '</td>' +
+        '</tr>';
     }).join('');
   } catch(e) { console.warn('SMS log:', e.message); }
 }
