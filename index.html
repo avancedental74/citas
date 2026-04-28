@@ -3467,7 +3467,22 @@ function descargarBackup(nombre) {
 
 async function exportarJSON() {
   if (!MODO_BAILEYS) { toast('⚠️ Servidor offline','err'); return; }
-  window.open(API_BASE + '/api/backup/export-json', '_blank');
+  try {
+    const r = await fetch(API_BASE + '/api/backup/export-json', {
+      headers: { 'x-api-token': API_TOKEN }
+    });
+    if (!r.ok) { toast('❌ Error al exportar: ' + r.status, 'err'); return; }
+    const blob = await r.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'backup-avance-dental-' + new Date().toISOString().split('T')[0] + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('✅ Backup descargado', 'ok');
+  } catch(e) { toast('❌ ' + e.message, 'err'); }
 }
 
 async function restaurarBackupServidor(nombre) {

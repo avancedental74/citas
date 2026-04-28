@@ -1674,7 +1674,8 @@ function datosParaBackup() {
   const cfg       = fs.existsSync(CONFIG_FILE)    ? fs.readFileSync(CONFIG_FILE,    'utf8') : '{}';
   const leads     = fs.existsSync(LEADS_FILE)     ? fs.readFileSync(LEADS_FILE,     'utf8') : '{"cita":[],"val":[]}';
   const yaEnviado = fs.existsSync(YAENVIADO_FILE) ? fs.readFileSync(YAENVIADO_FILE, 'utf8') : '{}';
-  return { datos, cola, config: cfg, leads, yaEnviado };
+  const smsLog    = fs.existsSync(SMS_LOG_FILE)   ? fs.readFileSync(SMS_LOG_FILE,   'utf8') : '[]';
+  return { datos, cola, config: cfg, leads, yaEnviado, smsLog };
 }
 
 async function crearZipBackup(nombre) {
@@ -1715,6 +1716,7 @@ function restaurarDesdeJSON(jsonStr) {
     if (obj.config)     fs.writeFileSync(CONFIG_FILE,    JSON.stringify(JSON.parse(obj.config),     null, 2));
     if (obj.leads)      fs.writeFileSync(LEADS_FILE,     JSON.stringify(JSON.parse(obj.leads),      null, 2));
     if (obj.yaEnviado)  fs.writeFileSync(YAENVIADO_FILE, JSON.stringify(JSON.parse(obj.yaEnviado),  null, 2));
+    if (obj.smsLog)     fs.writeFileSync(SMS_LOG_FILE,   JSON.stringify(JSON.parse(obj.smsLog),     null, 2));
   } else if (obj.enviados || obj.listaNegra) {
     fs.writeFileSync(DATA_FILE, JSON.stringify(obj, null, 2));
   } else {
